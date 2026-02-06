@@ -1,0 +1,36 @@
+import 'package:face_time_keeping/data/models/logging_model.dart';
+
+bool showLogout = false;
+
+class LogoutEvent {
+  String? message;
+
+  LogoutEvent({
+    this.message,
+  });
+}
+
+class NetworkStatusChangeEvent {
+  NetworkStatusChangeEvent({this.status = true});
+  final bool status;
+}
+
+class LoggingEvent {
+  LoggingEvent({required this.apiInfo});
+  final ApiInfo apiInfo;
+}
+
+class SyncDataEvent {}
+
+class SyncEmployeeEvent {
+  SyncEmployeeEvent({
+    required this.status,
+    this.success,
+    this.message,
+  });
+
+  final String status; // 'in_progress', 'success', 'failed'
+  final bool? success;
+  final String? message;
+}
+

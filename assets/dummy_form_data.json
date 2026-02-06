@@ -1,0 +1,264 @@
+{
+  "forms": [
+    {
+      "functionId": "function_1",
+      "title": "Thông tin nhân viên",
+      "items": [
+        {
+          "label": "Mã nhân viên",
+          "name": "employee_id",
+          "value": "EMP001",
+          "dataType": "inputText",
+          "description": "Mã định danh duy nhất của nhân viên"
+        },
+        {
+          "label": "Họ và tên",
+          "name": "full_name",
+          "value": "Nguyễn Văn A",
+          "dataType": "inputText",
+          "description": "Họ tên đầy đủ của nhân viên"
+        },
+        {
+          "label": "Ngày sinh",
+          "name": "birth_date",
+          "value": "15/08/1990",
+          "dataType": "inputDDMMYYYY",
+          "description": "Ngày sinh của nhân viên"
+        },
+        {
+          "label": "Giới tính",
+          "name": "gender",
+          "value": "{Nam,Nữ,Khác}",
+          "dataType": "radioButton",
+          "description": "Giới tính của nhân viên"
+        },
+        {
+          "label": "Số điện thoại",
+          "name": "phone",
+          "value": "0901234567",
+          "dataType": "inputText",
+          "description": "Số điện thoại liên lạc"
+        },
+        {
+          "label": "Email",
+          "name": "email",
+          "value": "nguyenvana@company.com",
+          "dataType": "inputText",
+          "description": "Địa chỉ email công ty"
+        },
+        {
+          "label": "Lương cơ bản",
+          "name": "base_salary",
+          "value": "15000000",
+          "dataType": "inputNumber",
+          "description": "Mức lương cơ bản hàng tháng"
+        },
+        {
+          "label": "Kỹ năng",
+          "name": "skills",
+          "value": "{Flutter,React,Node.js,Python,Java}",
+          "dataType": "checkBox",
+          "description": "Các kỹ năng chuyên môn"
+        },
+        {
+          "label": "Ghi chú",
+          "name": "notes",
+          "value": "",
+          "dataType": "inputLongText",
+          "description": "Thông tin bổ sung về nhân viên"
+        },
+        {
+          "label": "Ảnh đại diện",
+          "name": "avatar",
+          "value": "",
+          "dataType": "camera",
+          "description": "Ảnh chân dung của nhân viên"
+        },
+        {
+          "label": "",
+          "name": "submit",
+          "value": "Lưu thông tin",
+          "dataType": "submit",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "functionId": "function_2", 
+      "title": "Thời gian làm việc",
+      "items": [
+        {
+          "label": "Ngày làm việc",
+          "name": "work_days",
+          "value": "Thứ 2 đến thứ 6 hàng tuần",
+          "dataType": "text",
+          "description": "Ngày làm việc"
+        },
+        {
+          "label": "Giờ bắt đầu",
+          "name": "start_time",
+          "value": "08:30",
+          "dataType": "text",
+          "description": "Giờ bắt đầu làm"
+        },
+        {
+          "label": "Giờ kết thúc",
+          "name": "end_time",
+          "value": "12:00",
+          "dataType": "text",
+          "description": "Giờ kết thúc làm"
+        },
+        {
+          "label": "Thời gian nghỉ trưa",
+          "name": "break_time",
+          "value": "1 giờ",
+          "dataType": "text",
+          "description": "Thời gian nghỉ trưa"
+        },
+        {
+          "label": "Ca làm",
+          "name": "shift",
+          "value": "{Ca sáng,Ca chiều,Ca tối}",
+          "dataType": "radioButton",
+          "description": "Ca làm"
+        },
+        {
+          "label": "Ghi chú",
+          "name": "notes",
+          "value": "",
+          "dataType": "inputLongText",
+          "description": "Ghi chú"
+        },
+        {
+          "label": "",
+          "name": "submit",
+          "value": "Lưu thông tin",
+          "dataType": "submit",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "functionId": "function_3",
+      "title": "Công việc",
+      "items": [
+        {
+          "label": "Check In",
+          "name": "checkin",
+          "value": "Check In",
+          "dataType": "button",
+          "description": "Check In"
+        },
+        {
+          "label": "Check Out",
+          "name": "checkout", 
+          "value": "Check Out",
+          "dataType": "button",
+          "description": "Check Out"
+        },
+        {
+          "label": "Bảng chấm công",
+          "name": "calendar",
+          "value": "Bảng chấm công",
+          "dataType": "calendar",
+          "description": "Calendar chấm công"
+        },
+        {
+          "label": "Nghỉ Phép",
+          "name": "vacation_card",
+          "value": "Nghỉ Phép",
+          "dataType": "button",
+          "description": "Card nghỉ phép"
+        },
+        {
+          "label": "Kết quả công việc ",
+          "name": "daily_work_result_card",
+          "value": "Kết quả công việc ",
+          "dataType": "button",
+          "description": "Card kết quả công việc"
+        }
+      ]
+    },
+    {
+      "functionId": "function_4",
+      "title": "Báo cáo",
+      "items": [
+        {
+          "name": "Báo cáo",
+          "value": [
+              ["Tên nhân viên","Mã nhân viên", "Ngày", "Giờ vào", "Giờ ra", "Ca làm", "Ảnh chấm công"],
+              ["Nguyễn Văn A", "EMP001", "20/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp008.jpg"],
+              ["Nguyễn Văn A", "EMP001", "20/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp008.jpg"],                
+              ["Nguyễn Văn B", "EMP002", "20/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp009.jpeg"],
+              ["Nguyễn Văn B", "EMP002", "20/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp009.jpeg"],
+              ["Nguyễn Văn C", "EMP003", "20/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp010.webp"],
+              ["Nguyễn Văn C", "EMP003", "20/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp010.webp"],
+              ["Nguyễn Văn D", "EMP004", "20/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp011.jpg"],
+              ["Nguyễn Văn D", "EMP004", "20/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp011.jpg"],
+              ["Nguyễn Văn E", "EMP005", "20/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp012.webp"],
+              ["Nguyễn Văn E", "EMP005", "20/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp012.webp"],
+              ["Nguyễn Văn F", "EMP001", "21/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp013.jpeg"],
+              ["Nguyễn Văn F", "EMP001", "21/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp013.jpeg"],
+              ["Nguyễn Văn G", "EMP002", "21/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp008.jpg"],
+              ["Nguyễn Văn G", "EMP002", "21/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp008.jpg"],
+              ["Nguyễn Văn H", "EMP003", "21/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp009.jpeg"],
+              ["Nguyễn Văn H", "EMP003", "21/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp009.jpeg"],
+              ["Nguyễn Văn I", "EMP004", "21/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp010.webp"],
+              ["Nguyễn Văn I", "EMP004", "21/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp010.webp"],
+              ["Nguyễn Văn J", "EMP005", "21/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp011.jpg"],
+              ["Nguyễn Văn J", "EMP005", "21/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp011.jpg"],
+              ["Nguyễn Văn K", "EMP001", "22/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp012.webp"],
+              ["Nguyễn Văn K", "EMP001", "22/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp012.webp"],
+              ["Nguyễn Văn L", "EMP002", "22/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp008.jpg"],
+              ["Nguyễn Văn L", "EMP002", "22/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp008.jpg"],
+              ["Nguyễn Văn M", "EMP003", "22/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp009.jpeg"],
+              ["Nguyễn Văn M", "EMP003", "22/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp009.jpeg"],
+              ["Nguyễn Văn N", "EMP004", "22/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp010.webp"],
+              ["Nguyễn Văn N", "EMP004", "22/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp010.webp"],
+              ["Nguyễn Văn O", "EMP005", "22/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp011.jpg"],
+              ["Nguyễn Văn O", "EMP005", "22/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp011.jpg"],
+              ["Nguyễn Văn P", "EMP001", "23/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp012.webp"],
+              ["Nguyễn Văn P", "EMP001", "23/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp012.webp"],
+              ["Nguyễn Văn Q", "EMP002", "23/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp008.jpg"],
+              ["Nguyễn Văn Q", "EMP002", "23/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp008.jpg"],
+              ["Nguyễn Văn R", "EMP003", "23/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp009.jpeg"],
+              ["Nguyễn Văn R", "EMP003", "23/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp009.jpeg"],
+              ["Nguyễn Văn S", "EMP004", "23/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp010.webp"],
+              ["Nguyễn Văn S", "EMP004", "23/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp010.webp"],
+              ["Nguyễn Văn T", "EMP005", "23/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp011.jpg"],
+              ["Nguyễn Văn T", "EMP005", "23/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp011.jpg"],
+              ["Nguyễn Văn U", "EMP001", "24/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp012.webp"],
+              ["Nguyễn Văn U", "EMP001", "24/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp012.webp"],
+              ["Nguyễn Văn V", "EMP002", "24/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp008.jpg"],
+              ["Nguyễn Văn V", "EMP002", "24/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp008.jpg"],
+              ["Nguyễn Văn W", "EMP003", "24/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp009.jpeg"],
+              ["Nguyễn Văn W", "EMP003", "24/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp009.jpeg"],
+              ["Nguyễn Văn X", "EMP004", "24/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp010.webp"],
+              ["Nguyễn Văn X", "EMP004", "24/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp010.webp"],
+              ["Nguyễn Văn Y", "EMP005", "24/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp011.jpg"],
+              ["Nguyễn Văn Y", "EMP005", "24/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp011.jpg"],
+              ["Nguyễn Văn Z", "EMP001", "25/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp012.webp"],
+              ["Nguyễn Văn Z", "EMP001", "25/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp012.webp"],
+              ["Nguyễn Văn A1", "EMP002", "25/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp008.jpg"],
+              ["Nguyễn Văn A1", "EMP002", "25/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp008.jpg"],
+              ["Nguyễn Văn A2", "EMP003", "25/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp009.jpeg"],
+              ["Nguyễn Văn A2", "EMP003", "25/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp009.jpeg"],
+              ["Nguyễn Văn A3", "EMP004", "25/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp010.webp"],
+              ["Nguyễn Văn A3", "EMP004", "25/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp010.webp"],
+              ["Nguyễn Văn A4", "EMP005", "25/01/2025", "08:00", "12:00", "Ca sáng", "owens-cube/assets/images/timekeeping photo/emp011.jpg"],
+              ["Nguyễn Văn A4", "EMP005", "25/01/2025", "13:00", "17:30", "Ca chiều", "owens-cube/assets/images/timekeeping photo/emp011.jpg"]
+          ],
+          "dataType": "table",
+          "description": "Báo cáo chấm công"
+        },
+        {
+          "label": "",
+          "name": "submit",
+          "value": "Tạo báo cáo",
+          "dataType": "submit",
+          "description": ""
+        }
+      ]
+    }
+  ]
+}

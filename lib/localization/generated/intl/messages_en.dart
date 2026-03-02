@@ -45,7 +45,7 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("The email is required"),
         "emailNotExists":
             MessageLookupByLibrary.simpleMessage("Email Does Not Exist"),
-        "employee": MessageLookupByLibrary.simpleMessage("Nhân viên"),
+        "employee": MessageLookupByLibrary.simpleMessage("Học sinh"),
         "enter": MessageLookupByLibrary.simpleMessage("Nhập"),
         "enterEmailAddress":
             MessageLookupByLibrary.simpleMessage("Enter email address"),
@@ -93,7 +93,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "retry": MessageLookupByLibrary.simpleMessage("Thử lại"),
         "rfidConnection": MessageLookupByLibrary.simpleMessage("KẾT NỐI RFID"),
         "rfidInfo": MessageLookupByLibrary.simpleMessage(
-            "RFID là mã duy nhất được liên kết với nhân viên."),
+            "RFID là mã duy nhất được liên kết với học sinh."),
         "scaleConnection": MessageLookupByLibrary.simpleMessage("KẾT NỐI CÂN"),
         "scaleSuccess": MessageLookupByLibrary.simpleMessage(
             "[✔] Nhập dữ liệu thành công!"),

@@ -9,7 +9,7 @@ import 'package:injectable/injectable.dart';
 class CsvUtil {
   Future<File> exportCheckInOutToCsv(List<CheckInOut> entries) async {
     List<List<dynamic>> csvData = [
-      ["Mã nhân sự", "Tên nhân sự", "Thời gian", "Hành động"],
+      ["Mã học sinh", "Tên học sinh", "Thời gian", "Hành động"],
       ...entries.map((e) => [
             e.pin,
             e.name,
@@ -32,7 +32,7 @@ class CsvUtil {
       Sheet sheet = excel[sheetName];
 
       // Use the same header and data format as CSV export
-      final headers = ["Mã nhân sự", "Tên nhân sự", "Thời gian", "Hành động"];
+      final headers = ["Mã học sinh", "Tên học sinh", "Thời gian", "Hành động"];
       sheet.appendRow(headers);
 
       for (final e in entries) {

@@ -2,7 +2,7 @@ class DeviceInfo {
   final String model;
   final String device_type;
   final String os_version;
-  
+
   const DeviceInfo({
     required this.model,
     required this.device_type,
@@ -16,7 +16,7 @@ class DeviceInfo {
       os_version: json['os_version'] ?? '',
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'model': model,
@@ -30,7 +30,7 @@ class LoggingApiResponse {
   final int? status_code;
   final String message;
   final int? error_code;
-  
+
   const LoggingApiResponse({
     this.status_code,
     required this.message,
@@ -44,7 +44,7 @@ class LoggingApiResponse {
       error_code: json['error_code'] ?? 0,
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'status_code': status_code,
@@ -55,12 +55,9 @@ class LoggingApiResponse {
 }
 
 class ApiInfo {
-
   final LoggingApiResponse response;
-  
+
   const ApiInfo({
-
-
     required this.response,
   });
 
@@ -69,7 +66,7 @@ class ApiInfo {
       response: LoggingApiResponse.fromJson(json['response'] ?? {}),
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'response': response.toJson(),
@@ -85,10 +82,10 @@ class LoggingModel {
   final int user_id;
   final String timestamp_local;
   final String timestamp_utc;
-  
+
   const LoggingModel({
-    this.app_name="Chấm Công",
-    this.log_level="ERROR",
+    this.app_name = "Vedura",
+    this.log_level = "ERROR",
     required this.device_info,
     required this.api_info,
     required this.user_id,
@@ -107,7 +104,7 @@ class LoggingModel {
       timestamp_utc: json['timestamp_utc'] ?? '',
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'app_name': app_name,

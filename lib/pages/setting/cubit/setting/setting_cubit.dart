@@ -124,7 +124,7 @@ class SettingCubit extends Cubit<SettingState> {
         // Fetch all employees from server and update local DB
         final serverType = await _localService.getServerType();
         final serverName = serverType?.label ?? 'Server';
-        
+
         final employeesResult = await _userService.getEmployees();
         if (employeesResult.isSuccess && employeesResult.data != null) {
           await _localService.syncEmployeesFromServer(
@@ -133,12 +133,12 @@ class SettingCubit extends Cubit<SettingState> {
           );
         }
 
-        return const DataSuccess<String>('Đồng bộ nhân viên thành công');
+        return const DataSuccess<String>('Đồng bộ học sinh thành công');
       } else {
-        return DataFailed<String>(result.error ?? 'Đồng bộ nhân viên thất bại');
+        return DataFailed<String>(result.error ?? 'Đồng bộ học sinh thất bại');
       }
     } catch (e) {
-      return DataFailed<String>('Lỗi đồng bộ nhân viên: $e');
+      return DataFailed<String>('Lỗi đồng bộ học sinh: $e');
     }
   }
 }

@@ -32,7 +32,11 @@ class RegisterFaceBloc extends Cubit<RegisterFaceState> {
         if (isRegistered) {
           oldImageIds = await _faceNative.getImageIdsByEmpId(employee.id);
         }
-        emit(state.copyWith(isRegistered: isRegistered, oldImageIds: oldImageIds));
+        // Chỉ thực sự đã đăng ký khi có ảnh trong native engine.
+        // Hive lưu Person cho tất cả nhân viên được sync từ server,
+        // nên không thể dùng isRegistered (Hive) một mình để kết luận.
+        final actuallyRegistered = isRegistered && oldImageIds.isNotEmpty;
+        emit(state.copyWith(isRegistered: actuallyRegistered, oldImageIds: oldImageIds));
       }
     } catch (e) {
       await pushLog('Error in init: $e');

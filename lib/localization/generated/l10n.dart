@@ -533,7 +533,7 @@ class S {
   /// `Nhân viên`
   String get employee {
     return Intl.message(
-      'Nhân viên',
+      'Học sinh',
       name: 'employee',
       desc: '',
       args: [],
@@ -623,7 +623,7 @@ class S {
   /// `RFID là mã duy nhất được liên kết với nhân viên.`
   String get rfidInfo {
     return Intl.message(
-      'RFID là mã duy nhất được liên kết với nhân viên.',
+      'RFID là mã duy nhất được liên kết với học sinh.',
       name: 'rfidInfo',
       desc: '',
       args: [],

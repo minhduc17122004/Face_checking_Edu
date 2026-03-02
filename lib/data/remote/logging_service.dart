@@ -25,7 +25,7 @@ class LoggingServiceImplement extends LoggingService {
       final androidInfo = await deviceInfo.androidInfo;
       final userId = await _localService.getUserId();
       final loggingModel = LoggingModel(
-        app_name: "Chấm Công",
+        app_name: "Điểm Danh",
         log_level: "ERROR",
         device_info: DeviceInfo(
           model: androidInfo.model,

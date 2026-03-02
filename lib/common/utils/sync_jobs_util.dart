@@ -106,7 +106,7 @@ void callbackDispatcher() {
             sendPort.send({
               'type': sendPortSyncEmployeeType,
               'status': 'in_progress',
-              'message': 'Đang đồng bộ nhân viên...',
+              'message': 'Đang đồng bộ học sinh...',
             });
           }
 
@@ -146,7 +146,7 @@ void callbackDispatcher() {
             sendPort.send({
               'type': sendPortSyncEmployeeType,
               'status': 'in_progress',
-              'message': 'Đang đồng bộ nhân viên...',
+              'message': 'Đang đồng bộ học sinh...',
             });
           }
 

@@ -7,13 +7,14 @@ import '../../../common/resources/index.dart';
 class CheckInWidget extends StatelessWidget {
   final CheckIn? checkInData;
 
-
   const CheckInWidget({Key? key, this.checkInData}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    String formattedTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(checkInData?.time ?? DateTime.now());
-    bool isLate = checkInData?.minutesLate != null && checkInData!.minutesLate! > 0;
+    String formattedTime = DateFormat('yyyy-MM-dd HH:mm:ss')
+        .format(checkInData?.time ?? DateTime.now());
+    bool isLate =
+        checkInData?.minutesLate != null && checkInData!.minutesLate! > 0;
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12.0),
@@ -25,7 +26,6 @@ class CheckInWidget extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            
             const SizedBox(width: 12),
             // Check-in details
             Expanded(
@@ -58,7 +58,9 @@ class CheckInWidget extends StatelessWidget {
                       const SizedBox(width: 5),
                       Expanded(
                         child: Text(
-                          isLate ? 'Đến muộn ${checkInData!.minutesLate!} phút' : 'Đúng giờ',
+                          isLate
+                              ? 'Đến muộn ${checkInData!.minutesLate!} phút'
+                              : 'Đúng giờ',
                           style: TextStyles.blackSmallRegular.copyWith(
                             color: isLate ? Colors.red : Colors.green,
                             fontWeight: FontWeight.w500,

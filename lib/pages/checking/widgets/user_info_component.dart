@@ -20,7 +20,7 @@ class UserInfoComponent extends StatelessWidget {
           UserInfoField(label: 'Tên', value: employee?.name ?? '-'),
           UserInfoField(label: 'PIN', value: employee?.pin ?? '-'),
           if (employee?.jobTitle != null && employee!.jobTitle is String)
-            UserInfoField(label: 'Chức vụ', value: employee!.jobTitle as String),
+            UserInfoField(label: 'Lớp', value: employee!.jobTitle as String),
         ],
       ),
     );

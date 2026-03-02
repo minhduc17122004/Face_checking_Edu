@@ -48,7 +48,7 @@ class _BootstrapPageState extends State<BootstrapPage> {
                     children: [
                       Text(
                         textAlign: TextAlign.center,
-                        'Điểm Danh Học Sinh',
+                        'Vedura',
                         style: TextStyles.blackBigBold.copyWith(fontSize: 50),
                       ),
                       const Spacing(),

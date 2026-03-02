@@ -318,7 +318,7 @@ class UserServiceImplement implements UserService {
       if (unsyncedEmployees.isEmpty) {
         // No local employees to sync, just pull from server
         await _syncServerToLocalEmployees();
-        return const DataSuccess<String>('Đồng bộ nhân viên thành công');
+        return const DataSuccess<String>('Đồng bộ học sinh thành công');
       }
 
       final unsyncEmpsWithoutAvatar = unsyncedEmployees
@@ -337,10 +337,10 @@ class UserServiceImplement implements UserService {
 
       // Fetch all employees from server and update local DB
       await _syncServerToLocalEmployees();
-      return const DataSuccess<String>('Đồng bộ nhân viên thành công');
+      return const DataSuccess<String>('Đồng bộ học sinh thành công');
     } catch (e) {
       await pushLog('Error in syncEmployeeData: $e');
-      return DataFailed<String>('Lỗi đồng bộ nhân viên: $e');
+      return DataFailed<String>('Lỗi đồng bộ học sinh: $e');
     }
   }
 

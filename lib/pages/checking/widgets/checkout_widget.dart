@@ -47,7 +47,7 @@ class CheckOutWidget extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${checkOut?.name } đã điểm danh ra',
+                        '${checkOut?.name} đã điểm danh ra',
                         style: TextStyles.blackSmallRegular.copyWith(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,

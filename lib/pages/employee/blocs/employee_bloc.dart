@@ -23,7 +23,8 @@ import 'employee_state.dart';
 
 @Injectable()
 class EmployeeBloc extends Cubit<EmployeeState> with EventBusMixin {
-  EmployeeBloc(this._userRepository, this._hiveService) : super(const EmployeeState()) {
+  EmployeeBloc(this._userRepository, this._hiveService)
+      : super(const EmployeeState()) {
     registerEventSubscriptions();
   }
 
@@ -41,8 +42,10 @@ class EmployeeBloc extends Cubit<EmployeeState> with EventBusMixin {
   }
 
   void registerEventSubscriptions() {
-    final e1 = listenEvent<DidChangeEmployeeEvent>((e) => _didUpdateEmp(e.employee));
-    final e2 = listenEvent<SyncEmployeeEvent>((e) => _onSyncEmployeeComplete(e));
+    final e1 =
+        listenEvent<DidChangeEmployeeEvent>((e) => _didUpdateEmp(e.employee));
+    final e2 =
+        listenEvent<SyncEmployeeEvent>((e) => _onSyncEmployeeComplete(e));
     _eventSubscriptions.addAll([e1, e2]);
   }
 
@@ -64,13 +67,15 @@ class EmployeeBloc extends Cubit<EmployeeState> with EventBusMixin {
   Future<void> fetchServerEmployees() async {
     try {
       emit(state.copyWith(serverStatus: DataSourceStatus.refreshing));
-      final DataState<List<Employee>> result = await _userRepository.getEmployees();
+      final DataState<List<Employee>> result =
+          await _userRepository.getEmployees();
       if (result.isSuccess) {
         _savedServerEmployees = result.data ?? [];
         emit(state.copyWith(
             employeesFromServer: result.data,
-            serverStatus:
-                (result.data ?? []).isEmpty ? DataSourceStatus.empty : DataSourceStatus.success));
+            serverStatus: (result.data ?? []).isEmpty
+                ? DataSourceStatus.empty
+                : DataSourceStatus.success));
       } else {
         emit(state.copyWith(serverStatus: DataSourceStatus.failed));
       }
@@ -120,7 +125,9 @@ class EmployeeBloc extends Cubit<EmployeeState> with EventBusMixin {
       _savedEmployees = employees;
       emit(state.copyWith(
           employees: employees,
-          status: employees.isEmpty ? DataSourceStatus.empty : DataSourceStatus.success));
+          status: employees.isEmpty
+              ? DataSourceStatus.empty
+              : DataSourceStatus.success));
     } catch (e) {
       await pushLog('Error in fetchEmployees: $e');
       emit(state.copyWith(status: DataSourceStatus.failed));
@@ -141,20 +148,23 @@ class EmployeeBloc extends Cubit<EmployeeState> with EventBusMixin {
 
     if (isServerTab) {
       final results = List<Employee>.from(_savedServerEmployees)
-          .where((element) =>
-              element.name.removeVietnameseDiacritics().contains(text.removeVietnameseDiacritics()))
+          .where((element) => element.name
+              .removeVietnameseDiacritics()
+              .contains(text.removeVietnameseDiacritics()))
           .toList();
       emit(state.copyWith(employeesFromServer: results));
     } else {
       final results = List<Employee>.from(_savedEmployees)
-          .where((element) =>
-              element.name.removeVietnameseDiacritics().contains(text.removeVietnameseDiacritics()))
+          .where((element) => element.name
+              .removeVietnameseDiacritics()
+              .contains(text.removeVietnameseDiacritics()))
           .toList();
       emit(state.copyWith(employees: results));
     }
   }
 
-  Future<bool> onRegisterEmployee(RegisterEmployee registerEmployee, bool hasServerConfig) async {
+  Future<bool> onRegisterEmployee(
+      RegisterEmployee registerEmployee, bool hasServerConfig) async {
     if (hasServerConfig) {
       return (await onRegisterEmployeeToServer(registerEmployee));
     } else {
@@ -162,8 +172,10 @@ class EmployeeBloc extends Cubit<EmployeeState> with EventBusMixin {
     }
   }
 
-  Future<bool> onRegisterEmployeeToServer(RegisterEmployee registerEmployee) async {
-    final DataState<Employee> result = await _userRepository.registerEmployee(registerEmployee);
+  Future<bool> onRegisterEmployeeToServer(
+      RegisterEmployee registerEmployee) async {
+    final DataState<Employee> result =
+        await _userRepository.registerEmployee(registerEmployee);
     if (result.isSuccess) {
       final List<Employee> newValues = List.from(state.employees ?? []);
       newValues.add(result.data!);
@@ -175,17 +187,22 @@ class EmployeeBloc extends Cubit<EmployeeState> with EventBusMixin {
         avatar: result.data?.avatar,
       );
       await onRegisterEmployeeLocal(registerEmployee);
-      emit(state.copyWith(employeesFromServer: newValues, serverStatus: DataSourceStatus.success));
+      emit(state.copyWith(
+          employeesFromServer: newValues,
+          serverStatus: DataSourceStatus.success));
       return true;
     } else {
       emit(state.copyWith(
-          serverStatus: DataSourceStatus.failed, error: result.error, employees: state.employees));
+          serverStatus: DataSourceStatus.failed,
+          error: result.error,
+          employees: state.employees));
     }
     return false;
   }
 
   // Updated to save to local database
-  Future<bool> onRegisterEmployeeLocal(RegisterEmployee registerEmployee) async {
+  Future<bool> onRegisterEmployeeLocal(
+      RegisterEmployee registerEmployee) async {
     try {
       // Check for duplicate PIN
       final pin = registerEmployee.pin.trim();
@@ -207,7 +224,8 @@ class EmployeeBloc extends Cubit<EmployeeState> with EventBusMixin {
 
       await _hiveService.savePerson(Person(
         employeeId: registerEmployee.employeeId ??
-            DateTime.now().millisecondsSinceEpoch ~/ 1000, // Generate a unique ID
+            DateTime.now().millisecondsSinceEpoch ~/
+                1000, // Generate a unique ID
         pin: registerEmployee.pin,
         name: registerEmployee.employeeName,
         jobTitle: registerEmployee.jobPosition,
@@ -220,7 +238,7 @@ class EmployeeBloc extends Cubit<EmployeeState> with EventBusMixin {
       await pushLog('Error in onRegisterEmployee: $e');
       emit(state.copyWith(
           status: DataSourceStatus.failed,
-          error: 'Lỗi khi đăng ký nhân viên: $e',
+          error: 'Lỗi khi đăng ký học sinh: $e',
           employees: state.employees));
     }
     return false;
@@ -238,7 +256,7 @@ class EmployeeBloc extends Cubit<EmployeeState> with EventBusMixin {
       await pushLog('Error in onRemoveEmployee: $e');
       emit(state.copyWith(
           status: DataSourceStatus.failed,
-          error: 'Lỗi khi xóa nhân viên: $e',
+          error: 'Lỗi khi xóa học sinh: $e',
           employees: state.employees));
       return false;
     }
@@ -249,12 +267,14 @@ class EmployeeBloc extends Cubit<EmployeeState> with EventBusMixin {
     return _faceNative.removeImages(employeeId);
   }
 
-  Future<void> onUpdatEmployeeInList(Employee employee, {bool isUpdatePin = false}) async {
+  Future<void> onUpdatEmployeeInList(Employee employee,
+      {bool isUpdatePin = false}) async {
     // Check for duplicate PIN when updating (exclude current employee)
     final pin = employee.pin?.trim() ?? '';
     if (pin.isNotEmpty) {
       final existingEmployees = await _hiveService.getAllPersons();
-      final duplicatePin = existingEmployees.any((person) => person.pin?.trim() == pin);
+      final duplicatePin =
+          existingEmployees.any((person) => person.pin?.trim() == pin);
 
       if (duplicatePin && isUpdatePin) {
         emit(state.copyWith(
@@ -272,7 +292,8 @@ class EmployeeBloc extends Cubit<EmployeeState> with EventBusMixin {
     final index = newValues.indexWhere((element) => element.id == employee.id);
     if (index >= 0) {
       newValues[index] = employee;
-      emit(state.copyWith(employees: newValues, status: DataSourceStatus.success));
+      emit(state.copyWith(
+          employees: newValues, status: DataSourceStatus.success));
     }
   }
 }

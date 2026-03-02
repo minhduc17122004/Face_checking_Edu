@@ -173,7 +173,7 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(width: 12),
                     const Expanded(
                       child: Text(
-                        'Đồng bộ dữ liệu nhân viên',
+                        'Đồng bộ dữ liệu học sinh',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -187,7 +187,7 @@ class _LoginPageState extends State<LoginPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Có dữ liệu nhân viên chưa được đồng bộ lên server.',
+                      'Có dữ liệu học sinh chưa được đồng bộ lên server.',
                       style: TextStyle(fontSize: 15),
                     ),
                     const SizedBox(height: 12),

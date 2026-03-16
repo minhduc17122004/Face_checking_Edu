@@ -29,4 +29,8 @@ class AppColors {
   static const yellow = Color.fromRGBO(253, 217, 0, 1);
 
   static const dividerColor = Color.fromRGBO(209, 209, 209, 1);
+
+  // Vedura login design colors
+  static const primary = Color(0xFF1E3B8A);
+  static const backgroundLight = Color(0xFFF6F6F8);
 }

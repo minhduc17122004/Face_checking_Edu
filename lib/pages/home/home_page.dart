@@ -1,5 +1,3 @@
-import 'dart:ffi';
-
 import 'package:face_time_keeping/common/utils/log_util.dart';
 import 'package:face_time_keeping/common/utils/sync_jobs_util.dart';
 import 'package:face_time_keeping/data/remote/user_service.dart';
@@ -30,6 +28,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late final LocalService _localService;
   bool _showPinVerification = false;
+  int _selectedNavIndex = 0;
 
   @override
   void initState() {
@@ -41,7 +40,6 @@ class _HomePageState extends State<HomePage> {
   Future<void> _onPinVerified() async {
     await Navigator.push(
         context, MaterialPageRoute(builder: (context) => const SettingPage()));
-
     setState(() {
       _showPinVerification = false;
     });
@@ -62,216 +60,492 @@ class _HomePageState extends State<HomePage> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leadingWidth: 85,
-        leading: IconButton(
-          onPressed: () async {
-            // check if pinApp !=null then open a dialog to input pin
-            final String? pinApp = await _localService.getPinApp();
-            if (pinApp != null) {
-              setState(() {
-                _showPinVerification = true;
-              });
-              return;
-            } else {
-              await Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => const SettingPage()));
-            }
-          },
-          icon: const Icon(Icons.menu, size: 50, color: Colors.black54),
+      backgroundColor: const Color(0xFFF6F6F8),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 8),
+                    _buildCheckInCard(),
+                    const SizedBox(height: 24),
+                    _buildQuickAccess(),
+                    const SizedBox(height: 24),
+                    _buildRecentActivity(),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              children: [
-                // Welcome Header with School Theme
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFF42A5F5),
-                        Color(0xFF1E88E5),
-                      ],
+      bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  // ── Header ──────────────────────────────────────────────
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Menu button
+          GestureDetector(
+            onTap: () async {
+              final String? pinApp = await _localService.getPinApp();
+              if (pinApp != null) {
+                setState(() => _showPinVerification = true);
+              } else {
+                await Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const SettingPage()));
+              }
+            },
+            child: const Icon(Icons.menu, size: 28, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(width: 12),
+          // Avatar
+          Stack(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                      color: const Color(0xFF1e3b8a).withOpacity(0.2),
+                      width: 2),
+                  image: const DecorationImage(
+                    image: NetworkImage(
+                      'https://lh3.googleusercontent.com/aida-public/AB6AXuAszK3UNeXtqQiZl5vOJHSZhDDMAIKzpe68uWFgCfUjFAMWVE1RtPluFqogf7QdjbE9GYE6PEeZqNyCdj0o0dxVvgybdkcJ78_hWEJrY6-M4U42Kgale564zHQht0a8R6cijdY4zjkZqZE6s-RZhLGLtsZE1BPWSVsdL8JJEf_Ud6iKEZwtRx3c0xjgYOOCFzV_aKzHX_DUnfzgLXt3ADjV54nNUiyQ2MMBojOGW31hAIQdBJ8thx1pDJVMMW6B5K4F5KqOkk0e--A',
                     ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blue.withOpacity(0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Xin chào! 👋',
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Học sinh thân mến',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w400,
-                                color: Colors.white.withOpacity(0.9),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // School Icon
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.school,
-                          size: 45,
-                          color: Color(0xFF1E88E5),
-                        ),
-                      ),
-                    ],
+                    fit: BoxFit.cover,
                   ),
                 ),
-                const SizedBox(height: 40),
-
-                // Info Cards
-                Row(
-                  children: [
-                    Expanded(
-                      child: _InfoCard(
-                        icon: Icons.calendar_today,
-                        title: 'Hôm nay',
-                        subtitle: 'Thứ 5, 06/02/2026',
-                        color: const Color(0xFFFF7043),
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF22C55E),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 12),
+          // Greeting
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Good Morning,',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[500],
+                  ),
+                ),
+                const Text(
+                  'Alex Johnson',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
+                    height: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Notification button
+          GestureDetector(
+            onTap: () {
+              // TODO: implement notifications
+            },
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE2E8F0).withOpacity(0.5),
+                shape: BoxShape.circle,
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const Icon(Icons.notifications_outlined,
+                      size: 22, color: Color(0xFF0F172A)),
+                  Positioned(
+                    top: 8,
+                    right: 9,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _InfoCard(
-                        icon: Icons.check_circle_outline,
-                        title: 'Trạng thái',
-                        subtitle: 'Sẵn sàng',
-                        color: const Color(0xFF66BB6A),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Check-in Hero Card ───────────────────────────────────
+  Widget _buildCheckInCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1e3b8a),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1e3b8a).withOpacity(0.35),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          // decorative circles
+          Positioned(
+            right: -30,
+            top: -30,
+            child: Container(
+              width: 140,
+              height: 140,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.08),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Positioned(
+            left: -30,
+            bottom: -10,
+            child: Container(
+              width: 110,
+              height: 110,
+              decoration: BoxDecoration(
+                color: Colors.blue[300]!.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child:
+                          const Icon(Icons.face, color: Colors.white, size: 24),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4ADE80).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(99),
+                        border: Border.all(
+                          color: const Color(0xFF4ADE80).withOpacity(0.3),
+                        ),
+                      ),
+                      child: const Text(
+                        'Active Session',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFBBF7D0),
+                        ),
                       ),
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 60),
-
-                // Attendance Button
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(40),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF4CAF50).withOpacity(0.4),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
+                const SizedBox(height: 20),
+                const Text(
+                  'Check-in Now',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 85,
-                    child: ElevatedButton(
-                      onPressed: () async {
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'CS101: Introduction to AI',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.blue[100],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'STATUS',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue[200],
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Not yet recorded',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () {
                         AppNavigator.pushNamed(RouterName.checking,
                             arguments: const CheckingArgs(isCheckIn: true));
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4CAF50),
-                        foregroundColor: Colors.white,
+                        backgroundColor: Colors.white,
+                        foregroundColor: const Color(0xFF1e3b8a),
                         elevation: 0,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(40),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(
-                            Icons.fingerprint,
-                            size: 32,
-                          ),
-                          SizedBox(width: 12),
-                          Text(
-                            'Điểm danh',
-                            style: TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
+                      icon: const Icon(Icons.center_focus_strong, size: 18),
+                      label: const Text(
+                        'Scan Face',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 20),
-
-                // Check Out Button
-                // SizedBox(
-                //   width: double.infinity,
-                //   height: 80,
-                //   child: ElevatedButton(
-                //     onPressed: () async {
-                //       if (await getIt<AppBloc>().isExpiredLicenseKey()) {
-                //         return;
-                //       }
-                //       AppNavigator.pushNamed(RouterName.checking,
-                //           arguments: const CheckingArgs(isCheckIn: false));
-                //     },
-                //     style: ElevatedButton.styleFrom(
-                //       backgroundColor: const Color(0xFFE57373),
-                //       foregroundColor: Colors.white,
-                //       elevation: 0,
-                //       shape: RoundedRectangleBorder(
-                //         borderRadius: BorderRadius.circular(35),
-                //       ),
-                //     ),
-                //     child: const Text(
-                //       'Check Out',
-                //       style: TextStyle(
-                //         fontSize: 24,
-                //         fontWeight: FontWeight.w600,
-                //       ),
-                //     ),
-                //   ),
-                // ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // ── Quick Access ─────────────────────────────────────────
+  Widget _buildQuickAccess() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Quick Access',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF0F172A),
+          ),
         ),
+        const SizedBox(height: 14),
+        GridView.count(
+          crossAxisCount: 2,
+          crossAxisSpacing: 14,
+          mainAxisSpacing: 14,
+          childAspectRatio: 1.1,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            _QuickAccessCard(
+              icon: Icons.history,
+              title: 'History',
+              subtitle: 'View past logs',
+              iconBg: const Color(0xFFFFF7ED),
+              iconColor: const Color(0xFFEA580C),
+              onTap: () {},
+            ),
+            _QuickAccessCard(
+              icon: Icons.calendar_month,
+              title: 'Schedule',
+              subtitle: 'Weekly plan',
+              iconBg: const Color(0xFFF5F3FF),
+              iconColor: const Color(0xFF9333EA),
+              onTap: () {},
+            ),
+            _QuickAccessCard(
+              icon: Icons.bar_chart,
+              title: 'Statistics',
+              subtitle: '85% Attendance',
+              iconBg: const Color(0xFFF0FDFA),
+              iconColor: const Color(0xFF0D9488),
+              onTap: () {},
+            ),
+            _QuickAccessCard(
+              icon: Icons.phonelink_setup,
+              title: 'Register face',
+              subtitle: 'Update biometrics',
+              iconBg: const Color(0xFFEFF6FF),
+              iconColor: const Color(0xFF2563EB),
+              onTap: () {
+                AppNavigator.pushNamed(RouterName.registerFace);
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ── Recent Activity ──────────────────────────────────────
+  Widget _buildRecentActivity() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Recent Activity',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+            TextButton(
+              onPressed: () {},
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text(
+                'See All',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF1e3b8a),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _ActivityItem(
+          icon: Icons.check_circle,
+          iconBg: const Color(0xFFDCFCE7),
+          iconColor: const Color(0xFF16A34A),
+          title: 'Physics Lab',
+          subtitle: 'Checked in • 09:45 AM',
+          time: 'Today',
+        ),
+        const SizedBox(height: 10),
+        _ActivityItem(
+          icon: Icons.cancel,
+          iconBg: const Color(0xFFFEE2E2),
+          iconColor: const Color(0xFFDC2626),
+          title: 'Math 201',
+          subtitle: 'Absent • No scan',
+          time: 'Yesterday',
+        ),
+      ],
+    );
+  }
+
+  // ── Bottom Nav ───────────────────────────────────────────
+  Widget _buildBottomNav() {
+    const items = [
+      {'icon': Icons.home, 'label': 'Home'},
+      {'icon': Icons.school, 'label': 'Classes'},
+      {'icon': Icons.chat_bubble_outline, 'label': 'Messages'},
+      {'icon': Icons.person_outline, 'label': 'Profile'},
+    ];
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 0.5)),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List.generate(items.length, (i) {
+          final selected = _selectedNavIndex == i;
+          return GestureDetector(
+            onTap: () => setState(() => _selectedNavIndex = i),
+            behavior: HitTestBehavior.opaque,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? const Color(0xFF1e3b8a).withOpacity(0.1)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Icon(
+                    items[i]['icon'] as IconData,
+                    size: 22,
+                    color: selected
+                        ? const Color(0xFF1e3b8a)
+                        : const Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  items[i]['label'] as String,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: selected
+                        ? const Color(0xFF1e3b8a)
+                        : const Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
       ),
     );
   }
@@ -728,6 +1002,154 @@ class _KeypadButton extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _QuickAccessCard extends StatelessWidget {
+  const _QuickAccessCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.iconBg,
+    required this.iconColor,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color iconBg;
+  final Color iconColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: const Color(0xFFE2E8F0).withOpacity(0.5)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: iconBg,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActivityItem extends StatelessWidget {
+  const _ActivityItem({
+    required this.icon,
+    required this.iconBg,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.time,
+  });
+
+  final IconData icon;
+  final Color iconBg;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final String time;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0).withOpacity(0.5)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: iconColor, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            time,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF94A3B8),
+            ),
+          ),
+        ],
       ),
     );
   }

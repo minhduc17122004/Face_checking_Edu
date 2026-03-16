@@ -1,0 +1,12 @@
+{
+  "site_package_search_strategy": "all",
+  "source_directories": [
+    {
+      "import_root": ".",
+      "source": "."
+    }
+  ],
+  "python_version": "3.11",
+  "search_path": ["."],
+  "ignore_all_errors": true
+}

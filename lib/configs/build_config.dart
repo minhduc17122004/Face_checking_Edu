@@ -22,8 +22,22 @@ abstract class BuildConfig {
 
 @LazySingleton(as: BuildConfig, env: [Environment.prod])
 class BuildConfigProd implements BuildConfig {
-    String _baseUrl = '';
-    @override
+  String _baseUrl = _normalizeBaseUrl(
+    const String.fromEnvironment(
+      'API_BASE_URL',
+      defaultValue: 'http://10.0.2.2:8000',
+    ),
+  );
+
+  static String _normalizeBaseUrl(String url) {
+    final trimmed = url.trim();
+    if (trimmed.endsWith('/')) {
+      return trimmed.substring(0, trimmed.length - 1);
+    }
+    return trimmed;
+  }
+
+  @override
   String get kBaseUrl => _baseUrl;
   @override
   bool debugLog = true;
@@ -41,8 +55,8 @@ class BuildConfigProd implements BuildConfig {
 
   @override
   String kakaoApiKey = '';
-   @override
+  @override
   void setBaseUrl(String url) {
-    _baseUrl = url;
+    _baseUrl = _normalizeBaseUrl(url);
   }
 }

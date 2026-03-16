@@ -1,0 +1,13 @@
+{
+  "include": [
+    "backend/app"
+  ],
+  "pythonVersion": "3.11",
+  "pythonPlatform": "Linux",
+  "extraPaths": [
+    "backend"
+  ],
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none"
+}

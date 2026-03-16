@@ -10,6 +10,10 @@ Future<void> pushLog(String message) async {
     final localService = getIt<LocalService>();
     final url = localService.getOdooDomain();
     debugPrint('pushLog: $message');
+    if (url.trim().isEmpty) {
+      debugPrint('pushLog skipped: empty domain');
+      return;
+    }
     await loggingService.log(
         ApiInfo(
           response: LoggingApiResponse(

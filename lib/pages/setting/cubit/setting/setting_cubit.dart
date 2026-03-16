@@ -2,7 +2,9 @@ import 'package:bloc/bloc.dart';
 import 'package:face_time_keeping/common/api_client/data_state.dart';
 import 'package:face_time_keeping/data/local/local_service.dart';
 import 'package:face_time_keeping/data/models/create_employees_model.dart';
+import 'package:face_time_keeping/data/remote/authentication_service.dart';
 import 'package:face_time_keeping/data/remote/user_service.dart';
+import 'package:face_time_keeping/di/injection.dart';
 import 'package:face_time_keeping/entities/sync_face_schedule.dart';
 import 'package:face_time_keeping/pages/setting/cubit/setting/setting_state.dart';
 import 'package:flutter/material.dart';
@@ -140,5 +142,15 @@ class SettingCubit extends Cubit<SettingState> {
     } catch (e) {
       return DataFailed<String>('Lỗi đồng bộ học sinh: $e');
     }
+  }
+
+  Future<void> logout() async {
+    try {
+      await getIt<AuthenticationService>().logout();
+    } catch (_) {
+      // Always clear local auth state even if remote logout fails.
+    }
+    _localService.saveOdooToken(null);
+    _localService.saveLoginOdooId(null);
   }
 }

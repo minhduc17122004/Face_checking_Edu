@@ -1,0 +1,12 @@
+{
+  "include": ["app"],
+  "pythonVersion": "3.11",
+  "pythonPlatform": "Linux",
+  "extraPaths": ["."],
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none",
+  "reportAttributeAccessIssue": "warning",
+  "reportUndefinedVariable": "warning",
+  "reportOptionalMemberAccess": "warning"
+}

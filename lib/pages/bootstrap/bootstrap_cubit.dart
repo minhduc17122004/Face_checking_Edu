@@ -2,12 +2,11 @@ import 'package:face_native/face_native.dart';
 import 'package:face_time_keeping/configs/build_config.dart';
 import 'package:face_time_keeping/data/local/hive_service.dart';
 import 'package:face_time_keeping/data/local/local_service.dart';
-import 'package:face_time_keeping/data/remote/authentication_service.dart';
 import 'package:face_time_keeping/di/injection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
-import '../../common/api_client/data_state.dart';
+
 import '../../common/event/event_bus_mixin.dart';
 import 'bootstrap_state.dart';
 
@@ -16,12 +15,10 @@ class BootstrapCubit extends Cubit<BootstrapState> with EventBusMixin {
   BootstrapCubit(
     this._localService,
     this._buildConfig,
-    this._authenticationService,
   ) : super(const BootstrapState(status: BootstrapStatus.initial));
 
   final LocalService _localService;
   final BuildConfig _buildConfig;
-  final AuthenticationService _authenticationService;
 
   @override
   void emit(BootstrapState state) {
@@ -34,46 +31,25 @@ class BootstrapCubit extends Cubit<BootstrapState> with EventBusMixin {
   Future<void> initData() async {
     try {
       final token = _localService.getOdooToken();
-      final domain = _localService.getOdooDomain();
+      var domain = _buildConfig.kBaseUrl.trim();
+      if (domain.isEmpty) {
+        domain = _localService.getOdooDomain().trim();
+      }
 
-      debugPrint('🔵 Bootstrap: Domain: $domain');
+      debugPrint('🔵 Bootstrap: BaseUrl: $domain');
 
       if (domain.isEmpty) {
-        debugPrint('⚪ Bootstrap: No domain found, emitting unauthenticated');
+        debugPrint('⚪ Bootstrap: No base URL found, emitting unauthenticated');
         emit(state.copyWith(status: BootstrapStatus.offlineMode));
         await _configTenant('default', 'application_db');
         return;
       }
 
-      // Validate domain if exists
+      // Always keep ApiClient aligned with configured backend URL.
       _buildConfig.setBaseUrl(domain);
+      _localService.saveOdooDomain(domain);
 
-      debugPrint('🔵 Bootstrap: Validating domain: $domain');
-
-      // Add timeout to prevent infinite wait
-      final result = await _authenticationService.getDatabaseList().timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          debugPrint('⚠️ Bootstrap: Domain validation timeout after 10s');
-          return const DataFailed<List<String>>('Domain validation timeout');
-        },
-      );
-
-      if (result.error != null) {
-        final errorMsg = result.error!.toLowerCase();
-        final isDomainError =
-            errorMsg.contains('404') || errorMsg.contains('timeout');
-
-        if (isDomainError) {
-          debugPrint('🔴 Bootstrap: Domain validation failed: ${result.error}');
-          emit(state.copyWith(status: BootstrapStatus.domainError));
-          return;
-        }
-        debugPrint('🔴 Bootstrap: Unknown validation error: ${result.error}');
-        emit(state.copyWith(status: BootstrapStatus.domainError));
-        return;
-      }
-      debugPrint('🟢 Bootstrap: Domain validation successful');
+      debugPrint('🔵 Bootstrap: Using FastAPI base URL: $domain');
 
       final dbName = await _localService.getOdooDbName();
       if (dbName.isEmpty) {

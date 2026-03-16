@@ -26,7 +26,7 @@ import 'package:face_time_keeping/pages/checking/bloc/checking_bloc.dart'
 import 'package:face_time_keeping/pages/domain/bloc/domain_bloc.dart' as _i21;
 import 'package:face_time_keeping/pages/employee/blocs/employee_bloc.dart'
     as _i22;
-import 'package:face_time_keeping/pages/login_odoo/bloc/login_odoo_bloc.dart'
+import 'package:face_time_keeping/pages/login/bloc/login_bloc.dart'
     as _i14;
 import 'package:face_time_keeping/pages/register_face/bloc/register_face_bloc.dart'
     as _i15;
@@ -82,7 +82,7 @@ extension GetItInjectableX on _i1.GetIt {
           gh<_i9.ApiClient>(),
           gh<_i12.LocalService>(),
         ));
-    gh.factory<_i14.LoginOdooBloc>(() => _i14.LoginOdooBloc(
+    gh.factory<_i14.LoginBloc>(() => _i14.LoginBloc(
           gh<_i11.AuthenticationService>(),
           gh<_i12.LocalService>(),
         ));
@@ -101,7 +101,6 @@ extension GetItInjectableX on _i1.GetIt {
     gh.lazySingleton<_i19.BootstrapCubit>(() => _i19.BootstrapCubit(
           gh<_i12.LocalService>(),
           gh<_i3.BuildConfig>(),
-          gh<_i11.AuthenticationService>(),
         ));
     gh.factory<_i20.CheckingBloc>(() => _i20.CheckingBloc(
           gh<_i12.LocalService>(),

@@ -48,8 +48,37 @@ class ApiClient {
 
   final Dio dio;
 
+  static const String _missingBaseUrlMessage =
+      'Chua cau hinh API_BASE_URL. Vui long set dart-define API_BASE_URL truoc khi thuc hien thao tac nay.';
+
   void updateConfigBaseUrl(String url) {
     dio.options.baseUrl = url;
+  }
+
+  bool _isAbsoluteUrl(String path) {
+    final uri = Uri.tryParse(path);
+    return uri != null && uri.isAbsolute && uri.hasAuthority;
+  }
+
+  bool _hasValidBaseUrl() {
+    final uri = Uri.tryParse(dio.options.baseUrl);
+    return uri != null && uri.isAbsolute && uri.hasAuthority;
+  }
+
+  ApiResponse _missingBaseUrlResponse() {
+    return ApiResponse(
+      success: false,
+      status: 'error',
+      error: _missingBaseUrlMessage,
+    );
+  }
+
+  Future<ApiResponse> _requestWithBaseUrlGuard(
+      String path, Future<ApiResponse> Function() request) async {
+    if (!_isAbsoluteUrl(path) && !_hasValidBaseUrl()) {
+      return _missingBaseUrlResponse();
+    }
+    return request();
   }
 
   Future<ApiResponse> post(
@@ -59,9 +88,13 @@ class ApiClient {
       ProgressCallback? onSendProgress,
       CancelToken? cancelToken}) async {
     dio.options.headers.addAll(headers ?? _defaultHeaders);
-
-    return responseWrapper(dio.post<dynamic>(path,
-        data: data, onSendProgress: onSendProgress, cancelToken: cancelToken));
+    return _requestWithBaseUrlGuard(
+      path,
+      () => responseWrapper(dio.post<dynamic>(path,
+          data: data,
+          onSendProgress: onSendProgress,
+          cancelToken: cancelToken)),
+    );
   }
 
   Future<ApiResponse> put({
@@ -70,15 +103,24 @@ class ApiClient {
     Map<String, dynamic>? headers,
   }) async {
     dio.options.headers.addAll(headers ?? {});
-    return responseWrapper(dio.put<dynamic>(path, data: data));
+    return _requestWithBaseUrlGuard(
+      path,
+      () => responseWrapper(dio.put<dynamic>(path, data: data)),
+    );
   }
 
   Future<ApiResponse> patch({required String path, dynamic data}) async {
-    return responseWrapper(dio.patch<dynamic>(path, data: data));
+    return _requestWithBaseUrlGuard(
+      path,
+      () => responseWrapper(dio.patch<dynamic>(path, data: data)),
+    );
   }
 
   Future<ApiResponse> delete({required String path, dynamic data}) async {
-    return responseWrapper(dio.delete<dynamic>(path, data: data));
+    return _requestWithBaseUrlGuard(
+      path,
+      () => responseWrapper(dio.delete<dynamic>(path, data: data)),
+    );
   }
 
   Future<ApiResponse> get({
@@ -88,18 +130,21 @@ class ApiClient {
     Map<String, dynamic>? headers,
   }) async {
     dio.options.headers.addAll(headers ?? {});
-    return responseWrapper(dio.request<dynamic>(
+    return _requestWithBaseUrlGuard(
       path,
-      queryParameters: queryParameters,
-      options: Options(
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-        },
-      ),
-      data: data,
-    ));
+      () => responseWrapper(dio.request<dynamic>(
+        path,
+        queryParameters: queryParameters,
+        options: Options(
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+          },
+        ),
+        data: data,
+      )),
+    );
   }
 
   Future<ApiResponse> download(
@@ -107,6 +152,9 @@ class ApiClient {
       required String savePath,
       ProgressCallback? onReceiveProgress}) async {
     try {
+      if (!_isAbsoluteUrl(path) && !_hasValidBaseUrl()) {
+        return _missingBaseUrlResponse();
+      }
       await dio.download(path, savePath, onReceiveProgress: onReceiveProgress);
       return ApiResponse(success: true);
     } on DioError catch (e) {
@@ -164,11 +212,27 @@ class ApiClient {
 
   Future<ApiResponse> _handleRequestError(DioError e) async {
     try {
-      if (!e.requestOptions.path.contains(ApiEndpoint.logging)) {
+      final isNetworkTimeout = e.type == DioErrorType.connectTimeout ||
+          e.type == DioErrorType.receiveTimeout ||
+          e.type == DioErrorType.sendTimeout;
+
+      // Avoid recursive logging calls while the network itself is failing.
+      if (!isNetworkTimeout &&
+          !e.requestOptions.path.contains(ApiEndpoint.logging)) {
         await pushLog('Error in ${e.requestOptions.path}: ${e.message}');
       }
+
       if (e.type == DioErrorType.connectTimeout ||
           e.type == DioErrorType.other) {
+        final baseUrl = dio.options.baseUrl;
+        if (baseUrl.contains('10.0.2.2')) {
+          return ApiResponse(
+            success: false,
+            status: 'error',
+            error:
+                'Khong ket noi duoc den server. 10.0.2.2 chi dung cho Android emulator; neu dung may that hay dat API_BASE_URL ve IP LAN cua may chay backend (vi du http://192.168.x.x:8000).',
+          );
+        }
         return ApiResponse(
           success: false,
           status: 'error',

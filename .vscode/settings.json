@@ -1,0 +1,37 @@
+{
+    // ── Python / Pylance (backend/) ───────────────────────────────────
+    // Tell Pylance that backend/ is the source root for Python imports,
+    // so `from app.core.config import settings` resolves correctly in the IDE.
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/backend"
+    ],
+
+    // Use basic type checking — strict mode would require stubs for
+    // Docker-only packages (sqlalchemy, fastapi, pydantic).
+    "python.analysis.typeCheckingMode": "basic",
+
+    // Suppress "import could not be resolved" for packages installed in
+    // Docker but not in the local environment.
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingImports": "none",
+        "reportMissingModuleSource": "none"
+    },
+
+    // Auto-format Python files with Black (if installed locally).
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "ms-python.black-formatter"
+    },
+
+    // ── File associations ──────────────────────────────────────────────
+    "files.associations": {
+        "*.env": "dotenv",
+        "*.env.example": "dotenv",
+        "Dockerfile": "dockerfile"
+    },
+
+    // ── Editor quality-of-life ─────────────────────────────────────────
+    "editor.rulers": [88],
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true
+}

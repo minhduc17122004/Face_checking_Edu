@@ -1,0 +1,48 @@
+import uuid
+from datetime import datetime, timezone
+
+from sqlalchemy import String, DateTime, func
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.core.database import Base
+
+
+class User(Base):
+    """Central authentication table for all system users (teacher / student / admin)."""
+
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        index=True,
+    )
+    email: Mapped[str] = mapped_column(
+        String(255), unique=True, nullable=False, index=True
+    )
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="student"
+    )  # 'teacher' | 'student' | 'admin'
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    # ── Relationships ──────────────────────────────────────────
+    teacher_profile: Mapped["Teacher"] = relationship(  # noqa: F821
+        "Teacher", back_populates="user", uselist=False, lazy="select"
+    )
+    student_profile: Mapped["Student"] = relationship(  # noqa: F821
+        "Student", back_populates="user", uselist=False, lazy="select"
+    )
+    classes: Mapped[list["Classroom"]] = relationship(  # noqa: F821
+        "Classroom", back_populates="teacher", lazy="select"
+    )
+
+    def __repr__(self) -> str:
+        return f"<User id={self.id} email={self.email} role={self.role}>"

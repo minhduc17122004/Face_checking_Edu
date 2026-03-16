@@ -72,13 +72,13 @@ class _BootstrapPageState extends State<BootstrapPage> {
     switch (state.status) {
       case BootstrapStatus.authenticated:
       case BootstrapStatus.offlineMode:
-        Future.delayed(const Duration(seconds: 4)).then((value) {
-          AppNavigator.pushNamedAndRemoveUntil(RouterName.home, (_) => false);
-        });
-        break;
+      // Future.delayed(const Duration(seconds: 4)).then((value) {
+      // AppNavigator.pushNamedAndRemoveUntil(RouterName.home, (_) => false);
+      // });
+      // break;
       case BootstrapStatus.unauthenticated:
         Future.delayed(const Duration(seconds: 4)).then((value) {
-          AppNavigator.pushNamedAndRemoveUntil(RouterName.domain, (_) => false);
+          AppNavigator.pushNamedAndRemoveUntil(RouterName.login, (_) => false);
         });
         break;
       case BootstrapStatus.domainError:

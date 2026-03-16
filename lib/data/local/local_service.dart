@@ -5,6 +5,7 @@ import 'package:collection/collection.dart';
 import 'package:face_native/face_native.dart';
 import 'package:face_time_keeping/common/utils/log_util.dart';
 import 'package:face_time_keeping/common/utils/sync_jobs_util.dart';
+import 'package:face_time_keeping/configs/build_config.dart';
 import 'package:face_time_keeping/data/local/hive_service.dart';
 import 'package:face_native/models/face_image_record.dart';
 import 'package:face_time_keeping/entities/bulk_user.dart';
@@ -26,6 +27,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:face_time_keeping/common/enums/server_type.dart';
 
 import '../../common/api_client/api_client.dart';
+import '../../di/injection.dart';
 import 'keychain/shared_prefs.dart';
 import 'keychain/shared_prefs_key.dart';
 
@@ -813,8 +815,17 @@ class LocalServiceImplement implements LocalService {
       final String? domain = _sharedPreferences.get(SharedPrefsKey.domain);
       if (domain != null && domain.isNotEmpty) {
         _apiClient.updateConfigBaseUrl(domain);
+        getIt<BuildConfig>().setBaseUrl(domain);
+        return domain;
       }
-      return domain ?? "";
+
+      final configBaseUrl = getIt<BuildConfig>().kBaseUrl.trim();
+      if (configBaseUrl.isNotEmpty) {
+        _apiClient.updateConfigBaseUrl(configBaseUrl);
+        return configBaseUrl;
+      }
+
+      return "";
     } catch (e) {
       pushLog('Error in getDomain: $e');
       return "";

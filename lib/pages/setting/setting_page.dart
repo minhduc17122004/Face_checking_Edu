@@ -1206,6 +1206,74 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return Theme(
+          data: AppTheme.lightTheme,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.logout,
+                    color: AppColors.red,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Đăng xuất',
+                    style: TextStyles.blackNormalBold,
+                  ),
+                ),
+              ],
+            ),
+            content: const Text(
+              'Bạn có chắc chắn muốn đăng xuất?',
+              style: TextStyles.blackNormalRegular,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.gray200,
+                ),
+                child: const Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await _settingCubit.logout();
+                  if (!mounted) return;
+                  Navigator.of(dialogContext).pop();
+                  AppNavigator.pushNamedAndRemoveUntil(RouterName.login, (_) => false);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.red,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text('Đăng xuất'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _settingCubit.close();
@@ -1294,6 +1362,14 @@ class _SettingPageState extends State<SettingPage> {
                             context,
                             MaterialPageRoute(
                                 builder: (context) => const PinAppPage()));
+                      },
+                    ),
+                    _buildSettingItem(
+                      icon: Icons.logout,
+                      title: "Đăng xuất",
+                      subtitle: "Đăng xuất khỏi tài khoản",
+                      onTap: () {
+                        _showLogoutDialog();
                       },
                     ),
                   ],

@@ -13,7 +13,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../pages/bootstrap/bootstrap_page.dart';
-import '../pages/home/home_page.dart';
+import '../pages/tab/tab.dart';
 
 // ignore_for_file: avoid_classes_with_only_static_members
 class RouterName {
@@ -40,7 +40,7 @@ class AppRoutes {
       case RouterName.boostrap:
         return _materialRoute(settings, const BootstrapPage());
       case RouterName.home:
-        return _materialRoute(settings, const HomePage());
+        return _materialRoute(settings, const TabPage());
       case RouterName.domain:
         return _materialRoute(settings, const DomainPage());
       case RouterName.login:

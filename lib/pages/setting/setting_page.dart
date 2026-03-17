@@ -9,6 +9,7 @@ import 'package:face_time_keeping/di/injection.dart';
 import 'package:face_time_keeping/pages/setting/pin_app_page.dart';
 import 'package:face_time_keeping/pages/setting/sync_schedule_page.dart';
 import 'package:face_time_keeping/entities/sync_face_schedule.dart';
+import 'package:face_time_keeping/pages/widgets/app_dialog.dart';
 import 'package:face_time_keeping/pages/widgets/default_app_bar.dart';
 import 'package:face_time_keeping/route/app_route.dart';
 import 'package:face_time_keeping/route/navigator.dart';
@@ -57,321 +58,442 @@ class _SettingPageState extends State<SettingPage> {
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            return Theme(
-              data: AppTheme.lightTheme,
-              child: AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                title: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.blue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.sync_problem,
-                        color: AppColors.blue,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'Đồng bộ dữ liệu khuôn mặt',
-                        style: TextStyles.blackNormalBold,
-                      ),
-                    ),
-                  ],
-                ),
-                content: SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.85,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Sync Now Section
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.blue.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppColors.blue.withOpacity(0.2),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 8),
-                              Text(
-                                'Đồng bộ dữ liệu với server',
-                                style: TextStyles.blackNormalRegular.copyWith(
-                                  color: AppColors.gray200,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  onPressed: () async {
-                                    Navigator.of(context).pop();
-                                    await _performSyncNow();
-                                  },
-                                  icon: const Icon(Icons.sync, size: 18),
-                                  label: const Text('Đồng bộ dữ liệu ngay'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.blue,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 12),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+            return AppDialog(
+              title: 'Đồng bộ dữ liệu khuôn mặt',
+              icon: Icons.sync_problem,
+              accentColor: AppColors.blue,
+              content: SizedBox(
+                width: MediaQuery.of(context).size.width * 0.85,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Sync Now Section
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.blue.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.blue.withOpacity(0.2),
                           ),
                         ),
-
-                        const SizedBox(height: 20),
-
-                        // Schedule Section
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.green.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppColors.green.withOpacity(0.2),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 8),
+                            Text(
+                              'Đồng bộ dữ liệu với server',
+                              style: TextStyles.blackNormalRegular.copyWith(
+                                color: AppColors.gray200,
+                                fontSize: 14,
+                              ),
                             ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.schedule,
-                                    color: AppColors.green,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Đồng bộ định kỳ',
-                                    style: TextStyles.blackNormalBold.copyWith(
-                                      color: AppColors.green,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Thiết lập khoảng thời gian tự động đồng bộ',
-                                style: TextStyles.blackNormalRegular.copyWith(
-                                  color: AppColors.gray200,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-
-                              // Current schedule display
-                              if (existingSchedule != null)
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.yellow.withOpacity(0.1),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  Navigator.of(context).pop();
+                                  await _performSyncNow();
+                                },
+                                icon: const Icon(Icons.sync, size: 18),
+                                label: const Text('Đồng bộ dữ liệu ngay'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.blue,
+                                  foregroundColor: Colors.white,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: AppColors.yellow.withOpacity(0.3),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.info_outline,
-                                        color: AppColors.orange,
-                                        size: 16,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'Lịch hiện tại: ${existingSchedule.repeatIntervalHours}h ${existingSchedule.repeatIntervalMinutes}m',
-                                        style: TextStyles.blackNormalRegular
-                                            .copyWith(
-                                          color: AppColors.orange,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ],
                                   ),
                                 ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
 
-                              if (existingSchedule != null)
-                                const SizedBox(height: 12),
+                      const SizedBox(height: 20),
 
-                              // Time selectors
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: AppColors.gray200
-                                              .withOpacity(0.3),
-                                        ),
-                                      ),
-                                      child: InputDecorator(
-                                        decoration: InputDecoration(
-                                          labelText: 'Giờ',
-                                          labelStyle: TextStyles
-                                              .blackNormalRegular
-                                              .copyWith(
-                                            color: AppColors.gray200,
-                                            fontSize: 12,
-                                          ),
-                                          border: InputBorder.none,
-                                          contentPadding:
-                                              const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 8,
-                                          ),
-                                        ),
-                                        child: DropdownButton<int>(
-                                          isExpanded: true,
-                                          value: hours,
-                                          underline: const SizedBox.shrink(),
-                                          items: List.generate(24, (i) => i)
-                                              .map((h) => DropdownMenuItem<int>(
-                                                    value: h,
-                                                    child: Text(
-                                                      '$h giờ',
-                                                      style: TextStyles
-                                                          .blackNormalRegular,
-                                                    ),
-                                                  ))
-                                              .toList(),
-                                          onChanged: (v) =>
-                                              setState(() => hours = v ?? 0),
-                                        ),
+                      // Schedule Section
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.green.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.green.withOpacity(0.2),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.schedule,
+                                  color: AppColors.green,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Đồng bộ định kỳ',
+                                  style: TextStyles.blackNormalBold.copyWith(
+                                    color: AppColors.green,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Thiết lập khoảng thời gian tự động đồng bộ',
+                              style: TextStyles.blackNormalRegular.copyWith(
+                                color: AppColors.gray200,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Current schedule display
+                            if (existingSchedule != null)
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.yellow.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: AppColors.yellow.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.info_outline,
+                                      color: AppColors.orange,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Lịch hiện tại: ${existingSchedule.repeatIntervalHours}h ${existingSchedule.repeatIntervalMinutes}m',
+                                      style: TextStyles.blackNormalRegular
+                                          .copyWith(
+                                        color: AppColors.orange,
+                                        fontSize: 13,
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: AppColors.gray200
-                                              .withOpacity(0.3),
-                                        ),
-                                      ),
-                                      child: InputDecorator(
-                                        decoration: InputDecoration(
-                                          labelText: 'Phút',
-                                          labelStyle: TextStyles
-                                              .blackNormalRegular
-                                              .copyWith(
-                                            color: AppColors.gray200,
-                                            fontSize: 12,
-                                          ),
-                                          border: InputBorder.none,
-                                          contentPadding:
-                                              const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 8,
-                                          ),
-                                        ),
-                                        child: DropdownButton<int>(
-                                          isExpanded: true,
-                                          value: minutes,
-                                          underline: const SizedBox.shrink(),
-                                          items: List.generate(60, (i) => i)
-                                              .map((m) => DropdownMenuItem<int>(
-                                                    value: m,
-                                                    child: Text(
-                                                      '$m phút',
-                                                      style: TextStyles
-                                                          .blackNormalRegular,
-                                                    ),
-                                                  ))
-                                              .toList(),
-                                          onChanged: (v) =>
-                                              setState(() => minutes = v ?? 0),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
 
-                              const SizedBox(height: 16),
+                            if (existingSchedule != null)
+                              const SizedBox(height: 12),
 
-                              // Action buttons
-                              Row(
-                                children: [
+                            // Time selectors
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color:
+                                            AppColors.gray200.withOpacity(0.3),
+                                      ),
+                                    ),
+                                    child: InputDecorator(
+                                      decoration: InputDecoration(
+                                        labelText: 'Giờ',
+                                        labelStyle: TextStyles
+                                            .blackNormalRegular
+                                            .copyWith(
+                                          color: AppColors.gray200,
+                                          fontSize: 12,
+                                        ),
+                                        border: InputBorder.none,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                      ),
+                                      child: DropdownButton<int>(
+                                        isExpanded: true,
+                                        value: hours,
+                                        underline: const SizedBox.shrink(),
+                                        items: List.generate(24, (i) => i)
+                                            .map((h) => DropdownMenuItem<int>(
+                                                  value: h,
+                                                  child: Text(
+                                                    '$h giờ',
+                                                    style: TextStyles
+                                                        .blackNormalRegular,
+                                                  ),
+                                                ))
+                                            .toList(),
+                                        onChanged: (v) =>
+                                            setState(() => hours = v ?? 0),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color:
+                                            AppColors.gray200.withOpacity(0.3),
+                                      ),
+                                    ),
+                                    child: InputDecorator(
+                                      decoration: InputDecoration(
+                                        labelText: 'Phút',
+                                        labelStyle: TextStyles
+                                            .blackNormalRegular
+                                            .copyWith(
+                                          color: AppColors.gray200,
+                                          fontSize: 12,
+                                        ),
+                                        border: InputBorder.none,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                      ),
+                                      child: DropdownButton<int>(
+                                        isExpanded: true,
+                                        value: minutes,
+                                        underline: const SizedBox.shrink(),
+                                        items: List.generate(60, (i) => i)
+                                            .map((m) => DropdownMenuItem<int>(
+                                                  value: m,
+                                                  child: Text(
+                                                    '$m phút',
+                                                    style: TextStyles
+                                                        .blackNormalRegular,
+                                                  ),
+                                                ))
+                                            .toList(),
+                                        onChanged: (v) =>
+                                            setState(() => minutes = v ?? 0),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // Action buttons
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () async {
+                                      try {
+                                        await _settingCubit
+                                            .saveSyncFaceSchedule(
+                                          SyncFaceSchedule(
+                                            repeatIntervalHours: hours,
+                                            repeatIntervalMinutes: minutes,
+                                          ),
+                                        );
+                                        if (!mounted) return;
+                                        Navigator.of(context).pop();
+                                        ScaffoldMessenger.of(this.context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Đã lưu lịch đồng bộ: ${hours}h ${minutes}m',
+                                            ),
+                                            backgroundColor: AppColors.green,
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                          ),
+                                        );
+                                      } catch (e) {
+                                        if (!mounted) return;
+                                        ScaffoldMessenger.of(this.context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                                'Lỗi lưu lịch đồng bộ: $e'),
+                                            backgroundColor: AppColors.red,
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    icon: const Icon(Icons.save, size: 18),
+                                    label: const Text('Lưu lịch'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.green,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 10),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                if (existingSchedule != null) ...[
+                                  const SizedBox(width: 12),
                                   Expanded(
                                     child: ElevatedButton.icon(
                                       onPressed: () async {
-                                        try {
-                                          await _settingCubit
-                                              .saveSyncFaceSchedule(
-                                            SyncFaceSchedule(
-                                              repeatIntervalHours: hours,
-                                              repeatIntervalMinutes: minutes,
-                                            ),
-                                          );
-                                          if (!mounted) return;
-                                          Navigator.of(context).pop();
-                                          ScaffoldMessenger.of(this.context)
-                                              .showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'Đã lưu lịch đồng bộ: ${hours}h ${minutes}m',
+                                        // Show confirmation dialog
+                                        final confirmed =
+                                            await showDialog<bool>(
+                                          context: context,
+                                          builder:
+                                              (BuildContext dialogContext) {
+                                            return AppDialog(
+                                              title: 'Xác nhận hủy lịch',
+                                              icon: Icons.warning_amber_rounded,
+                                              accentColor: AppColors.orange,
+                                              content: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Bạn có chắc chắn muốn hủy lịch đồng bộ tự động không?',
+                                                    style: TextStyles
+                                                        .blackNormalRegular
+                                                        .copyWith(
+                                                      fontSize: 16,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 12),
+                                                  Container(
+                                                    width: double.infinity,
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                            12),
+                                                    decoration: BoxDecoration(
+                                                      color: AppColors.red
+                                                          .withOpacity(0.1),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              8),
+                                                      border: Border.all(
+                                                        color: AppColors.red
+                                                            .withOpacity(0.3),
+                                                      ),
+                                                    ),
+                                                    child: Text(
+                                                      'Lịch hiện tại: ${existingSchedule?.repeatIntervalHours}h ${existingSchedule?.repeatIntervalMinutes}m sẽ bị xóa.',
+                                                      style: TextStyles
+                                                          .blackNormalRegular
+                                                          .copyWith(
+                                                        color: AppColors.red,
+                                                        fontSize: 13,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                              backgroundColor: AppColors.green,
-                                              behavior:
-                                                  SnackBarBehavior.floating,
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () => Navigator.of(
+                                                          dialogContext)
+                                                      .pop(false),
+                                                  style: TextButton.styleFrom(
+                                                    foregroundColor:
+                                                        AppColors.gray200,
+                                                  ),
+                                                  child: const Text('Không'),
+                                                ),
+                                                ElevatedButton(
+                                                  onPressed: () => Navigator.of(
+                                                          dialogContext)
+                                                      .pop(true),
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        AppColors.red,
+                                                    foregroundColor:
+                                                        Colors.white,
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              8),
+                                                    ),
+                                                  ),
+                                                  child: const Text(
+                                                      'Có, hủy lịch'),
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        );
+
+                                        // Only proceed if user confirmed
+                                        if (confirmed == true) {
+                                          try {
+                                            await _settingCubit
+                                                .clearSyncFaceSchedule();
+                                            if (!mounted) return;
+                                            Navigator.of(context).pop();
+                                            ScaffoldMessenger.of(this.context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                content: const Text(
+                                                    'Đã hủy lịch đồng bộ tự động'),
+                                                backgroundColor:
+                                                    AppColors.orange,
+                                                behavior:
+                                                    SnackBarBehavior.floating,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
                                               ),
-                                            ),
-                                          );
-                                        } catch (e) {
-                                          if (!mounted) return;
-                                          ScaffoldMessenger.of(this.context)
-                                              .showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                  'Lỗi lưu lịch đồng bộ: $e'),
-                                              backgroundColor: AppColors.red,
-                                              behavior:
-                                                  SnackBarBehavior.floating,
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
+                                            );
+                                          } catch (e) {
+                                            if (!mounted) return;
+                                            ScaffoldMessenger.of(this.context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                content:
+                                                    Text('Lỗi hủy lịch: $e'),
+                                                backgroundColor: AppColors.red,
+                                                behavior:
+                                                    SnackBarBehavior.floating,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
                                               ),
-                                            ),
-                                          );
+                                            );
+                                          }
                                         }
                                       },
-                                      icon: const Icon(Icons.save, size: 18),
-                                      label: const Text('Lưu lịch'),
+                                      icon: const Icon(Icons.cancel_outlined,
+                                          size: 18),
+                                      label: const Text('Hủy lịch'),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppColors.green,
+                                        backgroundColor: AppColors.orange,
                                         foregroundColor: Colors.white,
                                         padding: const EdgeInsets.symmetric(
                                             vertical: 10),
@@ -382,213 +504,29 @@ class _SettingPageState extends State<SettingPage> {
                                       ),
                                     ),
                                   ),
-                                  if (existingSchedule != null) ...[
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: ElevatedButton.icon(
-                                        onPressed: () async {
-                                          // Show confirmation dialog
-                                          final confirmed =
-                                              await showDialog<bool>(
-                                            context: context,
-                                            builder:
-                                                (BuildContext dialogContext) {
-                                              return Theme(
-                                                data: AppTheme.lightTheme,
-                                                child: AlertDialog(
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            12),
-                                                  ),
-                                                  title: const Row(
-                                                    children: [
-                                                      Icon(
-                                                        Icons
-                                                            .warning_amber_rounded,
-                                                        color: AppColors.orange,
-                                                        size: 24,
-                                                      ),
-                                                      SizedBox(width: 12),
-                                                      Text(
-                                                        'Xác nhận hủy lịch',
-                                                        style: TextStyles
-                                                            .blackNormalBold,
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  content: Column(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(
-                                                        'Bạn có chắc chắn muốn hủy lịch đồng bộ tự động không?',
-                                                        style: TextStyles
-                                                            .blackNormalRegular
-                                                            .copyWith(
-                                                          fontSize: 16,
-                                                        ),
-                                                      ),
-                                                      const SizedBox(
-                                                          height: 12),
-                                                      Container(
-                                                        width: double.infinity,
-                                                        padding:
-                                                            const EdgeInsets
-                                                                .all(12),
-                                                        decoration:
-                                                            BoxDecoration(
-                                                          color: AppColors.red
-                                                              .withOpacity(0.1),
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(8),
-                                                          border: Border.all(
-                                                            color: AppColors.red
-                                                                .withOpacity(
-                                                                    0.3),
-                                                          ),
-                                                        ),
-                                                        child: Text(
-                                                          'Lịch hiện tại: ${existingSchedule?.repeatIntervalHours}h ${existingSchedule?.repeatIntervalMinutes}m sẽ bị xóa.',
-                                                          style: TextStyles
-                                                              .blackNormalRegular
-                                                              .copyWith(
-                                                            color:
-                                                                AppColors.red,
-                                                            fontSize: 13,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  actions: [
-                                                    TextButton(
-                                                      onPressed: () =>
-                                                          Navigator.of(
-                                                                  dialogContext)
-                                                              .pop(false),
-                                                      style:
-                                                          TextButton.styleFrom(
-                                                        foregroundColor:
-                                                            AppColors.gray200,
-                                                      ),
-                                                      child:
-                                                          const Text('Không'),
-                                                    ),
-                                                    ElevatedButton(
-                                                      onPressed: () =>
-                                                          Navigator.of(
-                                                                  dialogContext)
-                                                              .pop(true),
-                                                      style: ElevatedButton
-                                                          .styleFrom(
-                                                        backgroundColor:
-                                                            AppColors.red,
-                                                        foregroundColor:
-                                                            Colors.white,
-                                                        shape:
-                                                            RoundedRectangleBorder(
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(8),
-                                                        ),
-                                                      ),
-                                                      child: const Text(
-                                                          'Có, hủy lịch'),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                            },
-                                          );
-
-                                          // Only proceed if user confirmed
-                                          if (confirmed == true) {
-                                            try {
-                                              await _settingCubit
-                                                  .clearSyncFaceSchedule();
-                                              if (!mounted) return;
-                                              Navigator.of(context).pop();
-                                              ScaffoldMessenger.of(this.context)
-                                                  .showSnackBar(
-                                                SnackBar(
-                                                  content: const Text(
-                                                      'Đã hủy lịch đồng bộ tự động'),
-                                                  backgroundColor:
-                                                      AppColors.orange,
-                                                  behavior:
-                                                      SnackBarBehavior.floating,
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            8),
-                                                  ),
-                                                ),
-                                              );
-                                            } catch (e) {
-                                              if (!mounted) return;
-                                              ScaffoldMessenger.of(this.context)
-                                                  .showSnackBar(
-                                                SnackBar(
-                                                  content:
-                                                      Text('Lỗi hủy lịch: $e'),
-                                                  backgroundColor:
-                                                      AppColors.red,
-                                                  behavior:
-                                                      SnackBarBehavior.floating,
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            8),
-                                                  ),
-                                                ),
-                                              );
-                                            }
-                                          }
-                                        },
-                                        icon: const Icon(Icons.cancel_outlined,
-                                            size: 18),
-                                        label: const Text('Hủy lịch'),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: AppColors.orange,
-                                          foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 10),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
                                 ],
-                              ),
-                            ],
-                          ),
+                              ],
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.gray200,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 10,
-                      ),
-                    ),
-                    child: const Text('Đóng'),
-                  ),
-                ],
               ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.gray200,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
+                    ),
+                  ),
+                  child: const Text('Đóng'),
+                ),
+              ],
             );
           },
         );
@@ -728,56 +666,37 @@ class _SettingPageState extends State<SettingPage> {
       await showDialog(
         context: context,
         builder: (BuildContext dialogContext) {
-          return Theme(
-            data: AppTheme.lightTheme,
-            child: AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              title: const Row(
-                children: [
-                  Icon(
-                    Icons.cloud_off,
-                    color: AppColors.orange,
-                    size: 24,
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Chưa cấu hình Server',
-                      style: TextStyles.blackNormalBold,
-                    ),
-                  ),
-                ],
-              ),
-              content: Text(
-                'Bạn chưa thiết lập server. Vui lòng thiết lập server trước khi đồng bộ dữ liệu.',
-                style: TextStyles.blackNormalRegular.copyWith(fontSize: 15),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Đóng'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.gray200,
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(dialogContext).pop();
-                    AppNavigator.pushNamed(RouterName.serverSettings);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.blue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Thiết lập'),
-                ),
-              ],
+          return AppDialog(
+            title: 'Chưa cấu hình Server',
+            icon: Icons.cloud_off,
+            accentColor: AppColors.orange,
+            content: Text(
+              'Bạn chưa thiết lập server. Vui lòng thiết lập server trước khi đồng bộ dữ liệu.',
+              style: TextStyles.blackNormalRegular.copyWith(fontSize: 15),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Đóng'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.gray200,
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                  AppNavigator.pushNamed(RouterName.serverSettings);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.blue,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text('Thiết lập'),
+              ),
+            ],
           );
         },
       );
@@ -821,7 +740,7 @@ class _SettingPageState extends State<SettingPage> {
               ],
             ),
             duration: Duration(seconds: 30), // Long duration for sync operation
-            backgroundColor: Colors.blue,
+            backgroundColor: AppColors.blue,
           ),
         );
       }
@@ -843,7 +762,7 @@ class _SettingPageState extends State<SettingPage> {
                   Text('Đồng bộ dữ liệu thành công!'),
                 ],
               ),
-              backgroundColor: Colors.green,
+              backgroundColor: AppColors.green,
               duration: Duration(seconds: 3),
             ),
           );
@@ -861,7 +780,7 @@ class _SettingPageState extends State<SettingPage> {
                   ),
                 ],
               ),
-              backgroundColor: Colors.red,
+              backgroundColor: AppColors.red,
               duration: const Duration(seconds: 5),
             ),
           );
@@ -883,7 +802,7 @@ class _SettingPageState extends State<SettingPage> {
                 ),
               ],
             ),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.red,
             duration: const Duration(seconds: 5),
           ),
         );
@@ -903,372 +822,289 @@ class _SettingPageState extends State<SettingPage> {
         TimeOfDay nightStart = _nightStart;
         TimeOfDay nightEnd = _nightEnd;
 
-        return Theme(
-          data: AppTheme.lightTheme,
-          child: StatefulBuilder(
-            builder: (context, setDialogState) {
-              // ignore: no_leading_underscores_for_local_identifiers
-              Future<void> _selectTime(TimeOfDay initialTime,
-                  Function(TimeOfDay) onTimeSelected) async {
-                final TimeOfDay? picked = await showTimePicker(
-                  context: context,
-                  initialTime: initialTime,
-                );
-                if (picked != null) {
-                  setDialogState(() {
-                    onTimeSelected(picked);
-                  });
-                }
-              }
-
-              // ignore: no_leading_underscores_for_local_identifiers
-              Widget _buildTimeCell(
-                  TimeOfDay time, Function(TimeOfDay) onTimeSelected) {
-                return InkWell(
-                  onTap: () => _selectTime(time, onTimeSelected),
-                  child: Container(
-                    height: 40,
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.blue.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: AppColors.blue.withOpacity(0.2),
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        time.format(context),
-                        style: TextStyles.blackNormalBold.copyWith(
-                          color: AppColors.black,
-                          fontSize: 12,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                );
-              }
-
-              return AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                title: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Thiết lập buổi học',
-                      style: TextStyles.blackNormalBold,
-                    ),
-                  ],
-                ),
-                content: SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.9,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Chọn thời gian cho từng buổi học:',
-                          style: TextStyles.blackNormalRegular,
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Header row
-                        Table(
-                          columnWidths: const {
-                            0: FlexColumnWidth(1.5),
-                            1: FlexColumnWidth(2.5),
-                            2: FlexColumnWidth(2.5),
-                          },
-                          children: [
-                            TableRow(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(4.0),
-                                  child: Container(
-                                    height: 40,
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      'Buổi',
-                                      style:
-                                          TextStyles.blackNormalBold.copyWith(
-                                        color: AppColors.black,
-                                        fontSize: 14,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(4.0),
-                                  child: Container(
-                                    height: 40,
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      'Bắt đầu',
-                                      style:
-                                          TextStyles.blackNormalBold.copyWith(
-                                        color: AppColors.blue,
-                                        fontSize: 14,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(4.0),
-                                  child: Container(
-                                    height: 40,
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      'Kết thúc',
-                                      style:
-                                          TextStyles.blackNormalBold.copyWith(
-                                        color: AppColors.red,
-                                        fontSize: 14,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            // Morning shift
-                            TableRow(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(4.0),
-                                  child: Container(
-                                    height: 40,
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 8, horizontal: 4),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.yellow.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        'Sáng',
-                                        style: TextStyles.blackNormalBold
-                                            .copyWith(fontSize: 12),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(4.0),
-                                  child: _buildTimeCell(morningStart,
-                                      (time) => morningStart = time),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(4.0),
-                                  child: _buildTimeCell(
-                                      morningEnd, (time) => morningEnd = time),
-                                ),
-                              ],
-                            ),
-                            // Afternoon shift
-                            TableRow(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(4.0),
-                                  child: Container(
-                                    height: 40,
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 8, horizontal: 4),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.orange.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        'Chiều',
-                                        style: TextStyles.blackNormalBold
-                                            .copyWith(fontSize: 12),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(4.0),
-                                  child: _buildTimeCell(afternoonStart,
-                                      (time) => afternoonStart = time),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(4.0),
-                                  child: _buildTimeCell(afternoonEnd,
-                                      (time) => afternoonEnd = time),
-                                ),
-                              ],
-                            ),
-                            // Night shift
-                            TableRow(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(4.0),
-                                  child: Container(
-                                    height: 40,
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 8, horizontal: 4),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.blue.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        'Tối',
-                                        style: TextStyles.blackNormalBold
-                                            .copyWith(fontSize: 12),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(4.0),
-                                  child: _buildTimeCell(
-                                      nightStart, (time) => nightStart = time),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(4.0),
-                                  child: _buildTimeCell(
-                                      nightEnd, (time) => nightEnd = time),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.gray200,
-                    ),
-                    child: const Text('Hủy'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () async {
-                      // Save to SharedPrefs via WorkShiftService
-                      await _settingCubit.saveShiftTimes(
-                        morningStart: morningStart,
-                        morningEnd: morningEnd,
-                        afternoonStart: afternoonStart,
-                        afternoonEnd: afternoonEnd,
-                        nightStart: nightStart,
-                        nightEnd: nightEnd,
-                      );
-
-                      setState(() {
-                        _morningStart = morningStart;
-                        _morningEnd = morningEnd;
-                        _afternoonStart = afternoonStart;
-                        _afternoonEnd = afternoonEnd;
-                        _nightStart = nightStart;
-                        _nightEnd = nightEnd;
-                      });
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('Đã lưu thiết lập buổi học'),
-                          backgroundColor: AppColors.green,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.blue,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text('Lưu'),
-                  ),
-                ],
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            // ignore: no_leading_underscores_for_local_identifiers
+            Future<void> _selectTime(TimeOfDay initialTime,
+                Function(TimeOfDay) onTimeSelected) async {
+              final TimeOfDay? picked = await showTimePicker(
+                context: context,
+                initialTime: initialTime,
               );
-            },
-          ),
-        );
-      },
-    );
-  }
+              if (picked != null) {
+                setDialogState(() {
+                  onTimeSelected(picked);
+                });
+              }
+            }
 
-  void _showLogoutDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return Theme(
-          data: AppTheme.lightTheme,
-          child: AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
+            // ignore: no_leading_underscores_for_local_identifiers
+            Widget _buildTimeCell(
+                TimeOfDay time, Function(TimeOfDay) onTimeSelected) {
+              return InkWell(
+                onTap: () => _selectTime(time, onTimeSelected),
+                child: Container(
+                  height: 40,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: AppColors.blue.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: AppColors.blue.withOpacity(0.2),
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.logout,
-                    color: AppColors.red,
-                    size: 24,
+                  child: Center(
+                    child: Text(
+                      time.format(context),
+                      style: TextStyles.blackNormalBold.copyWith(
+                        color: AppColors.black,
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text(
-                    'Đăng xuất',
-                    style: TextStyles.blackNormalBold,
+              );
+            }
+
+            return AppDialog(
+              title: 'Thiết lập buổi học',
+              icon: Icons.schedule_rounded,
+              accentColor: AppColors.blue,
+              content: SizedBox(
+                width: MediaQuery.of(context).size.width * 0.9,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Chọn thời gian cho từng buổi học:',
+                        style: TextStyles.blackNormalRegular,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Header row
+                      Table(
+                        columnWidths: const {
+                          0: FlexColumnWidth(1.5),
+                          1: FlexColumnWidth(2.5),
+                          2: FlexColumnWidth(2.5),
+                        },
+                        children: [
+                          TableRow(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: Container(
+                                  height: 40,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    'Buổi',
+                                    style: TextStyles.blackNormalBold.copyWith(
+                                      color: AppColors.black,
+                                      fontSize: 14,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: Container(
+                                  height: 40,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    'Bắt đầu',
+                                    style: TextStyles.blackNormalBold.copyWith(
+                                      color: AppColors.blue,
+                                      fontSize: 14,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: Container(
+                                  height: 40,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    'Kết thúc',
+                                    style: TextStyles.blackNormalBold.copyWith(
+                                      color: AppColors.red,
+                                      fontSize: 14,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          // Morning shift
+                          TableRow(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: Container(
+                                  height: 40,
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 8, horizontal: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.yellow.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      'Sáng',
+                                      style: TextStyles.blackNormalBold
+                                          .copyWith(fontSize: 12),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: _buildTimeCell(morningStart,
+                                    (time) => morningStart = time),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: _buildTimeCell(
+                                    morningEnd, (time) => morningEnd = time),
+                              ),
+                            ],
+                          ),
+                          // Afternoon shift
+                          TableRow(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: Container(
+                                  height: 40,
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 8, horizontal: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.orange.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      'Chiều',
+                                      style: TextStyles.blackNormalBold
+                                          .copyWith(fontSize: 12),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: _buildTimeCell(afternoonStart,
+                                    (time) => afternoonStart = time),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: _buildTimeCell(afternoonEnd,
+                                    (time) => afternoonEnd = time),
+                              ),
+                            ],
+                          ),
+                          // Night shift
+                          TableRow(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: Container(
+                                  height: 40,
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 8, horizontal: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.blue.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      'Tối',
+                                      style: TextStyles.blackNormalBold
+                                          .copyWith(fontSize: 12),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: _buildTimeCell(
+                                    nightStart, (time) => nightStart = time),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: _buildTimeCell(
+                                    nightEnd, (time) => nightEnd = time),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.gray200,
+                  ),
+                  child: const Text('Hủy'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    // Save to SharedPrefs via WorkShiftService
+                    await _settingCubit.saveShiftTimes(
+                      morningStart: morningStart,
+                      morningEnd: morningEnd,
+                      afternoonStart: afternoonStart,
+                      afternoonEnd: afternoonEnd,
+                      nightStart: nightStart,
+                      nightEnd: nightEnd,
+                    );
+
+                    setState(() {
+                      _morningStart = morningStart;
+                      _morningEnd = morningEnd;
+                      _afternoonStart = afternoonStart;
+                      _afternoonEnd = afternoonEnd;
+                      _nightStart = nightStart;
+                      _nightEnd = nightEnd;
+                    });
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Đã lưu thiết lập buổi học'),
+                        backgroundColor: AppColors.green,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.blue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Lưu'),
                 ),
               ],
-            ),
-            content: const Text(
-              'Bạn có chắc chắn muốn đăng xuất?',
-              style: TextStyles.blackNormalRegular,
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.gray200,
-                ),
-                child: const Text('Hủy'),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  await _settingCubit.logout();
-                  if (!mounted) return;
-                  Navigator.of(dialogContext).pop();
-                  AppNavigator.pushNamedAndRemoveUntil(RouterName.login, (_) => false);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.red,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text('Đăng xuất'),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -1299,14 +1135,6 @@ class _SettingPageState extends State<SettingPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSettingItem(
-                      icon: Icons.description,
-                      title: "Danh Sách Điểm Danh",
-                      subtitle: "Xem danh sách học sinh đã điểm danh",
-                      onTap: () {
-                        AppNavigator.pushNamed(RouterName.attendanceReport);
-                      },
-                    ),
                     _buildSettingItem(
                       icon: Icons.sync_alt,
                       title: "Đồng bộ dữ liệu điểm danh",
@@ -1364,14 +1192,6 @@ class _SettingPageState extends State<SettingPage> {
                                 builder: (context) => const PinAppPage()));
                       },
                     ),
-                    _buildSettingItem(
-                      icon: Icons.logout,
-                      title: "Đăng xuất",
-                      subtitle: "Đăng xuất khỏi tài khoản",
-                      onTap: () {
-                        _showLogoutDialog();
-                      },
-                    ),
                   ],
                 ),
               ),
@@ -1410,7 +1230,7 @@ class _SettingPageState extends State<SettingPage> {
       subtitle: Text(
         subtitle,
         style: TextStyle(
-          color: Colors.grey[600],
+          color: AppColors.slate500,
           fontSize: 14,
         ),
       ),

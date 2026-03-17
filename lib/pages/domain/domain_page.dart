@@ -26,18 +26,13 @@ class _DomainPageState extends State<DomainPage> {
 
   final TextEditingController _domainController = TextEditingController();
 
-
   @override
   void initState() {
-
-    
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
       _bloc.initDomain();
     });
     super.initState();
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +41,6 @@ class _DomainPageState extends State<DomainPage> {
       child: BlocConsumer<DomainBloc, DomainState>(
         listener: _handleStateListener,
         builder: (context, state) => Scaffold(
-      
           backgroundColor: AppColors.white,
           resizeToAvoidBottomInset: true,
           appBar: DefaultAppBar(
@@ -66,9 +60,8 @@ class _DomainPageState extends State<DomainPage> {
         final isLandscape = orientation == Orientation.landscape;
         final isWide = constraints.maxWidth > 800;
 
-        final double maxContentWidth = isLandscape
-            ? (isWide ? 900 : 720)
-            : (isWide ? 720 : 560);
+        final double maxContentWidth =
+            isLandscape ? (isWide ? 900 : 720) : (isWide ? 720 : 560);
 
         return GestureDetector(
           onTap: () => FocusScope.of(context).unfocus(),
@@ -131,13 +124,11 @@ class _DomainPageState extends State<DomainPage> {
           const SizedBox(height: 32),
           if (!isLandscape) ...[
             _buildDomainField(state),
-            
           ] else ...[
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(child: _buildDomainField(state)),
-               
               ],
             ),
           ],
@@ -161,20 +152,13 @@ class _DomainPageState extends State<DomainPage> {
         const SizedBox(height: 8),
         AppTextField(
           maxLines: 1,
-          hintText: Strings.localized.domain.toLowerCase(),
+          hintText: 'http://192.168.x.x:8000',
           style: TextStyles.blackNormalRegular.copyWith(
             overflow: TextOverflow.ellipsis,
             color: AppColors.black,
           ),
           controller: _domainController,
           onChanged: (String text) => _bloc.onChangedDomain(text),
-          prefixIcon: const Padding(
-            padding: EdgeInsets.only(left: 12.0, bottom: 8, top: 11),
-            child: Text(
-              "https://",
-              style: TextStyles.blackNormalRegular,
-            ),
-          ),
           suffixIcon: _buildClearIcon(
             isVisible: (state.cachedDomain ?? '').isEmpty &&
                 _domainController.text.isNotEmpty,
@@ -192,7 +176,8 @@ class _DomainPageState extends State<DomainPage> {
     );
   }
 
-  Widget? _buildClearIcon({required bool isVisible, required VoidCallback onTap}) {
+  Widget? _buildClearIcon(
+      {required bool isVisible, required VoidCallback onTap}) {
     if (!isVisible) return null;
 
     return InkWell(
@@ -245,9 +230,12 @@ class _DomainPageState extends State<DomainPage> {
     );
   }
 
-  Future<void> _handleStateListener(BuildContext context, DomainState state) async {
-    if (state.domain != null && state.domain!.isNotEmpty && _domainController.text.isEmpty) {
-      _domainController.text = state.domain!.replaceAll('https://', '');
+  Future<void> _handleStateListener(
+      BuildContext context, DomainState state) async {
+    if (state.domain != null &&
+        state.domain!.isNotEmpty &&
+        _domainController.text.isEmpty) {
+      _domainController.text = state.domain!;
     } else if (state.domain?.isEmpty ?? false) {
       _domainController.clear();
     }
@@ -266,7 +254,6 @@ class _DomainPageState extends State<DomainPage> {
     if (state.dbNames.isNotEmpty) {
       AppNavigator.pushNamed(RouterName.chooseDb, arguments: state.dbNames);
     }
-    
   }
 
   Future<void> _onSubmit(DomainState state) async {

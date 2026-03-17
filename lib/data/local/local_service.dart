@@ -34,6 +34,10 @@ import 'keychain/shared_prefs_key.dart';
 abstract class LocalService {
   void saveLoginOdooId(String? loginId);
   String getLoginOdooId();
+  void saveUserEmail(String? email);
+  String getUserEmail();
+  void saveUserFullName(String? fullName);
+  String getUserFullName();
   String getOdooToken();
   void saveOdooToken(String? token);
   void saveOdooDomain(String? domain);
@@ -901,6 +905,52 @@ class LocalServiceImplement implements LocalService {
       return loginId ?? "";
     } catch (e) {
       pushLog('Error in getLoginId: $e');
+      return "";
+    }
+  }
+
+  @override
+  void saveUserEmail(String? email) {
+    try {
+      _sharedPreferences.put(SharedPrefsKey.userEmail, email);
+    } catch (e) {
+      pushLog('Error in saveUserEmail: $e');
+      log(e.toString());
+    }
+  }
+
+  @override
+  String getUserEmail() {
+    try {
+      final String? email = _sharedPreferences.get(SharedPrefsKey.userEmail);
+      if (email != null && email.trim().isNotEmpty) {
+        return email.trim();
+      }
+      return getLoginOdooId();
+    } catch (e) {
+      pushLog('Error in getUserEmail: $e');
+      return "";
+    }
+  }
+
+  @override
+  void saveUserFullName(String? fullName) {
+    try {
+      _sharedPreferences.put(SharedPrefsKey.userFullName, fullName);
+    } catch (e) {
+      pushLog('Error in saveUserFullName: $e');
+      log(e.toString());
+    }
+  }
+
+  @override
+  String getUserFullName() {
+    try {
+      final String? fullName =
+          _sharedPreferences.get(SharedPrefsKey.userFullName);
+      return fullName?.trim() ?? "";
+    } catch (e) {
+      pushLog('Error in getUserFullName: $e');
       return "";
     }
   }

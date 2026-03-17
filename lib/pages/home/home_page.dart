@@ -28,13 +28,37 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late final LocalService _localService;
   bool _showPinVerification = false;
-  int _selectedNavIndex = 0;
+  String _displayName = 'Người dùng';
 
   @override
   void initState() {
     super.initState();
     _localService = getIt<LocalService>();
     _localService.initDefaultData();
+    _loadUserProfile();
+  }
+
+  void _loadUserProfile() {
+    final fullName = _localService.getUserFullName().trim();
+    final email = _localService.getUserEmail().trim();
+
+    final fallbackName =
+        email.isNotEmpty ? email.split('@').first : 'Người dùng';
+    setState(() {
+      _displayName = fullName.isNotEmpty ? fullName : fallbackName;
+    });
+  }
+
+  String _getGreetingByTime() {
+    final vietnamNow = DateTime.now().toUtc().add(const Duration(hours: 7));
+    final hour = vietnamNow.hour;
+    if (hour < 12) {
+      return 'Chào buổi sáng';
+    }
+    if (hour < 18) {
+      return 'Chào buổi chiều';
+    }
+    return 'Chào buổi tối';
   }
 
   Future<void> _onPinVerified() async {
@@ -60,7 +84,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F8),
+      backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
         child: Column(
           children: [
@@ -85,7 +109,6 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
@@ -96,7 +119,7 @@ class _HomePageState extends State<HomePage> {
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(
-          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 0.5),
+          bottom: BorderSide(color: AppColors.slate200, width: 0.5),
         ),
       ),
       child: Row(
@@ -112,7 +135,7 @@ class _HomePageState extends State<HomePage> {
                     MaterialPageRoute(builder: (_) => const SettingPage()));
               }
             },
-            child: const Icon(Icons.menu, size: 28, color: Color(0xFF0F172A)),
+            child: const Icon(Icons.menu, size: 28, color: AppColors.slate900),
           ),
           const SizedBox(width: 12),
           // Avatar
@@ -124,8 +147,7 @@ class _HomePageState extends State<HomePage> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                      color: const Color(0xFF1e3b8a).withOpacity(0.2),
-                      width: 2),
+                      color: AppColors.primary.withOpacity(0.2), width: 2),
                   image: const DecorationImage(
                     image: NetworkImage(
                       'https://lh3.googleusercontent.com/aida-public/AB6AXuAszK3UNeXtqQiZl5vOJHSZhDDMAIKzpe68uWFgCfUjFAMWVE1RtPluFqogf7QdjbE9GYE6PEeZqNyCdj0o0dxVvgybdkcJ78_hWEJrY6-M4U42Kgale564zHQht0a8R6cijdY4zjkZqZE6s-RZhLGLtsZE1BPWSVsdL8JJEf_Ud6iKEZwtRx3c0xjgYOOCFzV_aKzHX_DUnfzgLXt3ADjV54nNUiyQ2MMBojOGW31hAIQdBJ8thx1pDJVMMW6B5K4F5KqOkk0e--A',
@@ -141,7 +163,7 @@ class _HomePageState extends State<HomePage> {
                   width: 12,
                   height: 12,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF22C55E),
+                    color: AppColors.green500,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                   ),
@@ -156,19 +178,19 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Good Morning,',
-                  style: TextStyle(
+                  _getGreetingByTime(),
+                  style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: Colors.grey[500],
+                    color: AppColors.slate500,
                   ),
                 ),
-                const Text(
-                  'Alex Johnson',
-                  style: TextStyle(
+                Text(
+                  _displayName,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
+                    color: AppColors.slate900,
                     height: 1.2,
                   ),
                 ),
@@ -184,14 +206,14 @@ class _HomePageState extends State<HomePage> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: const Color(0xFFE2E8F0).withOpacity(0.5),
+                color: AppColors.slate200.withOpacity(0.5),
                 shape: BoxShape.circle,
               ),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
                   const Icon(Icons.notifications_outlined,
-                      size: 22, color: Color(0xFF0F172A)),
+                      size: 22, color: AppColors.slate900),
                   Positioned(
                     top: 8,
                     right: 9,
@@ -199,7 +221,7 @@ class _HomePageState extends State<HomePage> {
                       width: 8,
                       height: 8,
                       decoration: const BoxDecoration(
-                        color: Colors.red,
+                        color: AppColors.red,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -217,11 +239,11 @@ class _HomePageState extends State<HomePage> {
   Widget _buildCheckInCard() {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1e3b8a),
+        color: AppColors.primary,
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1e3b8a).withOpacity(0.35),
+            color: AppColors.primary.withOpacity(0.35),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -276,18 +298,18 @@ class _HomePageState extends State<HomePage> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4ADE80).withOpacity(0.2),
+                        color: AppColors.green300.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(99),
                         border: Border.all(
-                          color: const Color(0xFF4ADE80).withOpacity(0.3),
+                          color: AppColors.green300.withOpacity(0.3),
                         ),
                       ),
                       child: const Text(
-                        'Active Session',
+                        'Đang diễn ra',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFFBBF7D0),
+                          color: AppColors.green200,
                         ),
                       ),
                     ),
@@ -295,7 +317,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  'Check-in Now',
+                  'Điểm danh ngay',
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -304,7 +326,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'CS101: Introduction to AI',
+                  'CS101: Nhập môn trí tuệ nhân tạo',
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.blue[100],
@@ -318,7 +340,7 @@ class _HomePageState extends State<HomePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'STATUS',
+                          'TRẠNG THÁI',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
@@ -328,7 +350,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         const SizedBox(height: 2),
                         const Text(
-                          'Not yet recorded',
+                          'Chưa ghi nhận',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
@@ -344,7 +366,7 @@ class _HomePageState extends State<HomePage> {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
-                        foregroundColor: const Color(0xFF1e3b8a),
+                        foregroundColor: AppColors.primary,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 12),
@@ -354,7 +376,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       icon: const Icon(Icons.center_focus_strong, size: 18),
                       label: const Text(
-                        'Scan Face',
+                        'Quét khuôn mặt',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
@@ -377,11 +399,11 @@ class _HomePageState extends State<HomePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Quick Access',
+          'Truy cập nhanh',
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF0F172A),
+            color: AppColors.slate900,
           ),
         ),
         const SizedBox(height: 14),
@@ -395,34 +417,36 @@ class _HomePageState extends State<HomePage> {
           children: [
             _QuickAccessCard(
               icon: Icons.history,
-              title: 'History',
-              subtitle: 'View past logs',
-              iconBg: const Color(0xFFFFF7ED),
-              iconColor: const Color(0xFFEA580C),
-              onTap: () {},
+              title: 'Lịch sử',
+              subtitle: 'Xem điểm danh trước đó',
+              iconBg: AppColors.orange50,
+              iconColor: AppColors.orange600,
+              onTap: () {
+                AppNavigator.pushNamed(RouterName.attendanceReport);
+              },
             ),
             _QuickAccessCard(
               icon: Icons.calendar_month,
-              title: 'Schedule',
-              subtitle: 'Weekly plan',
-              iconBg: const Color(0xFFF5F3FF),
-              iconColor: const Color(0xFF9333EA),
+              title: 'Lịch học',
+              subtitle: 'Kế hoạch theo tuần',
+              iconBg: AppColors.purple50,
+              iconColor: AppColors.purple600,
               onTap: () {},
             ),
             _QuickAccessCard(
-              icon: Icons.bar_chart,
-              title: 'Statistics',
-              subtitle: '85% Attendance',
-              iconBg: const Color(0xFFF0FDFA),
-              iconColor: const Color(0xFF0D9488),
+              icon: Icons.description_outlined,
+              title: 'Đơn xin phép',
+              subtitle: 'Tạo và theo dõi đơn',
+              iconBg: AppColors.teal50,
+              iconColor: AppColors.teal600,
               onTap: () {},
             ),
             _QuickAccessCard(
-              icon: Icons.phonelink_setup,
-              title: 'Register face',
-              subtitle: 'Update biometrics',
-              iconBg: const Color(0xFFEFF6FF),
-              iconColor: const Color(0xFF2563EB),
+              icon: Icons.face_retouching_natural,
+              title: 'Đăng ký khuôn mặt',
+              subtitle: 'Cập nhật sinh trắc học',
+              iconBg: AppColors.blue50,
+              iconColor: AppColors.blue600,
               onTap: () {
                 AppNavigator.pushNamed(RouterName.registerFace);
               },
@@ -442,11 +466,11 @@ class _HomePageState extends State<HomePage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Recent Activity',
+              'Hoạt động gần đây',
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF0F172A),
+                color: AppColors.slate900,
               ),
             ),
             TextButton(
@@ -457,11 +481,11 @@ class _HomePageState extends State<HomePage> {
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: const Text(
-                'See All',
+                'Xem tất cả',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF1e3b8a),
+                  color: AppColors.primary,
                 ),
               ),
             ),
@@ -470,83 +494,22 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height: 12),
         _ActivityItem(
           icon: Icons.check_circle,
-          iconBg: const Color(0xFFDCFCE7),
-          iconColor: const Color(0xFF16A34A),
-          title: 'Physics Lab',
-          subtitle: 'Checked in • 09:45 AM',
-          time: 'Today',
+          iconBg: AppColors.green100,
+          iconColor: AppColors.green600,
+          title: 'Phòng thí nghiệm Vật lý',
+          subtitle: 'Đã điểm danh • 09:45',
+          time: 'Hôm nay',
         ),
         const SizedBox(height: 10),
         _ActivityItem(
           icon: Icons.cancel,
-          iconBg: const Color(0xFFFEE2E2),
-          iconColor: const Color(0xFFDC2626),
-          title: 'Math 201',
-          subtitle: 'Absent • No scan',
-          time: 'Yesterday',
+          iconBg: AppColors.red100,
+          iconColor: AppColors.red600,
+          title: 'Toán 201',
+          subtitle: 'Vắng mặt • Không quét',
+          time: 'Hôm qua',
         ),
       ],
-    );
-  }
-
-  // ── Bottom Nav ───────────────────────────────────────────
-  Widget _buildBottomNav() {
-    const items = [
-      {'icon': Icons.home, 'label': 'Home'},
-      {'icon': Icons.school, 'label': 'Classes'},
-      {'icon': Icons.chat_bubble_outline, 'label': 'Messages'},
-      {'icon': Icons.person_outline, 'label': 'Profile'},
-    ];
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 0.5)),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: List.generate(items.length, (i) {
-          final selected = _selectedNavIndex == i;
-          return GestureDetector(
-            onTap: () => setState(() => _selectedNavIndex = i),
-            behavior: HitTestBehavior.opaque,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? const Color(0xFF1e3b8a).withOpacity(0.1)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                  child: Icon(
-                    items[i]['icon'] as IconData,
-                    size: 22,
-                    color: selected
-                        ? const Color(0xFF1e3b8a)
-                        : const Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  items[i]['label'] as String,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                    color: selected
-                        ? const Color(0xFF1e3b8a)
-                        : const Color(0xFF64748B),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ),
     );
   }
 }
@@ -696,7 +659,7 @@ class _PinVerificationPageState extends State<_PinVerificationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -1033,7 +996,7 @@ class _QuickAccessCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: const Color(0xFFE2E8F0).withOpacity(0.5)),
+          border: Border.all(color: AppColors.slate200.withOpacity(0.5)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.04),
@@ -1060,7 +1023,7 @@ class _QuickAccessCard extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF0F172A),
+                color: AppColors.slate900,
               ),
             ),
             const SizedBox(height: 2),
@@ -1070,7 +1033,7 @@ class _QuickAccessCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontSize: 11,
-                color: Color(0xFF64748B),
+                color: AppColors.slate500,
               ),
             ),
           ],
@@ -1104,7 +1067,7 @@ class _ActivityItem extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0).withOpacity(0.5)),
+        border: Border.all(color: AppColors.slate200.withOpacity(0.5)),
       ),
       child: Row(
         children: [
@@ -1127,7 +1090,7 @@ class _ActivityItem extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
+                    color: AppColors.slate900,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -1135,7 +1098,7 @@ class _ActivityItem extends StatelessWidget {
                   subtitle,
                   style: const TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF64748B),
+                    color: AppColors.slate500,
                   ),
                 ),
               ],
@@ -1146,7 +1109,7 @@ class _ActivityItem extends StatelessWidget {
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: Color(0xFF94A3B8),
+              color: AppColors.slate400,
             ),
           ),
         ],
@@ -1204,7 +1167,7 @@ class _InfoCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: Colors.grey[600],
+              color: AppColors.slate500,
             ),
           ),
           const SizedBox(height: 4),

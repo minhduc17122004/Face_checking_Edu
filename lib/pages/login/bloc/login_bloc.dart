@@ -64,12 +64,15 @@ class LoginBloc extends Cubit<LoginState> {
       if (result.isSuccess) {
         final token = result.data?.token;
         final userEmail = result.data?.user?.email ?? state.username;
+        final userFullName = result.data?.user?.fullName?.trim();
         final userIdStr = result.data?.user?.id ?? "1";
         log('LoginBloc.onLogin success | userEmail=$userEmail | userId=$userIdStr');
 
         _localService.saveOdooToken(token);
         // Lưu role/email tương ứng
         _localService.saveLoginOdooId(userEmail);
+        _localService.saveUserEmail(userEmail);
+        _localService.saveUserFullName(userFullName);
         _localService.saveUserId(userIdStr.hashCode.abs());
 
         // Sử dụng một database dummy cho cấu trúc cũ

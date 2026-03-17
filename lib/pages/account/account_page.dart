@@ -1,12 +1,95 @@
 import 'package:flutter/material.dart';
+import 'package:face_time_keeping/common/resources/app_colors.dart';
+import 'package:face_time_keeping/data/local/local_service.dart';
+import 'package:face_time_keeping/di/injection.dart';
+import 'package:face_time_keeping/pages/setting/cubit/setting/setting_cubit.dart';
+import 'package:face_time_keeping/pages/widgets/app_dialog.dart';
+import 'package:face_time_keeping/route/app_route.dart';
+import 'package:face_time_keeping/route/navigator.dart';
 
-class AccountPage extends StatelessWidget {
+class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
+
+  @override
+  State<AccountPage> createState() => _AccountPageState();
+}
+
+class _AccountPageState extends State<AccountPage> {
+  late final SettingCubit _settingCubit = getIt();
+  late final LocalService _localService = getIt<LocalService>();
+  String _displayName = 'Người dùng';
+  String _displayEmail = 'user@example.com';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  void _loadUserProfile() {
+    final fullName = _localService.getUserFullName().trim();
+    final email = _localService.getUserEmail().trim();
+
+    final fallbackName =
+        email.isNotEmpty ? email.split('@').first : 'Người dùng';
+    setState(() {
+      _displayName = fullName.isNotEmpty ? fullName : fallbackName;
+      _displayEmail = email.isNotEmpty ? email : 'user@example.com';
+    });
+  }
+
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AppDialog(
+          title: 'Đăng xuất',
+          icon: Icons.logout,
+          accentColor: AppColors.red600,
+          content: const Text('Bạn có chắc chắn muốn đăng xuất?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.gray200,
+              ),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await _settingCubit.logout();
+                if (!mounted) return;
+                Navigator.of(dialogContext).pop();
+                AppNavigator.pushNamedAndRemoveUntil(
+                  RouterName.login,
+                  (_) => false,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.red600,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Đăng xuất'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _settingCubit.close();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F8),
+      backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
         child: Column(
           children: [
@@ -38,18 +121,18 @@ class AccountPage extends StatelessWidget {
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(
-          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 0.5),
+          bottom: BorderSide(color: AppColors.slate200, width: 0.5),
         ),
       ),
       child: const Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Account Profile',
+            'Hồ sơ tài khoản',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
+              color: AppColors.slate900,
               height: 1.2,
             ),
           ),
@@ -61,11 +144,11 @@ class AccountPage extends StatelessWidget {
   Widget _buildProfileCard() {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1e3b8a),
+        color: AppColors.primary,
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1e3b8a).withOpacity(0.35),
+            color: AppColors.primary.withOpacity(0.35),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -123,8 +206,8 @@ class AccountPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Alex Johnson',
+                Text(
+                  _displayName,
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -133,7 +216,7 @@ class AccountPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'alex.johnson@example.com',
+                  _displayEmail,
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.blue[100],
@@ -147,24 +230,24 @@ class AccountPage extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4ADE80).withOpacity(0.2),
+                        color: AppColors.green300.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(99),
                         border: Border.all(
-                          color: const Color(0xFF4ADE80).withOpacity(0.3),
+                          color: AppColors.green300.withOpacity(0.3),
                         ),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.verified,
-                              color: Color(0xFFBBF7D0), size: 16),
+                              color: AppColors.green200, size: 16),
                           SizedBox(width: 6),
                           Text(
-                            'Verified Student',
+                            'Đã xác minh',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFFBBF7D0),
+                              color: AppColors.green200,
                             ),
                           ),
                         ],
@@ -185,11 +268,11 @@ class AccountPage extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Settings',
+          'Cài đặt',
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF0F172A),
+            color: AppColors.slate900,
           ),
         ),
         const SizedBox(height: 14),
@@ -197,7 +280,7 @@ class AccountPage extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFE2E8F0).withOpacity(0.5)),
+            border: Border.all(color: AppColors.slate200.withOpacity(0.5)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.04),
@@ -210,43 +293,43 @@ class AccountPage extends StatelessWidget {
             children: [
               _SettingItem(
                 icon: Icons.person_outline,
-                title: 'Personal Information',
-                iconBg: const Color(0xFFEFF6FF),
-                iconColor: const Color(0xFF2563EB),
+                title: 'Thông tin cá nhân',
+                iconBg: AppColors.blue50,
+                iconColor: AppColors.blue600,
                 onTap: () {},
               ),
-              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+              const Divider(height: 1, color: AppColors.slate200),
               _SettingItem(
                 icon: Icons.security,
-                title: 'Security & Privacy',
-                iconBg: const Color(0xFFF5F3FF),
-                iconColor: const Color(0xFF9333EA),
+                title: 'Bảo mật và riêng tư',
+                iconBg: AppColors.purple50,
+                iconColor: AppColors.purple600,
                 onTap: () {},
               ),
-              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+              const Divider(height: 1, color: AppColors.slate200),
               _SettingItem(
                 icon: Icons.notifications_outlined,
-                title: 'Notifications',
-                iconBg: const Color(0xFFFFF7ED),
-                iconColor: const Color(0xFFEA580C),
+                title: 'Thông báo',
+                iconBg: AppColors.orange50,
+                iconColor: AppColors.orange600,
                 onTap: () {},
               ),
-              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+              const Divider(height: 1, color: AppColors.slate200),
               _SettingItem(
                 icon: Icons.help_outline,
-                title: 'Help & Support',
-                iconBg: const Color(0xFFF0FDFA),
-                iconColor: const Color(0xFF0D9488),
+                title: 'Trợ giúp và hỗ trợ',
+                iconBg: AppColors.teal50,
+                iconColor: AppColors.teal600,
                 onTap: () {},
               ),
-              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+              const Divider(height: 1, color: AppColors.slate200),
               _SettingItem(
                 icon: Icons.logout,
-                title: 'Log out',
-                iconBg: const Color(0xFFFEE2E2),
-                iconColor: const Color(0xFFDC2626),
-                titleColor: const Color(0xFFDC2626),
-                onTap: () {},
+                title: 'Đăng xuất',
+                iconBg: AppColors.red100,
+                iconColor: AppColors.red600,
+                titleColor: AppColors.red600,
+                onTap: _showLogoutDialog,
                 showArrow: false,
               ),
             ],
@@ -264,7 +347,7 @@ class _SettingItem extends StatelessWidget {
     required this.iconBg,
     required this.iconColor,
     required this.onTap,
-    this.titleColor = const Color(0xFF0F172A),
+    this.titleColor = AppColors.slate900,
     this.showArrow = true,
   });
 
@@ -309,7 +392,7 @@ class _SettingItem extends StatelessWidget {
               const Icon(
                 Icons.arrow_forward_ios,
                 size: 16,
-                color: Color(0xFF94A3B8),
+                color: AppColors.slate400,
               ),
           ],
         ),

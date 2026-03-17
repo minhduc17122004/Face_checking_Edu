@@ -152,5 +152,7 @@ class SettingCubit extends Cubit<SettingState> {
     }
     _localService.saveOdooToken(null);
     _localService.saveLoginOdooId(null);
+    _localService.saveUserEmail(null);
+    _localService.saveUserFullName(null);
   }
 }

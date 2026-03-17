@@ -33,4 +33,31 @@ class AppColors {
   // Vedura login design colors
   static const primary = Color(0xFF1E3B8A);
   static const backgroundLight = Color(0xFFF6F6F8);
+
+  // New UI palette (home/account/setting)
+  static const slate900 = Color(0xFF0F172A);
+  static const slate500 = Color(0xFF64748B);
+  static const slate400 = Color(0xFF94A3B8);
+
+  static const blue600 = Color(0xFF2563EB);
+  static const blue50 = Color(0xFFEFF6FF);
+  static const slate200 = Color(0xFFE2E8F0);
+
+  static const green500 = Color(0xFF22C55E);
+  static const green600 = Color(0xFF16A34A);
+  static const green100 = Color(0xFFDCFCE7);
+  static const green300 = Color(0xFF4ADE80);
+  static const green200 = Color(0xFFBBF7D0);
+
+  static const red600 = Color(0xFFDC2626);
+  static const red100 = Color(0xFFFEE2E2);
+
+  static const orange600 = Color(0xFFEA580C);
+  static const orange50 = Color(0xFFFFF7ED);
+
+  static const purple600 = Color(0xFF9333EA);
+  static const purple50 = Color(0xFFF5F3FF);
+
+  static const teal600 = Color(0xFF0D9488);
+  static const teal50 = Color(0xFFF0FDFA);
 }

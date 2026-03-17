@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Legacy router — Flutter-compatible API endpoints under /api/.
 
 These endpoints implement the exact URL paths and JSON response shapes

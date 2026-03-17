@@ -38,6 +38,8 @@ abstract class LocalService {
   void saveOdooToken(String? token);
   void saveOdooDomain(String? domain);
   String getOdooDomain();
+  List<String> getRecentDomains();
+  void saveRecentDomain(String? domain);
   Future<void> clearOdooDomainRelatedData();
   Future<void> initApp();
   Future<Map<String, dynamic>> checkIn(CheckInOut checkIn);
@@ -802,10 +804,47 @@ class LocalServiceImplement implements LocalService {
       if (domain != null) {
         _sharedPreferences.put(SharedPrefsKey.domain, domain);
         _apiClient.updateConfigBaseUrl(domain);
+        saveRecentDomain(domain);
       }
     } catch (e) {
       pushLog('Error in saveDomain: $e');
       log(e.toString());
+    }
+  }
+
+  @override
+  List<String> getRecentDomains() {
+    try {
+      final recent =
+          _sharedPreferences.get<List<String>>(SharedPrefsKey.recentDomains);
+      if (recent == null || recent.isEmpty) {
+        return const [];
+      }
+      return recent.where((e) => e.trim().isNotEmpty).toList(growable: false);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  @override
+  void saveRecentDomain(String? domain) {
+    try {
+      final normalized = domain?.trim() ?? '';
+      if (normalized.isEmpty) {
+        return;
+      }
+      final current = getRecentDomains();
+      final updated = <String>[
+        normalized,
+        ...current.where((d) => d != normalized)
+      ];
+      const maxRecent = 5;
+      _sharedPreferences.put(
+        SharedPrefsKey.recentDomains,
+        updated.take(maxRecent).toList(growable: false),
+      );
+    } catch (e) {
+      pushLog('Error in saveRecentDomain: $e');
     }
   }
 
@@ -816,12 +855,14 @@ class LocalServiceImplement implements LocalService {
       if (domain != null && domain.isNotEmpty) {
         _apiClient.updateConfigBaseUrl(domain);
         getIt<BuildConfig>().setBaseUrl(domain);
+        saveRecentDomain(domain);
         return domain;
       }
 
       final configBaseUrl = getIt<BuildConfig>().kBaseUrl.trim();
       if (configBaseUrl.isNotEmpty) {
         _apiClient.updateConfigBaseUrl(configBaseUrl);
+        saveRecentDomain(configBaseUrl);
         return configBaseUrl;
       }
 

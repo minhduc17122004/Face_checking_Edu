@@ -1,3 +1,4 @@
+from __future__ import annotations
 """User schemas — read/list responses for the /users endpoints."""
 import uuid
 from datetime import datetime

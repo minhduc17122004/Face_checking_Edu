@@ -1,5 +1,7 @@
+from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
+from typing import Optional, List
 
 from sqlalchemy import String, Text, Boolean, DateTime, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
@@ -21,7 +23,7 @@ class Student(Base):
     __tablename__ = "students"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[uuid.UUID | None] = mapped_column(
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
@@ -30,15 +32,15 @@ class Student(Base):
 
     # Core identity
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    pin: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    pin: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
 
     # `job_title` is repurposed as a class/group code for Flutter backward-compat
-    job_title: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    job_title: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
     # Avatar / sync metadata
-    avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    avatar_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     has_avatar: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    attachment_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    attachment_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     is_synced: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
@@ -57,10 +59,10 @@ class Student(Base):
     user: Mapped["User"] = relationship(  # noqa: F821
         "User", back_populates="student_profile"
     )
-    face_embeddings: Mapped[list["FaceEmbedding"]] = relationship(  # noqa: F821
+    face_embeddings: Mapped[List["FaceEmbedding"]] = relationship(  # noqa: F821
         "FaceEmbedding", back_populates="student", cascade="all, delete-orphan"
     )
-    attendance_records: Mapped[list["AttendanceRecord"]] = relationship(  # noqa: F821
+    attendance_records: Mapped[List["AttendanceRecord"]] = relationship(  # noqa: F821
         "AttendanceRecord", back_populates="student", cascade="all, delete-orphan"
     )
 

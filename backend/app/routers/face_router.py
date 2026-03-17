@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Face router — register embeddings and retrieve them per student."""
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession

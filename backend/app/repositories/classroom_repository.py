@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Classroom repository — raw async DB queries for the `classes` table."""
 import uuid
 from typing import Sequence

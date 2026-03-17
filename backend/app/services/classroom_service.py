@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Classroom service — CRUD for the /classes endpoints."""
 import uuid
 

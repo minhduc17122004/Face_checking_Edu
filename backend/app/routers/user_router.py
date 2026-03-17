@@ -1,3 +1,4 @@
+from __future__ import annotations
 """User router — GET /users, GET /users/{user_id}."""
 import uuid
 

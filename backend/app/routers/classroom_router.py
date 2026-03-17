@@ -1,7 +1,8 @@
+from __future__ import annotations
 """Classroom router — POST /classes, GET /classes, GET /classes/{class_id}."""
 import uuid
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -63,12 +64,14 @@ async def get_class(
 @router.delete(
     "/{class_id}",
     status_code=204,
+    response_class=Response,
     summary="Delete a classroom (owner only)",
 )
 async def delete_class(
     class_id: uuid.UUID,
     user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
-) -> None:
+) -> Response:
     """Delete a classroom. Only the owning teacher may delete it (403 otherwise)."""
     await ClassroomService(db).delete_class(class_id, teacher_id=uuid.UUID(user_id))
+    return Response(status_code=204)

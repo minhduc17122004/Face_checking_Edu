@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Optional
 import uuid
 from datetime import datetime, timezone
 
@@ -25,12 +27,12 @@ class Teacher(Base):
         nullable=False,
         index=True,
     )
-    employee_code: Mapped[str | None] = mapped_column(
+    employee_code: Mapped[Optional[str]] = mapped_column(
         String(50), unique=True, nullable=True
     )
-    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    department: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    department: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    avatar_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

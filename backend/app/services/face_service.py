@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Face service — embedding registration, REST queries, and Flutter export/import."""
 import json
 from pathlib import Path

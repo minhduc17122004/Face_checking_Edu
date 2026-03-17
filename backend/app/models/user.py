@@ -1,5 +1,7 @@
+from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
+from typing import List
 
 from sqlalchemy import String, DateTime, func
 from sqlalchemy.dialects.postgresql import UUID
@@ -40,7 +42,7 @@ class User(Base):
     student_profile: Mapped["Student"] = relationship(  # noqa: F821
         "Student", back_populates="user", uselist=False, lazy="select"
     )
-    classes: Mapped[list["Classroom"]] = relationship(  # noqa: F821
+    classes: Mapped[List["Classroom"]] = relationship(  # noqa: F821
         "Classroom", back_populates="teacher", lazy="select"
     )
 

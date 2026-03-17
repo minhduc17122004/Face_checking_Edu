@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Attendance repository — raw async DB queries for `attendance_records`."""
 import uuid
 from datetime import datetime

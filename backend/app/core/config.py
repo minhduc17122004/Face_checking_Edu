@@ -1,5 +1,7 @@
+from __future__ import annotations
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+from typing import List
 
 
 class Settings(BaseSettings):
@@ -17,7 +19,7 @@ class Settings(BaseSettings):
     # App
     APP_NAME: str = "Vedura Face Attendance API"
     DEBUG: bool = False
-    CORS_ORIGINS: list[str] = ["*"]
+    CORS_ORIGINS: list = ["*"]
 
     class Config:
         env_file = ".env"

@@ -5,6 +5,7 @@ class SharedPrefsKey {
   static const String devices = 'devices';
   static const String logs = 'logs';
   static const String domain = 'domain';
+  static const String recentDomains = 'recentDomains';
   static const String morningTime = 'morningTime';
   static const String afternoonTime = 'afternoonTime';
   static const String nightTime = 'nightTime';

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Authentication schemas — login, register, token, and user-info responses."""
 import uuid
 from datetime import datetime

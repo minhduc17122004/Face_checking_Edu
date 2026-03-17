@@ -1,5 +1,7 @@
+from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
+from typing import Optional, List
 
 from sqlalchemy import String, DateTime, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
@@ -23,10 +25,10 @@ class Classroom(Base):
         index=True,
     )
     class_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    subject: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    subject: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     # FK to users (teacher who owns the class)
-    teacher_id: Mapped[uuid.UUID | None] = mapped_column(
+    teacher_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
@@ -42,7 +44,7 @@ class Classroom(Base):
     teacher: Mapped["User"] = relationship(  # noqa: F821
         "User", back_populates="classes"
     )
-    attendance_records: Mapped[list["AttendanceRecord"]] = relationship(  # noqa: F821
+    attendance_records: Mapped[List["AttendanceRecord"]] = relationship(  # noqa: F821
         "AttendanceRecord", back_populates="classroom", cascade="all, delete-orphan"
     )
 

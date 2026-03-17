@@ -85,7 +85,7 @@ class _BootstrapPageState extends State<BootstrapPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-                'Domain không hợp lệ hoặc đã thay đổi. Vui lòng nhập lại.'),
+                'Không kết nối được server đã lưu (có thể do đổi mạng). Vui lòng cập nhật URL server.'),
             backgroundColor: Colors.red,
             duration: Duration(seconds: 3),
           ),

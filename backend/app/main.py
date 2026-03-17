@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 from contextlib import asynccontextmanager
 
@@ -5,7 +6,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
 from app.core.config import settings
+from app.core.rate_limit import limiter
 from app.core.database import create_all_tables
 
 # Import all models so SQLAlchemy metadata is fully populated before
@@ -39,6 +44,12 @@ app = FastAPI(
 )
 
 # ──────────────────────────────────────────────────────────────
+# Rate Limiting
+# ──────────────────────────────────────────────────────────────
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# ──────────────────────────────────────────────────────────────
 # CORS
 # ──────────────────────────────────────────────────────────────
 app.add_middleware(
@@ -68,6 +79,7 @@ from app.routers.student_router import router as student_router
 from app.routers.classroom_router import router as classroom_router
 from app.routers.attendance_router import router as attendance_router
 from app.routers.face_router import router as face_router
+from app.routers.device_router import router as device_router
 
 # Flutter legacy API router (Phase 7)
 from app.routers.legacy_router import router as legacy_router
@@ -89,4 +101,5 @@ app.include_router(student_router)
 app.include_router(classroom_router)
 app.include_router(attendance_router)
 app.include_router(face_router)
+app.include_router(device_router)
 app.include_router(legacy_router)

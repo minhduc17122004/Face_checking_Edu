@@ -1,3 +1,4 @@
+from __future__ import annotations
 # app/schemas/__init__.py
 # Re-export all Pydantic schemas so routers can import from `app.schemas` directly.
 

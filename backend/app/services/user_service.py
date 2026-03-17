@@ -1,3 +1,4 @@
+from __future__ import annotations
 """User service — read-only queries for the /users endpoints."""
 import uuid
 

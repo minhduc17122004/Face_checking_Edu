@@ -30,9 +30,8 @@ class DomainBloc extends Cubit<DomainState> {
   }
 
   void _saveDomain(String domain) {
-    final newDomain = domain.replaceAll('https://', '');
-    String url = "https://$newDomain";
-    if (newDomain.isNotEmpty) {
+    final url = _normalizeDomainInput(domain);
+    if (url.isNotEmpty) {
       _localService.saveOdooDomain(url);
       _localService.clearOdooDomainRelatedData();
       buildConfig.setBaseUrl(url);
@@ -59,6 +58,21 @@ class DomainBloc extends Cubit<DomainState> {
         requestStatus: RequestStatus.initial,
       ));
     }
+  }
+
+  String _normalizeDomainInput(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      return '';
+    }
+
+    final withScheme = trimmed.startsWith('http://') || trimmed.startsWith('https://')
+        ? trimmed
+        : 'http://$trimmed';
+
+    return withScheme.endsWith('/')
+        ? withScheme.substring(0, withScheme.length - 1)
+        : withScheme;
   }
 
   void onChangedAutoLogin(bool? value) {

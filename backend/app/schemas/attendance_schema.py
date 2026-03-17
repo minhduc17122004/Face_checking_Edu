@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Optional
 """Attendance schemas — REST check-in/out and Flutter bulk-sync shapes.
 
 The Flutter app syncs attendance via:
@@ -19,17 +21,17 @@ class CheckinRequest(BaseModel):
     """POST /attendance/checkin — single real-time check-in."""
 
     student_id: int = Field(..., examples=[1])
-    class_id: uuid.UUID | None = Field(None)
+    class_id: Optional[uuid.UUID] = Field(None)
     record_type: str = Field("checkin", pattern="^(checkin|checkout)$")
-    checkin_time: datetime | None = Field(
+    checkin_time: Optional[datetime] = Field(
         None,
         description="Device-side timestamp; defaults to server time if omitted.",
     )
-    confidence: float | None = Field(None, ge=0.0, le=1.0, examples=[0.97])
-    device_id: str | None = Field(None, max_length=255)
-    latitude: float | None = Field(None)
-    longitude: float | None = Field(None)
-    image_url: str | None = Field(None)
+    confidence: Optional[float] = Field(None, ge=0.0, le=1.0, examples=[0.97])
+    device_id: Optional[str] = Field(None, max_length=255)
+    latitude: Optional[float] = Field(None)
+    longitude: Optional[float] = Field(None)
+    image_url: Optional[str] = Field(None)
 
 
 class AttendanceOut(BaseModel):
@@ -37,16 +39,16 @@ class AttendanceOut(BaseModel):
 
     id: uuid.UUID
     student_id: int
-    class_id: uuid.UUID | None
+    class_id: Optional[uuid.UUID]
     record_type: str
-    checkin_time: datetime | None
+    checkin_time: Optional[datetime]
     sync_time: datetime
-    confidence: float | None
-    device_id: str | None
+    confidence: Optional[float]
+    device_id: Optional[str]
     status: str
-    latitude: float | None
-    longitude: float | None
-    image_url: str | None
+    latitude: Optional[float]
+    longitude: Optional[float]
+    image_url: Optional[str]
 
     model_config = {"from_attributes": True}
 
@@ -78,12 +80,12 @@ class BulkSyncEntry(BaseModel):
         pattern="^(checkin|checkout)$",
         description="'checkin' or 'checkout'",
     )
-    confidence: float | None = Field(None, ge=0.0, le=1.0)
-    deviceId: str | None = Field(None)
-    latitude: float | None = Field(None)
-    longitude: float | None = Field(None)
-    imageUrl: str | None = Field(None)
-    classId: str | None = Field(
+    confidence: Optional[float] = Field(None, ge=0.0, le=1.0)
+    deviceId: Optional[str] = Field(None)
+    latitude: Optional[float] = Field(None)
+    longitude: Optional[float] = Field(None)
+    imageUrl: Optional[str] = Field(None)
+    classId: Optional[str] = Field(
         None, description="UUID string of the class, or null."
     )
 
@@ -107,7 +109,7 @@ class BulkSyncItemResult(BaseModel):
     checkTime: str
     recordType: str
     status: str = Field(..., description="'synced' | 'duplicate' | 'error'")
-    message: str | None = None
+    message: Optional[str] = None
 
 
 class BulkSyncResponse(BaseModel):

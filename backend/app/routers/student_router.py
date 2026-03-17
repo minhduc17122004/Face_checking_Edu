@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Student router — modern REST CRUD for /students."""
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession

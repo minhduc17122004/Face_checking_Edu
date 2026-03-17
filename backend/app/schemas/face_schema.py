@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Optional, List
 """Face embedding schemas — register/retrieve face vectors.
 
 Flutter push/pull contract:
@@ -25,13 +27,13 @@ class FaceRegisterRequest(BaseModel):
     """
 
     student_id: int = Field(..., examples=[1])
-    embedding: list[float] | None = Field(
+    embedding: Optional[list[float]] = Field(
         None,
         description="Single 128-d float vector.",
         min_length=128,
         max_length=512,
     )
-    embeddings: list[list[float]] | None = Field(
+    embeddings: Optional[list[list[float]]] = Field(
         None,
         description="Multiple 128-d float vectors for multi-pose registration.",
     )
@@ -99,7 +101,7 @@ class FaceDataOut(BaseModel):
         )
 
 
-class FaceExportResponse(RootModel[list[FaceDataOut]]):
+class FaceExportResponse(RootModel[List[FaceDataOut]]):
     """GET /api/employee/export/json — full export payload.
 
     Flutter iterates this list to load all known face embeddings into

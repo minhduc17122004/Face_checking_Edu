@@ -1,7 +1,8 @@
+from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Integer, DateTime, ForeignKey, func
+from sqlalchemy import String, Float, Boolean, DateTime, ForeignKey, func, JSON, Integer
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -34,7 +35,7 @@ class FaceEmbedding(Base):
     )
 
     # Stores a list of floats (128-d vector) or a list of lists for multi-pose embeddings
-    embedding_data: Mapped[list] = mapped_column(JSONB, nullable=False)
+    embedding_data: Mapped[list] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

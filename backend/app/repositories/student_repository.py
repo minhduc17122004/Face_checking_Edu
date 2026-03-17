@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Student repository — raw async DB queries for the `students` table."""
 from typing import Sequence
 

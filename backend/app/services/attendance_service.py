@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Attendance service — real-time check-in and Flutter bulk-sync."""
 import uuid
 from datetime import datetime, timezone

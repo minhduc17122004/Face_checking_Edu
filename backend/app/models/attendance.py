@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Optional
 import uuid
 from datetime import datetime, timezone
 
@@ -38,7 +40,7 @@ class AttendanceRecord(Base):
     )
 
     # FK: class (optional — a checkin can be free-floating without a class context)
-    class_id: Mapped[uuid.UUID | None] = mapped_column(
+    class_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("classes.id", ondelete="SET NULL"),
         nullable=True,
@@ -51,7 +53,7 @@ class AttendanceRecord(Base):
     )
 
     # Timestamps
-    checkin_time: Mapped[datetime | None] = mapped_column(
+    checkin_time: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )  # Device offline time
     sync_time: Mapped[datetime] = mapped_column(
@@ -61,8 +63,8 @@ class AttendanceRecord(Base):
     )  # Server receive time
 
     # Recognition metadata
-    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
-    device_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    device_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     # Status: 'present' | 'absent' | 'late'
     status: Mapped[str] = mapped_column(
@@ -70,11 +72,11 @@ class AttendanceRecord(Base):
     )
 
     # Geo-location
-    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
-    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     # Snapshot image captured at the moment of recognition
-    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # ── Relationships ──────────────────────────────────────────
     student: Mapped["Student"] = relationship(  # noqa: F821

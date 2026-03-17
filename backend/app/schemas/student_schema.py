@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Student schemas — Flutter-compatible employee shapes + REST shapes.
 
 Flutter legacy API uses the term "employee" / "Employee" for what this
@@ -9,7 +10,7 @@ BOTH the modern REST API and the legacy Flutter API response contract:
 """
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Optional, Any
 
 from pydantic import BaseModel, Field
 
@@ -21,23 +22,23 @@ class StudentCreate(BaseModel):
     """POST /students — create a single student (modern REST)."""
 
     name: str = Field(..., min_length=1, max_length=255, examples=["Trần Thị B"])
-    pin: str | None = Field(None, max_length=10, examples=["1234"])
-    job_title: str | None = Field(None, max_length=100, examples=["12A1"])
+    pin: Optional[str] = Field(None, max_length=10, examples=["1234"])
+    job_title: Optional[str] = Field(None, max_length=100, examples=["12A1"])
     has_avatar: bool = Field(False)
-    attachment_id: str | None = Field(None, max_length=255)
+    attachment_id: Optional[str] = Field(None, max_length=255)
 
 
 class StudentOut(BaseModel):
     """Read response for a single student (modern REST)."""
 
     id: int
-    user_id: uuid.UUID | None
+    user_id: Optional[uuid.UUID]
     name: str
-    pin: str | None
-    job_title: str | None
-    avatar_url: str | None
+    pin: Optional[str]
+    job_title: Optional[str]
+    avatar_url: Optional[str]
     has_avatar: bool
-    attachment_id: str | None
+    attachment_id: Optional[str]
     is_synced: bool
     created_at: datetime
     updated_at: datetime
@@ -64,10 +65,10 @@ class EmployeeCreateLegacy(BaseModel):
     """
 
     name: str = Field(..., examples=["Trần Thị B"])
-    pin: str | None = Field(None, examples=["1234"])
-    jobTitle: str | None = Field(None, examples=["12A1"])   # camelCase from Flutter
+    pin: Optional[str] = Field(None, examples=["1234"])
+    jobTitle: Optional[str] = Field(None, examples=["12A1"])   # camelCase from Flutter
     hasAvatar: bool = Field(False)
-    attachmentId: str | None = Field(None)
+    attachmentId: Optional[str] = Field(None)
 
 
 class EmployeeOut(BaseModel):
@@ -84,11 +85,11 @@ class EmployeeOut(BaseModel):
 
     id: int
     name: str
-    pin: str | None = None
-    jobTitle: str | None = None       # Flutter camelCase
+    pin: Optional[str] = None
+    jobTitle: Optional[str] = None       # Flutter camelCase
     hasAvatar: bool = False
-    attachmentId: str | None = None
-    avatarUrl: str | None = None
+    attachmentId: Optional[str] = None
+    avatarUrl: Optional[str] = None
 
     model_config = {"from_attributes": True, "populate_by_name": True}
 

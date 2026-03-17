@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Face embedding repository — raw async DB queries for `face_embeddings`."""
 from typing import Sequence
 

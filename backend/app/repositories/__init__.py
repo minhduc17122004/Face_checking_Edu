@@ -1,3 +1,4 @@
+from __future__ import annotations
 # app/repositories/__init__.py
 # Re-export all repository classes for convenient service-layer imports.
 

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Auth service — registration, login, and current-user resolution."""
 from datetime import timedelta
 
@@ -5,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.logger import security_logger
 from app.core.security import hash_password, verify_password, create_access_token
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth_schema import RegisterRequest, LoginRequest, TokenResponse, UserInfo, MessageResponse
@@ -14,6 +16,7 @@ class AuthService:
     """Handles user registration, login token generation, and identity resolution."""
 
     def __init__(self, db: AsyncSession) -> None:
+        self.db = db
         self.repo = UserRepository(db)
 
     # ── Register ──────────────────────────────────────────────
@@ -33,8 +36,10 @@ class AuthService:
             full_name=req.full_name,
             role=req.role,
         )
+        await self.db.commit()
 
         # 3. Issue JWT immediately (no separate login step needed)
+        security_logger.info(f"User registered successfully: {req.email}")
         return self._build_token_response(user)
 
     # ── Login ─────────────────────────────────────────────────
@@ -44,12 +49,14 @@ class AuthService:
         # Use constant-time comparison even on "not found" branch to prevent
         # timing-based user enumeration attacks.
         if not user or not verify_password(req.password, user.password_hash):
+            security_logger.warning(f"Failed login attempt for email: {req.email}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid email or password.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
+        security_logger.info(f"Successful login for user: {user.email}")
         return self._build_token_response(user)
 
     # ── Resolve current user ───────────────────────────────────
@@ -88,4 +95,5 @@ class AuthService:
 
     async def logout(self, user_id: str) -> MessageResponse:
         """Stateless logout endpoint for clients to clear local token/session."""
+        security_logger.info(f"User logged out: {user_id}")
         return MessageResponse(message=f"Logged out successfully for user {user_id}")

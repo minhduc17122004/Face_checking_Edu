@@ -1,8 +1,9 @@
 """Auth router — POST /auth/register, POST /auth/login, GET /auth/me."""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.rate_limit import limiter
 from app.core.security import get_current_user_id
 from app.schemas.auth_schema import RegisterRequest, LoginRequest, TokenResponse, UserInfo, MessageResponse
 from app.services.auth_service import AuthService
@@ -29,7 +30,9 @@ async def register(
     response_model=TokenResponse,
     summary="Login and receive a JWT token",
 )
+@limiter.limit("5/minute")
 async def login(
+    request: Request,
     body: LoginRequest,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:

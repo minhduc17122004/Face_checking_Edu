@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Student service — CRUD and Flutter-compatible employee operations."""
 import os
 import uuid as _uuid

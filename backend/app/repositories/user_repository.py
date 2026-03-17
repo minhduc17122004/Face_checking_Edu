@@ -1,3 +1,4 @@
+from __future__ import annotations
 """User repository — raw async DB queries for the `users` table."""
 import uuid
 from typing import Sequence

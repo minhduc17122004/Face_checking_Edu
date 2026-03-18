@@ -1,14 +1,22 @@
-"""Auth router — POST /auth/register, POST /auth/login, GET /auth/me."""
-from fastapi import APIRouter, Depends, Request
+"""Auth router — POST /auth/register, POST /auth/login, GET /auth/me, POST /auth/avatar."""
+
+
+import logging
+
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.rate_limit import limiter
 from app.core.security import get_current_user_id
-from app.schemas.auth_schema import RegisterRequest, LoginRequest, TokenResponse, UserInfo, MessageResponse
+from app.schemas.auth_schema import (
+    RegisterRequest, LoginRequest, TokenResponse, UserInfo,
+    MessageResponse, AvatarUploadResponse,
+)
 from app.services.auth_service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+logger = logging.getLogger(__name__)
 
 
 @router.post(
@@ -30,9 +38,7 @@ async def register(
     response_model=TokenResponse,
     summary="Login and receive a JWT token",
 )
-@limiter.limit("5/minute")
 async def login(
-    request: Request,
     body: LoginRequest,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
@@ -51,6 +57,48 @@ async def me(
 ) -> UserInfo:
     """Return the profile of the user identified by the bearer token."""
     return await AuthService(db).get_current_user_info(user_id)
+
+
+@router.post(
+    "/avatar",
+    response_model=AvatarUploadResponse,
+    summary="Upload or update user avatar",
+)
+async def upload_avatar(
+    avatar: UploadFile | None = File(
+        default=None,
+        alias="avatar",
+        description="Avatar image (field name 'avatar')",
+    ),
+    file: UploadFile | None = File(
+        default=None,
+        alias="file",
+        description="Avatar image (field name 'file')",
+    ),
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> AvatarUploadResponse:
+    """Upload an image to set as the authenticated user's avatar.
+
+    The image will be resized to 512×512 max and stored as JPEG.
+    """
+    selected_file = avatar or file
+    if selected_file is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing file in multipart form-data. Use field name 'avatar' or 'file'.",
+        )
+
+    try:
+        return await AuthService(db).upload_avatar(user_id, selected_file)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Unexpected error in /auth/avatar")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload avatar: {exc}",
+        )
 
 
 @router.post(

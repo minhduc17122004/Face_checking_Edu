@@ -32,7 +32,7 @@ class BootstrapCubit extends Cubit<BootstrapState> with EventBusMixin {
 
   Future<void> initData() async {
     try {
-      final token = _localService.getOdooToken();
+      final token = _localService.getOdooToken().trim();
       final configuredDomain = _buildConfig.kBaseUrl.trim();
       final savedDomain = _localService.getOdooDomain().trim();
       final recentDomains = _localService.getRecentDomains();
@@ -89,7 +89,7 @@ class BootstrapCubit extends Cubit<BootstrapState> with EventBusMixin {
 
       final dbName = await _localService.getOdooDbName();
       if (dbName.isEmpty) {
-        emit(state.copyWith(status: BootstrapStatus.offlineMode));
+        emit(state.copyWith(status: BootstrapStatus.unauthenticated));
         return;
       }
       await _configTenant(domain, dbName);

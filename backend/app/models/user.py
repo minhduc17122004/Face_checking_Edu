@@ -29,6 +29,9 @@ class User(Base):
     role: Mapped[str] = mapped_column(
         String(20), nullable=False, default="student"
     )  # 'teacher' | 'student' | 'admin'
+    avatar_url: Mapped[str | None] = mapped_column(
+        String(500), nullable=True, default=None
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

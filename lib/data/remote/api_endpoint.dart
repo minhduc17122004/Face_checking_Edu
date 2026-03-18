@@ -14,4 +14,5 @@ class ApiEndpoint {
   static const String pullFaceData = "/api/employee/export/json";
   static const String registerEmployeeBatch = "/api/employee/create/batch";
   static const String uploadEmployeeAvatar = "/api/employee/avatars/upload";
+  static const String uploadUserAvatar = "/auth/avatar";
 }

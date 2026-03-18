@@ -1,9 +1,12 @@
 from __future__ import annotations
+import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from slowapi import _rate_limit_exceeded_handler
@@ -17,6 +20,8 @@ from app.core.database import create_all_tables
 # create_all_tables() runs. This is the canonical registration point.
 import app.models  # noqa: F401, E402
 
+logger = logging.getLogger(__name__)
+
 
 # ──────────────────────────────────────────────────────────────
 # Lifespan (startup / shutdown)
@@ -24,6 +29,16 @@ import app.models  # noqa: F401, E402
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    # Ensure multipart parser dependency exists for UploadFile/FormData routes.
+    try:
+        import multipart  # type: ignore # noqa: F401
+    except Exception as exc:
+        logger.exception("Missing dependency python-multipart")
+        raise RuntimeError(
+            "python-multipart is required for multipart/form-data upload endpoints. "
+            "Install it with: pip install python-multipart"
+        ) from exc
+
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
     # Create tables if they don't exist (Alembic handles migrations in prod)
     await create_all_tables()
@@ -48,6 +63,46 @@ app = FastAPI(
 # ──────────────────────────────────────────────────────────────
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request,
+    exc: RequestValidationError,
+) -> JSONResponse:
+    logger.error("Request validation error on %s: %s", request.url.path, exc.errors())
+    return JSONResponse(
+        status_code=422,
+        content={
+            "message": "Request validation failed",
+            "detail": exc.errors(),
+        },
+    )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    logger.error("HTTP error on %s: %s", request.url.path, exc.detail)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "message": "Request failed",
+            "detail": exc.detail,
+        },
+        headers=exc.headers,
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.exception("Unhandled server error on %s", request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "message": "Internal server error",
+            "detail": str(exc),
+        },
+    )
 
 # ──────────────────────────────────────────────────────────────
 # CORS

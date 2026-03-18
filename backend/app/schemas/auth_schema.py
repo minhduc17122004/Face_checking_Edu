@@ -39,6 +39,7 @@ class UserInfo(BaseModel):
     email: EmailStr
     full_name: str
     role: str
+    avatar_url: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -57,3 +58,10 @@ class MessageResponse(BaseModel):
     """Generic message response for lightweight endpoints (e.g. logout)."""
 
     message: str
+
+
+class AvatarUploadResponse(BaseModel):
+    """POST /auth/avatar — response after successful avatar upload."""
+
+    avatar_url: str
+    message: str = "Avatar updated successfully"

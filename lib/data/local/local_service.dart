@@ -106,6 +106,8 @@ abstract class LocalService {
       List<Employee> employees, String serverName);
   Future<void> cloneDataFromPreviousTenant(int oldTenantId, int newTenantId);
   Future<void> clearAllData();
+  void saveAvatarPath(String? path);
+  String getAvatarPath();
 }
 
 @LazySingleton(as: LocalService)
@@ -951,6 +953,31 @@ class LocalServiceImplement implements LocalService {
       return fullName?.trim() ?? "";
     } catch (e) {
       pushLog('Error in getUserFullName: $e');
+      return "";
+    }
+  }
+
+  @override
+  void saveAvatarPath(String? path) {
+    try {
+      final email = getUserEmail();
+      final key = email.isNotEmpty ? '${SharedPrefsKey.avatarPath}_$email' : SharedPrefsKey.avatarPath;
+      _sharedPreferences.put(key, path);
+    } catch (e) {
+      pushLog('Error in saveAvatarPath: $e');
+      log(e.toString());
+    }
+  }
+
+  @override
+  String getAvatarPath() {
+    try {
+      final email = getUserEmail();
+      final key = email.isNotEmpty ? '${SharedPrefsKey.avatarPath}_$email' : SharedPrefsKey.avatarPath;
+      final String? path = _sharedPreferences.get(key);
+      return path?.trim() ?? "";
+    } catch (e) {
+      pushLog('Error in getAvatarPath: $e');
       return "";
     }
   }

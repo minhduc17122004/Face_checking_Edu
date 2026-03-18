@@ -69,6 +69,13 @@ class UserRepository:
         await self.db.refresh(user)
         return user
 
+    async def update_avatar(self, user: User, avatar_url: str) -> User:
+        """Update the avatar_url field on a user record."""
+        user.avatar_url = avatar_url
+        await self.db.flush()
+        await self.db.refresh(user)
+        return user
+
     async def delete(self, user: User) -> None:
         await self.db.delete(user)
         await self.db.flush()

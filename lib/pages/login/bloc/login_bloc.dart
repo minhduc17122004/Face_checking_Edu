@@ -66,7 +66,7 @@ class LoginBloc extends Cubit<LoginState> {
         final userEmail = result.data?.user?.email ?? state.username;
         final userFullName = result.data?.user?.fullName?.trim();
         final userIdStr = result.data?.user?.id ?? "1";
-        log('LoginBloc.onLogin success | userEmail=$userEmail | userId=$userIdStr');
+        final avatarUrl = result.data?.user?.avatarUrl;
 
         _localService.saveOdooToken(token);
         // Lưu role/email tương ứng
@@ -74,6 +74,12 @@ class LoginBloc extends Cubit<LoginState> {
         _localService.saveUserEmail(userEmail);
         _localService.saveUserFullName(userFullName);
         _localService.saveUserId(userIdStr.hashCode.abs());
+
+        if (avatarUrl != null && avatarUrl.isNotEmpty) {
+           _localService.saveAvatarPath(activeBaseUrl + avatarUrl);
+        } else {
+           _localService.saveAvatarPath("");
+        }
 
         // Sử dụng một database dummy cho cấu trúc cũ
         final String database = "fastapi_db";

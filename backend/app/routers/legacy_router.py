@@ -14,9 +14,9 @@ Flutter endpoint constants (from api_endpoint.dart):
     POST /api/employee/avatars/upload
     POST /api/attendance/history/sync_bulk_io
 """
-from typing import List
+from typing import List, Any
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, UploadFile, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -150,6 +150,24 @@ async def sync_bulk_attendance(
     """Sync a batch of offline attendance records captured on the device.
 
     Returns per-record status: `synced | duplicate | error`.
-    Duplicate records (same student + checkin_time + type) are silently skipped.
     """
     return await AttendanceService(db).bulk_sync(body)
+
+
+# ── Client Error Logging ───────────────────────────────────────────────────────
+
+@router.post(
+    "/log/error",
+    summary="[Flutter] Log client errors to backend",
+)
+async def log_client_error(
+    payload: dict = Body(...),
+    # Optional auth if you don't require token for logging
+) -> dict:
+    """Accepts error logs from the Flutter application and logs them."""
+    # In a real app, you might save this to a file, Sentry, or DB
+    import logging
+    logger = logging.getLogger("flutter_client")
+    logger.error(f"Client error reported: {payload}")
+    return {"status": "ok", "message": "Log recorded"}
+

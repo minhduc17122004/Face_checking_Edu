@@ -1,6 +1,15 @@
+import 'dart:io';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
+import 'package:face_time_keeping/common/api_client/api_client.dart';
 import 'package:face_time_keeping/common/resources/app_colors.dart';
 import 'package:face_time_keeping/data/local/local_service.dart';
+import 'package:face_time_keeping/data/remote/api_endpoint.dart';
 import 'package:face_time_keeping/di/injection.dart';
 import 'package:face_time_keeping/pages/setting/cubit/setting/setting_cubit.dart';
 import 'package:face_time_keeping/pages/widgets/app_dialog.dart';
@@ -19,6 +28,8 @@ class _AccountPageState extends State<AccountPage> {
   late final LocalService _localService = getIt<LocalService>();
   String _displayName = 'Người dùng';
   String _displayEmail = 'user@example.com';
+  String _avatarPath = '';
+  bool _isUploadingAvatar = false;
 
   @override
   void initState() {
@@ -29,13 +40,233 @@ class _AccountPageState extends State<AccountPage> {
   void _loadUserProfile() {
     final fullName = _localService.getUserFullName().trim();
     final email = _localService.getUserEmail().trim();
+    final avatarPath = _localService.getAvatarPath();
 
     final fallbackName =
         email.isNotEmpty ? email.split('@').first : 'Người dùng';
     setState(() {
       _displayName = fullName.isNotEmpty ? fullName : fallbackName;
       _displayEmail = email.isNotEmpty ? email : 'user@example.com';
+      _avatarPath = avatarPath;
     });
+  }
+
+  Future<void> _pickAndSaveAvatar() async {
+    final source = await _showAvatarSourcePicker();
+    if (source == null) return;
+
+    final picker = ImagePicker();
+    final XFile? picked = await picker.pickImage(
+      source: source,
+      imageQuality: 85,
+      maxWidth: 512,
+      maxHeight: 512,
+    );
+    if (picked == null) return;
+
+    setState(() => _isUploadingAvatar = true);
+
+    try {
+      // 1. Save locally for offline access
+      final appDir = await getApplicationDocumentsDirectory();
+      final avatarDir = Directory(p.join(appDir.path, 'avatars'));
+      if (!avatarDir.existsSync()) {
+        avatarDir.createSync(recursive: true);
+      }
+
+      final ext = p.extension(picked.path).isNotEmpty
+          ? p.extension(picked.path)
+          : '.jpg';
+
+      // Xoá file ảnh của avatar rác từ phiên làm việc trước của CHÍNH user này
+      if (_avatarPath.isNotEmpty) {
+        final oldFile = File(_avatarPath);
+        if (oldFile.existsSync()) {
+          try {
+            oldFile.deleteSync();
+          } catch (_) {}
+        }
+      }
+
+      // Đặt tên file chứa timestamp + email để phân biệt rõ ràng
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final safeEmail = _displayEmail.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+      final savedFile = File(p.join(avatarDir.path, 'avatar_${safeEmail}_$timestamp$ext'));
+
+      await File(picked.path).copy(savedFile.path);
+      
+      // Xoá Image cache cũ của Flutter (chắc chắn 100% UI sẽ update)
+      imageCache.clear();
+      // Không lưu cứng local ngay từ đầu nữa, hãy đợi xem Backend trả về gì
+      String newAvatarPath = savedFile.path;
+
+      // 2. Upload to backend
+      bool backendSuccess = false;
+      try {
+        final apiClient = getIt<ApiClient>();
+        final formData = FormData.fromMap({
+          'file': await MultipartFile.fromFile(
+            savedFile.path,
+            filename: 'avatar$ext',
+          ),
+        });
+        
+        final response = await apiClient.dio.post(
+          ApiEndpoint.uploadUserAvatar,
+          data: formData,
+          options: Options(
+            contentType: 'multipart/form-data',
+            sendTimeout: 120000, // 120s for Dio v4
+            receiveTimeout: 120000, 
+          ),
+          onSendProgress: (int sent, int total) {
+            debugPrint("Upload Avatar: ${(sent / total * 100).toStringAsFixed(0)}%");
+          },
+        );
+        backendSuccess = (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300);
+        
+        // Trích xuất URL Network từ Backend
+        if (backendSuccess && response.data != null && response.data['avatar_url'] != null) {
+          final baseUrl = apiClient.dio.options.baseUrl;
+          var urlSuffix = response.data['avatar_url'] as String;
+          if (baseUrl.endsWith('/') && urlSuffix.startsWith('/')) {
+             urlSuffix = urlSuffix.substring(1);
+          }
+          newAvatarPath = (baseUrl.endsWith('/') ? baseUrl : '$baseUrl/') + (urlSuffix.startsWith('/') ? urlSuffix.substring(1) : urlSuffix);
+        }
+      } catch (e) {
+        debugPrint("Lỗi upload avatar: $e");
+        // Backend upload failed silently — local copy is still saved fallback
+      }
+
+      _localService.saveAvatarPath(newAvatarPath);
+
+      if (!mounted) return;
+      setState(() {
+        _avatarPath = newAvatarPath;
+        _isUploadingAvatar = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                backendSuccess ? Icons.check_circle : Icons.cloud_off,
+                color: Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  backendSuccess
+                      ? 'Cập nhật ảnh đại diện thành công!'
+                      : 'Đã lưu cục bộ, đồng bộ server sau.',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor:
+              backendSuccess ? AppColors.green600 : AppColors.orange600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUploadingAvatar = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.white, size: 20),
+              SizedBox(width: 10),
+              Text('Không thể cập nhật ảnh đại diện.'),
+            ],
+          ),
+          backgroundColor: AppColors.red600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    }
+  }
+
+  Future<ImageSource?> _showAvatarSourcePicker() {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.slate400.withOpacity(0.4),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Chọn ảnh đại diện',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.slate900,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Chọn nguồn ảnh để cập nhật avatar',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.slate500,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: _AvatarSourceOption(
+                    icon: Icons.camera_alt_rounded,
+                    label: 'Chụp ảnh',
+                    color: AppColors.blue600,
+                    bgColor: AppColors.blue50,
+                    onTap: () => Navigator.pop(ctx, ImageSource.camera),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _AvatarSourceOption(
+                    icon: Icons.photo_library_rounded,
+                    label: 'Thư viện',
+                    color: AppColors.purple600,
+                    bgColor: AppColors.purple50,
+                    onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showLogoutDialog() {
@@ -141,6 +372,140 @@ class _AccountPageState extends State<AccountPage> {
     );
   }
 
+  Widget _buildAvatarWidget() {
+    final bool isNetworkAvatar = _avatarPath.startsWith('http') || _avatarPath.startsWith('https');
+    final bool hasLocalAvatar =
+        !isNetworkAvatar && _avatarPath.isNotEmpty && File(_avatarPath).existsSync();
+
+    return GestureDetector(
+      onTap: _isUploadingAvatar ? null : _pickAndSaveAvatar,
+      child: Stack(
+        children: [
+          // Avatar circle
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            width: 88,
+            height: 88,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withOpacity(0.6),
+                width: 3,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipOval(
+              child: _isUploadingAvatar
+                  ? Container(
+                      color: Colors.black26,
+                      child: const Center(
+                        child: SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                      ),
+                    )
+                  : isNetworkAvatar
+                      ? CachedNetworkImage(
+                          imageUrl: '$_avatarPath?t=${DateTime.now().millisecondsSinceEpoch}', // bypass Network Cache
+                          fit: BoxFit.cover,
+                          width: 88,
+                          height: 88,
+                          errorWidget: (context, url, error) => _buildDefaultAvatar(),
+                          placeholder: (context, url) => Container(
+                             color: AppColors.slate200,
+                             child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                          ),
+                        )
+                      : hasLocalAvatar
+                          ? Image.file(
+                              File(_avatarPath),
+                              fit: BoxFit.cover,
+                              width: 88,
+                              height: 88,
+                              errorBuilder: (_, __, ___) => _buildDefaultAvatar(),
+                            )
+                          : _buildDefaultAvatar(),
+            ),
+          ),
+          // Camera badge
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Container(
+                  width: 26,
+                  height: 26,
+                  decoration: const BoxDecoration(
+                    color: AppColors.blue600,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt_rounded,
+                    color: Colors.white,
+                    size: 14,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDefaultAvatar() {
+    return Container(
+      width: 88,
+      height: 88,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.blue[300]!,
+            Colors.blue[600]!,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          _displayName.isNotEmpty ? _displayName[0].toUpperCase() : 'U',
+          style: const TextStyle(
+            fontSize: 36,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildProfileCard() {
     return Container(
       decoration: BoxDecoration(
@@ -188,23 +553,7 @@ class _AccountPageState extends State<AccountPage> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 10),
-                Center(
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                          color: Colors.white.withOpacity(0.5), width: 3),
-                      image: const DecorationImage(
-                        image: NetworkImage(
-                          'https://lh3.googleusercontent.com/aida-public/AB6AXuAszK3UNeXtqQiZl5vOJHSZhDDMAIKzpe68uWFgCfUjFAMWVE1RtPluFqogf7QdjbE9GYE6PEeZqNyCdj0o0dxVvgybdkcJ78_hWEJrY6-M4U42Kgale564zHQht0a8R6cijdY4zjkZqZE6s-RZhLGLtsZE1BPWSVsdL8JJEf_Ud6iKEZwtRx3c0xjgYOOCFzV_aKzHX_DUnfzgLXt3ADjV54nNUiyQ2MMBojOGW31hAIQdBJ8thx1pDJVMMW6B5K4F5KqOkk0e--A',
-                        ),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                ),
+                Center(child: _buildAvatarWidget()),
                 const SizedBox(height: 16),
                 Text(
                   _displayName,
@@ -336,6 +685,59 @@ class _AccountPageState extends State<AccountPage> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _AvatarSourceOption extends StatelessWidget {
+  const _AvatarSourceOption({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.bgColor,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color bgColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: bgColor,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 26),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

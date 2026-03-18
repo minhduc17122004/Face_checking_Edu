@@ -7,6 +7,7 @@ from app.schemas.auth_schema import (  # noqa: F401
     RegisterRequest,
     TokenResponse,
     UserInfo,
+    AvatarUploadResponse,
 )
 from app.schemas.user_schema import UserOut, UserList  # noqa: F401
 from app.schemas.student_schema import (  # noqa: F401

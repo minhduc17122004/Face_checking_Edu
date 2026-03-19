@@ -32,9 +32,9 @@ class BootstrapCubit extends Cubit<BootstrapState> with EventBusMixin {
 
   Future<void> initData() async {
     try {
-      final token = _localService.getOdooToken().trim();
+      final token = _localService.getAuthToken().trim();
       final configuredDomain = _buildConfig.kBaseUrl.trim();
-      final savedDomain = _localService.getOdooDomain().trim();
+      final savedDomain = _localService.getServerUrl().trim();
       final recentDomains = _localService.getRecentDomains();
 
       final candidates = <String>[];
@@ -82,13 +82,20 @@ class BootstrapCubit extends Cubit<BootstrapState> with EventBusMixin {
 
       // Always keep ApiClient aligned with configured backend URL.
       _buildConfig.setBaseUrl(domain);
-      _localService.saveOdooDomain(domain);
+      _localService.saveServerUrl(domain);
       _localService.saveRecentDomain(domain);
 
       debugPrint('🔵 Bootstrap: Using FastAPI base URL: $domain');
 
-      final dbName = await _localService.getOdooDbName();
+      final dbName = await _localService.getDatabaseName();
       if (dbName.isEmpty) {
+        if (token.isNotEmpty) {
+          const fallbackDbName = 'fastapi_db';
+          await _localService.saveDatabaseName(fallbackDbName);
+          await _configTenant(domain, fallbackDbName);
+          emit(state.copyWith(status: BootstrapStatus.authenticated));
+          return;
+        }
         emit(state.copyWith(status: BootstrapStatus.unauthenticated));
         return;
       }

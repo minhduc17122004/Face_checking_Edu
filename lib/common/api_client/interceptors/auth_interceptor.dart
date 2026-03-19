@@ -1,17 +1,20 @@
 import 'package:dio/dio.dart';
 import 'package:face_time_keeping/route/navigator.dart';
 import 'package:flutter/widgets.dart';
+import 'package:injectable/injectable.dart';
 
 import '../../../data/local/keychain/shared_prefs.dart';
 import '../../../data/local/keychain/shared_prefs_key.dart';
 import '../../../data/remote/api_endpoint.dart';
-import '../../../di/injection.dart';
 import '../../../route/app_route.dart';
 import '../../event/event_bus_event.dart';
 import '../../event/event_bus_mixin.dart';
 
+@lazySingleton
 class AuthInterceptor extends Interceptor with EventBusMixin {
-  final SharedPrefs _sharedPrefs = getIt<SharedPrefs>();
+  AuthInterceptor(this._sharedPrefs);
+
+  final SharedPrefs _sharedPrefs;
   static bool _isHandlingUnauthorized = false;
 
   @override

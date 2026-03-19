@@ -17,12 +17,12 @@ import 'interceptors/auth_interceptor.dart';
 
 @singleton
 class ApiClient {
-  ApiClient({required this.dio}) {
+  ApiClient({required this.dio, required AuthInterceptor authInterceptor}) {
     late final cookieJar;
     final BuildConfig buildConfig = getIt<BuildConfig>();
     dio.options.baseUrl = buildConfig.kBaseUrl;
     cookieJar = CookieJar();
-    dio.interceptors.add(AuthInterceptor());
+    dio.interceptors.add(authInterceptor);
     dio.interceptors.add(CookieInterceptor(cookieJar));
     dio.interceptors.add(CurlLoggerDioInterceptor());
     //  dio.interceptors.add(LoggingInterceptor());

@@ -32,8 +32,8 @@ class DomainBloc extends Cubit<DomainState> {
   void _saveDomain(String domain) {
     final url = _normalizeDomainInput(domain);
     if (url.isNotEmpty) {
-      _localService.saveOdooDomain(url);
-      _localService.clearOdooDomainRelatedData();
+      _localService.saveServerUrl(url);
+      _localService.clearServerRelatedData();
       buildConfig.setBaseUrl(url);
       emit(state.copyWith(
         cachedDomain: url,
@@ -50,7 +50,7 @@ class DomainBloc extends Cubit<DomainState> {
         ));
       });
     } else {
-      _localService.saveOdooDomain("");
+      _localService.saveServerUrl("");
       buildConfig.setBaseUrl("");
       emit(state.copyWith(
         cachedDomain: '',
@@ -66,9 +66,10 @@ class DomainBloc extends Cubit<DomainState> {
       return '';
     }
 
-    final withScheme = trimmed.startsWith('http://') || trimmed.startsWith('https://')
-        ? trimmed
-        : 'http://$trimmed';
+    final withScheme =
+        trimmed.startsWith('http://') || trimmed.startsWith('https://')
+            ? trimmed
+            : 'http://$trimmed';
 
     return withScheme.endsWith('/')
         ? withScheme.substring(0, withScheme.length - 1)
@@ -80,7 +81,7 @@ class DomainBloc extends Cubit<DomainState> {
   }
 
   void initDomain() {
-    final String domain = _localService.getOdooDomain();
+    final String domain = _localService.getServerUrl();
     buildConfig.setBaseUrl(domain);
     emit(state.copyWith(
       cachedDomain: domain,
@@ -90,6 +91,6 @@ class DomainBloc extends Cubit<DomainState> {
 
   void onAccessDomain() {
     _saveDomain(state.domain ?? '');
-    _localService.saveOdooToken('');
+    _localService.saveAuthToken('');
   }
 }

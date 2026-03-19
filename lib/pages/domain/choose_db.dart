@@ -55,7 +55,8 @@ class ChooseDb extends StatelessWidget {
                           ),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () async {
-                            await getIt<LocalService>().saveOdooDbName(dbName);
+                            await getIt<LocalService>()
+                                .saveDatabaseName(dbName);
                             AppNavigator.pushNamedAndRemoveUntil(
                               RouterName.login,
                               (_) => false,

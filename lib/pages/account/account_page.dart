@@ -1,20 +1,17 @@
 import 'dart:io';
 
-import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
-import 'package:face_time_keeping/common/api_client/api_client.dart';
 import 'package:face_time_keeping/common/resources/app_colors.dart';
-import 'package:face_time_keeping/data/local/local_service.dart';
-import 'package:face_time_keeping/data/remote/api_endpoint.dart';
 import 'package:face_time_keeping/di/injection.dart';
+import 'package:face_time_keeping/pages/account/account_cubit.dart';
+import 'package:face_time_keeping/pages/account/account_state.dart';
 import 'package:face_time_keeping/pages/setting/cubit/setting/setting_cubit.dart';
 import 'package:face_time_keeping/pages/widgets/app_dialog.dart';
 import 'package:face_time_keeping/route/app_route.dart';
 import 'package:face_time_keeping/route/navigator.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -25,30 +22,12 @@ class AccountPage extends StatefulWidget {
 
 class _AccountPageState extends State<AccountPage> {
   late final SettingCubit _settingCubit = getIt();
-  late final LocalService _localService = getIt<LocalService>();
-  String _displayName = 'Người dùng';
-  String _displayEmail = 'user@example.com';
-  String _avatarPath = '';
-  bool _isUploadingAvatar = false;
+  late final AccountCubit _accountCubit = getIt<AccountCubit>();
 
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
-  }
-
-  void _loadUserProfile() {
-    final fullName = _localService.getUserFullName().trim();
-    final email = _localService.getUserEmail().trim();
-    final avatarPath = _localService.getAvatarPath();
-
-    final fallbackName =
-        email.isNotEmpty ? email.split('@').first : 'Người dùng';
-    setState(() {
-      _displayName = fullName.isNotEmpty ? fullName : fallbackName;
-      _displayEmail = email.isNotEmpty ? email : 'user@example.com';
-      _avatarPath = avatarPath;
-    });
+    _accountCubit.loadUserProfile();
   }
 
   Future<void> _pickAndSaveAvatar() async {
@@ -64,139 +43,8 @@ class _AccountPageState extends State<AccountPage> {
     );
     if (picked == null) return;
 
-    setState(() => _isUploadingAvatar = true);
-
-    try {
-      // 1. Save locally for offline access
-      final appDir = await getApplicationDocumentsDirectory();
-      final avatarDir = Directory(p.join(appDir.path, 'avatars'));
-      if (!avatarDir.existsSync()) {
-        avatarDir.createSync(recursive: true);
-      }
-
-      final ext = p.extension(picked.path).isNotEmpty
-          ? p.extension(picked.path)
-          : '.jpg';
-
-      // Xoá file ảnh của avatar rác từ phiên làm việc trước của CHÍNH user này
-      if (_avatarPath.isNotEmpty) {
-        final oldFile = File(_avatarPath);
-        if (oldFile.existsSync()) {
-          try {
-            oldFile.deleteSync();
-          } catch (_) {}
-        }
-      }
-
-      // Đặt tên file chứa timestamp + email để phân biệt rõ ràng
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final safeEmail = _displayEmail.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
-      final savedFile = File(p.join(avatarDir.path, 'avatar_${safeEmail}_$timestamp$ext'));
-
-      await File(picked.path).copy(savedFile.path);
-      
-      // Xoá Image cache cũ của Flutter (chắc chắn 100% UI sẽ update)
-      imageCache.clear();
-      // Không lưu cứng local ngay từ đầu nữa, hãy đợi xem Backend trả về gì
-      String newAvatarPath = savedFile.path;
-
-      // 2. Upload to backend
-      bool backendSuccess = false;
-      try {
-        final apiClient = getIt<ApiClient>();
-        final formData = FormData.fromMap({
-          'file': await MultipartFile.fromFile(
-            savedFile.path,
-            filename: 'avatar$ext',
-          ),
-        });
-        
-        final response = await apiClient.dio.post(
-          ApiEndpoint.uploadUserAvatar,
-          data: formData,
-          options: Options(
-            contentType: 'multipart/form-data',
-            sendTimeout: 120000, // 120s for Dio v4
-            receiveTimeout: 120000, 
-          ),
-          onSendProgress: (int sent, int total) {
-            debugPrint("Upload Avatar: ${(sent / total * 100).toStringAsFixed(0)}%");
-          },
-        );
-        backendSuccess = (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300);
-        
-        // Trích xuất URL Network từ Backend
-        if (backendSuccess && response.data != null && response.data['avatar_url'] != null) {
-          final baseUrl = apiClient.dio.options.baseUrl;
-          var urlSuffix = response.data['avatar_url'] as String;
-          if (baseUrl.endsWith('/') && urlSuffix.startsWith('/')) {
-             urlSuffix = urlSuffix.substring(1);
-          }
-          newAvatarPath = (baseUrl.endsWith('/') ? baseUrl : '$baseUrl/') + (urlSuffix.startsWith('/') ? urlSuffix.substring(1) : urlSuffix);
-        }
-      } catch (e) {
-        debugPrint("Lỗi upload avatar: $e");
-        // Backend upload failed silently — local copy is still saved fallback
-      }
-
-      _localService.saveAvatarPath(newAvatarPath);
-
-      if (!mounted) return;
-      setState(() {
-        _avatarPath = newAvatarPath;
-        _isUploadingAvatar = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(
-                backendSuccess ? Icons.check_circle : Icons.cloud_off,
-                color: Colors.white,
-                size: 20,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  backendSuccess
-                      ? 'Cập nhật ảnh đại diện thành công!'
-                      : 'Đã lưu cục bộ, đồng bộ server sau.',
-                ),
-              ),
-            ],
-          ),
-          backgroundColor:
-              backendSuccess ? AppColors.green600 : AppColors.orange600,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isUploadingAvatar = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.error_outline, color: Colors.white, size: 20),
-              SizedBox(width: 10),
-              Text('Không thể cập nhật ảnh đại diện.'),
-            ],
-          ),
-          backgroundColor: AppColors.red600,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
-    }
+    imageCache.clear();
+    await _accountCubit.updateAvatar(picked.path);
   }
 
   Future<ImageSource?> _showAvatarSourcePicker() {
@@ -313,36 +161,100 @@ class _AccountPageState extends State<AccountPage> {
 
   @override
   void dispose() {
+    _accountCubit.close();
     _settingCubit.close();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 8),
-                    _buildProfileCard(),
-                    const SizedBox(height: 24),
-                    _buildSettings(),
-                    const SizedBox(height: 8),
-                  ],
-                ),
+    return BlocConsumer<AccountCubit, AccountState>(
+      bloc: _accountCubit,
+      listener: (context, state) {
+        if (state.avatarUpdateStatus == AccountAvatarUpdateStatus.initial) {
+          return;
+        }
+
+        if (state.avatarUpdateStatus == AccountAvatarUpdateStatus.failure) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.white, size: 20),
+                  SizedBox(width: 10),
+                  Text('Không thể cập nhật ảnh đại diện.'),
+                ],
               ),
+              backgroundColor: AppColors.red600,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              margin: const EdgeInsets.all(16),
             ),
-          ],
-        ),
-      ),
+          );
+          _accountCubit.resetAvatarStatus();
+          return;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  state.backendSynced ? Icons.check_circle : Icons.cloud_off,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    state.backendSynced
+                        ? 'Cập nhật ảnh đại diện thành công!'
+                        : 'Đã lưu cục bộ, đồng bộ server sau.',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor:
+                state.backendSynced ? AppColors.green600 : AppColors.orange600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        _accountCubit.resetAvatarStatus();
+      },
+      builder: (context, state) {
+        return Scaffold(
+          backgroundColor: AppColors.backgroundLight,
+          body: SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 8),
+                        _buildProfileCard(state),
+                        const SizedBox(height: 24),
+                        _buildSettings(),
+                        const SizedBox(height: 8),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -372,13 +284,15 @@ class _AccountPageState extends State<AccountPage> {
     );
   }
 
-  Widget _buildAvatarWidget() {
-    final bool isNetworkAvatar = _avatarPath.startsWith('http') || _avatarPath.startsWith('https');
-    final bool hasLocalAvatar =
-        !isNetworkAvatar && _avatarPath.isNotEmpty && File(_avatarPath).existsSync();
+  Widget _buildAvatarWidget(AccountState state) {
+    final isNetworkAvatar = state.avatarPath.startsWith('http://') ||
+        state.avatarPath.startsWith('https://');
+    final hasLocalAvatar = !isNetworkAvatar &&
+        state.avatarPath.isNotEmpty &&
+        File(state.avatarPath).existsSync();
 
     return GestureDetector(
-      onTap: _isUploadingAvatar ? null : _pickAndSaveAvatar,
+      onTap: state.isUploadingAvatar ? null : _pickAndSaveAvatar,
       child: Stack(
         children: [
           // Avatar circle
@@ -401,7 +315,7 @@ class _AccountPageState extends State<AccountPage> {
               ],
             ),
             child: ClipOval(
-              child: _isUploadingAvatar
+              child: state.isUploadingAvatar
                   ? Container(
                       color: Colors.black26,
                       child: const Center(
@@ -418,25 +332,30 @@ class _AccountPageState extends State<AccountPage> {
                     )
                   : isNetworkAvatar
                       ? CachedNetworkImage(
-                          imageUrl: '$_avatarPath?t=${DateTime.now().millisecondsSinceEpoch}', // bypass Network Cache
+                          imageUrl:
+                              '${state.avatarPath}?t=${DateTime.now().millisecondsSinceEpoch}',
                           fit: BoxFit.cover,
                           width: 88,
                           height: 88,
-                          errorWidget: (context, url, error) => _buildDefaultAvatar(),
+                          errorWidget: (context, url, error) =>
+                              _buildDefaultAvatar(state.displayName),
                           placeholder: (context, url) => Container(
-                             color: AppColors.slate200,
-                             child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                            color: AppColors.slate200,
+                            child: const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
                           ),
                         )
                       : hasLocalAvatar
                           ? Image.file(
-                              File(_avatarPath),
+                              File(state.avatarPath),
                               fit: BoxFit.cover,
                               width: 88,
                               height: 88,
-                              errorBuilder: (_, __, ___) => _buildDefaultAvatar(),
+                              errorBuilder: (_, __, ___) =>
+                                  _buildDefaultAvatar(state.displayName),
                             )
-                          : _buildDefaultAvatar(),
+                          : _buildDefaultAvatar(state.displayName),
             ),
           ),
           // Camera badge
@@ -479,7 +398,7 @@ class _AccountPageState extends State<AccountPage> {
     );
   }
 
-  Widget _buildDefaultAvatar() {
+  Widget _buildDefaultAvatar(String displayName) {
     return Container(
       width: 88,
       height: 88,
@@ -495,7 +414,7 @@ class _AccountPageState extends State<AccountPage> {
       ),
       child: Center(
         child: Text(
-          _displayName.isNotEmpty ? _displayName[0].toUpperCase() : 'U',
+          displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
           style: const TextStyle(
             fontSize: 36,
             fontWeight: FontWeight.bold,
@@ -506,7 +425,7 @@ class _AccountPageState extends State<AccountPage> {
     );
   }
 
-  Widget _buildProfileCard() {
+  Widget _buildProfileCard(AccountState state) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.primary,
@@ -553,10 +472,10 @@ class _AccountPageState extends State<AccountPage> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 10),
-                Center(child: _buildAvatarWidget()),
+                Center(child: _buildAvatarWidget(state)),
                 const SizedBox(height: 16),
                 Text(
-                  _displayName,
+                  state.displayName,
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -565,7 +484,7 @@ class _AccountPageState extends State<AccountPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _displayEmail,
+                  state.displayEmail,
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.blue[100],

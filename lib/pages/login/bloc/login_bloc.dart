@@ -51,7 +51,7 @@ class LoginBloc extends Cubit<LoginState> {
       }
 
       final configuredBaseUrl = getIt<BuildConfig>().kBaseUrl.trim();
-      final fallbackBaseUrl = _localService.getOdooDomain().trim();
+      final fallbackBaseUrl = _localService.getServerUrl().trim();
       final activeBaseUrl =
           configuredBaseUrl.isNotEmpty ? configuredBaseUrl : fallbackBaseUrl;
       log('LoginBloc.onLogin activeBaseUrl=$activeBaseUrl');
@@ -68,9 +68,9 @@ class LoginBloc extends Cubit<LoginState> {
         final userIdStr = result.data?.user?.id ?? "1";
         final avatarUrl = result.data?.user?.avatarUrl;
 
-        _localService.saveOdooToken(token);
+        _localService.saveAuthToken(token);
         // Lưu role/email tương ứng
-        _localService.saveLoginOdooId(userEmail);
+        _localService.saveLoginId(userEmail);
         _localService.saveUserEmail(userEmail);
         _localService.saveUserFullName(userFullName);
         _localService.saveUserId(userIdStr.hashCode.abs());
@@ -83,6 +83,7 @@ class LoginBloc extends Cubit<LoginState> {
 
         // Sử dụng một database dummy cho cấu trúc cũ
         final String database = "fastapi_db";
+        await _localService.saveDatabaseName(database);
 
         // Get old tenant ID before creating/getting new one
         final oldTenantId =

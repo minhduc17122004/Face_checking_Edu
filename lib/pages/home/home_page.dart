@@ -1,11 +1,12 @@
+import 'dart:async';
 import 'package:face_time_keeping/common/utils/log_util.dart';
+import 'package:face_time_keeping/common/event/event_bus_event.dart';
+import 'package:face_time_keeping/common/event/event_bus_mixin.dart';
 import 'package:face_time_keeping/common/utils/sync_jobs_util.dart';
 import 'package:face_time_keeping/data/remote/user_service.dart';
 import 'package:face_time_keeping/entities/sync_face_schedule.dart';
 import 'package:face_time_keeping/entities/sync_schedule.dart';
 import 'package:face_time_keeping/pages/checking/checking_page.dart';
-import 'package:face_time_keeping/pages/home/test/test_page.dart';
-
 import 'package:face_time_keeping/pages/setting/setting_page.dart';
 import 'package:face_time_keeping/route/app_route.dart';
 import 'package:face_time_keeping/route/navigator.dart';
@@ -15,8 +16,11 @@ import 'package:face_time_keeping/data/local/local_service.dart';
 import 'package:face_time_keeping/common/resources/index.dart';
 import 'package:face_time_keeping/common/utils/widgets/spacing.dart';
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -25,10 +29,12 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with EventBusMixin {
   late final LocalService _localService;
+  StreamSubscription<AvatarChangedEvent>? _avatarChangedSubscription;
   bool _showPinVerification = false;
   String _displayName = 'Người dùng';
+  String _avatarPath = '';
 
   @override
   void initState() {
@@ -36,6 +42,18 @@ class _HomePageState extends State<HomePage> {
     _localService = getIt<LocalService>();
     _localService.initDefaultData();
     _loadUserProfile();
+    _avatarChangedSubscription =
+        listenEvent<AvatarChangedEvent>(_onAvatarChanged);
+  }
+
+  void _onAvatarChanged(AvatarChangedEvent event) {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _avatarPath = event.avatarPath;
+    });
   }
 
   void _loadUserProfile() {
@@ -46,6 +64,7 @@ class _HomePageState extends State<HomePage> {
         email.isNotEmpty ? email.split('@').first : 'Người dùng';
     setState(() {
       _displayName = fullName.isNotEmpty ? fullName : fallbackName;
+      _avatarPath = _localService.getAvatarPath();
     });
   }
 
@@ -67,6 +86,12 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _showPinVerification = false;
     });
+  }
+
+  @override
+  void dispose() {
+    _avatarChangedSubscription?.cancel();
+    super.dispose();
   }
 
   @override
@@ -112,6 +137,75 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildAvatar() {
+    final bool isNetworkAvatar =
+        _avatarPath.startsWith('http') || _avatarPath.startsWith('https');
+    final bool hasLocalAvatar = !isNetworkAvatar &&
+        _avatarPath.isNotEmpty &&
+        File(_avatarPath).existsSync();
+
+    if (isNetworkAvatar) {
+      return CachedNetworkImage(
+        imageUrl: '$_avatarPath?t=${DateTime.now().millisecondsSinceEpoch}',
+        imageBuilder: (context, imageProvider) => Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border:
+                Border.all(color: AppColors.primary.withOpacity(0.2), width: 2),
+            image: DecorationImage(image: imageProvider, fit: BoxFit.cover),
+          ),
+        ),
+        placeholder: (context, url) => Container(
+          width: 48,
+          height: 48,
+          decoration: const BoxDecoration(
+              shape: BoxShape.circle, color: AppColors.slate200),
+          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+        errorWidget: (context, url, error) => _buildDefaultAvatar(),
+      );
+    } else if (hasLocalAvatar) {
+      return Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border:
+              Border.all(color: AppColors.primary.withOpacity(0.2), width: 2),
+          image: DecorationImage(
+              image: FileImage(File(_avatarPath)), fit: BoxFit.cover),
+        ),
+      );
+    } else {
+      return _buildDefaultAvatar();
+    }
+  }
+
+  Widget _buildDefaultAvatar() {
+    final String initial =
+        _displayName.isNotEmpty ? _displayName[0].toUpperCase() : '?';
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 2),
+        color: AppColors.primary.withOpacity(0.1),
+      ),
+      child: Center(
+        child: Text(
+          initial,
+          style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary),
+        ),
+      ),
+    );
+  }
+
   // ── Header ──────────────────────────────────────────────
   Widget _buildHeader() {
     return Container(
@@ -141,34 +235,7 @@ class _HomePageState extends State<HomePage> {
           // Avatar
           Stack(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                      color: AppColors.primary.withOpacity(0.2), width: 2),
-                  image: const DecorationImage(
-                    image: NetworkImage(
-                      'https://lh3.googleusercontent.com/aida-public/AB6AXuAszK3UNeXtqQiZl5vOJHSZhDDMAIKzpe68uWFgCfUjFAMWVE1RtPluFqogf7QdjbE9GYE6PEeZqNyCdj0o0dxVvgybdkcJ78_hWEJrY6-M4U42Kgale564zHQht0a8R6cijdY4zjkZqZE6s-RZhLGLtsZE1BPWSVsdL8JJEf_Ud6iKEZwtRx3c0xjgYOOCFzV_aKzHX_DUnfzgLXt3ADjV54nNUiyQ2MMBojOGW31hAIQdBJ8thx1pDJVMMW6B5K4F5KqOkk0e--A',
-                    ),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: AppColors.green500,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
-              ),
+              _buildAvatar(),
             ],
           ),
           const SizedBox(width: 12),

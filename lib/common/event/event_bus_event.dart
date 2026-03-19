@@ -34,3 +34,8 @@ class SyncEmployeeEvent {
   final String? message;
 }
 
+class AvatarChangedEvent {
+  AvatarChangedEvent({required this.avatarPath});
+
+  final String avatarPath;
+}

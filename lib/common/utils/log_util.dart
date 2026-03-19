@@ -8,7 +8,7 @@ Future<void> pushLog(String message) async {
   try {
     final loggingService = getIt<LoggingService>();
     final localService = getIt<LocalService>();
-    final url = localService.getOdooDomain();
+    final url = localService.getServerUrl();
     debugPrint('pushLog: $message');
     if (url.trim().isEmpty) {
       debugPrint('pushLog skipped: empty domain');

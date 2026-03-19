@@ -32,19 +32,19 @@ import 'keychain/shared_prefs.dart';
 import 'keychain/shared_prefs_key.dart';
 
 abstract class LocalService {
-  void saveLoginOdooId(String? loginId);
-  String getLoginOdooId();
+  void saveLoginId(String? loginId);
+  String getLoginId();
   void saveUserEmail(String? email);
   String getUserEmail();
   void saveUserFullName(String? fullName);
   String getUserFullName();
-  String getOdooToken();
-  void saveOdooToken(String? token);
-  void saveOdooDomain(String? domain);
-  String getOdooDomain();
+  String getAuthToken();
+  void saveAuthToken(String? token);
+  void saveServerUrl(String? domain);
+  String getServerUrl();
   List<String> getRecentDomains();
   void saveRecentDomain(String? domain);
-  Future<void> clearOdooDomainRelatedData();
+  Future<void> clearServerRelatedData();
   Future<void> initApp();
   Future<Map<String, dynamic>> checkIn(CheckInOut checkIn);
   Future<Map<String, dynamic>> checkOut(CheckOut checkOut, Position location);
@@ -75,8 +75,8 @@ abstract class LocalService {
   Future<File> exportCheckInOutToExcel(DateTime? date);
   Future<bool> shareModelJsonFile();
   Future<List<FaceImageRecord>> importFromJsonFile(String path);
-  Future<String> getOdooDbName();
-  Future<void> saveOdooDbName(String dbName);
+  Future<String> getDatabaseName();
+  Future<void> saveDatabaseName(String dbName);
   Future<int?> getUserId();
   Future<void> saveUserId(int userId);
   Future<int> getTenantIdOrSaveTenant(String url, String dbName);
@@ -368,12 +368,12 @@ class LocalServiceImplement implements LocalService {
   }
 
   @override
-  Future<String> getOdooDbName() async {
+  Future<String> getDatabaseName() async {
     return _sharedPreferences.get(SharedPrefsKey.dbName) ?? '';
   }
 
   @override
-  Future<void> saveOdooDbName(String dbName) async {
+  Future<void> saveDatabaseName(String dbName) async {
     await _sharedPreferences.put(SharedPrefsKey.dbName, dbName);
   }
 
@@ -616,7 +616,7 @@ class LocalServiceImplement implements LocalService {
   @override
   Future<void> initApp() async {
     try {
-      final domain = getOdooDomain();
+      final domain = getServerUrl();
       if (domain.isNotEmpty) {
         _apiClient.updateConfigBaseUrl(domain);
       }
@@ -805,7 +805,7 @@ class LocalServiceImplement implements LocalService {
   }
 
   @override
-  void saveOdooDomain(String? domain) {
+  void saveServerUrl(String? domain) {
     try {
       if (domain != null) {
         _sharedPreferences.put(SharedPrefsKey.domain, domain);
@@ -855,7 +855,7 @@ class LocalServiceImplement implements LocalService {
   }
 
   @override
-  String getOdooDomain() {
+  String getServerUrl() {
     try {
       final String? domain = _sharedPreferences.get(SharedPrefsKey.domain);
       if (domain != null && domain.isNotEmpty) {
@@ -880,10 +880,10 @@ class LocalServiceImplement implements LocalService {
   }
 
   @override
-  Future<void> clearOdooDomainRelatedData() async {
+  Future<void> clearServerRelatedData() async {
     try {
       // Clear token when domain changes to force re-login
-      saveOdooToken('');
+      saveAuthToken('');
       await pushLog('Domain related data cleared');
     } catch (e) {
       await pushLog('Error in clearDomainRelatedData: $e');
@@ -891,7 +891,7 @@ class LocalServiceImplement implements LocalService {
   }
 
   @override
-  void saveLoginOdooId(String? loginId) {
+  void saveLoginId(String? loginId) {
     try {
       _sharedPreferences.put(SharedPrefsKey.loginId, loginId);
     } catch (e) {
@@ -901,7 +901,7 @@ class LocalServiceImplement implements LocalService {
   }
 
   @override
-  String getLoginOdooId() {
+  String getLoginId() {
     try {
       final String? loginId = _sharedPreferences.get(SharedPrefsKey.loginId);
       return loginId ?? "";
@@ -928,7 +928,7 @@ class LocalServiceImplement implements LocalService {
       if (email != null && email.trim().isNotEmpty) {
         return email.trim();
       }
-      return getLoginOdooId();
+      return getLoginId();
     } catch (e) {
       pushLog('Error in getUserEmail: $e');
       return "";
@@ -961,7 +961,9 @@ class LocalServiceImplement implements LocalService {
   void saveAvatarPath(String? path) {
     try {
       final email = getUserEmail();
-      final key = email.isNotEmpty ? '${SharedPrefsKey.avatarPath}_$email' : SharedPrefsKey.avatarPath;
+      final key = email.isNotEmpty
+          ? '${SharedPrefsKey.avatarPath}_$email'
+          : SharedPrefsKey.avatarPath;
       _sharedPreferences.put(key, path);
     } catch (e) {
       pushLog('Error in saveAvatarPath: $e');
@@ -973,7 +975,9 @@ class LocalServiceImplement implements LocalService {
   String getAvatarPath() {
     try {
       final email = getUserEmail();
-      final key = email.isNotEmpty ? '${SharedPrefsKey.avatarPath}_$email' : SharedPrefsKey.avatarPath;
+      final key = email.isNotEmpty
+          ? '${SharedPrefsKey.avatarPath}_$email'
+          : SharedPrefsKey.avatarPath;
       final String? path = _sharedPreferences.get(key);
       return path?.trim() ?? "";
     } catch (e) {
@@ -983,7 +987,7 @@ class LocalServiceImplement implements LocalService {
   }
 
   @override
-  String getOdooToken() {
+  String getAuthToken() {
     try {
       final String? token = _sharedPreferences.get(SharedPrefsKey.token);
       return token ?? "";
@@ -994,7 +998,7 @@ class LocalServiceImplement implements LocalService {
   }
 
   @override
-  void saveOdooToken(String? token) {
+  void saveAuthToken(String? token) {
     try {
       _sharedPreferences.put(SharedPrefsKey.token, token);
     } catch (e) {

@@ -74,7 +74,7 @@ void callbackDispatcher() {
       // 6) Now it's safe to resolve from GetIt
       final userService = getIt<UserService>();
 
-      final url = localService.getOdooDomain();
+      final url = localService.getServerUrl();
 
       if (Platform.isAndroid) {
         if (taskName.contains(_periodicUniqueName)) {
@@ -172,7 +172,7 @@ void callbackDispatcher() {
       debugPrint('Error in sync jobs: $e');
       final loggingService = getIt<LoggingService>();
       final localService = getIt<LocalService>();
-      final url = localService.getOdooDomain();
+      final url = localService.getServerUrl();
       await loggingService.log(
           ApiInfo(
             response: LoggingApiResponse(

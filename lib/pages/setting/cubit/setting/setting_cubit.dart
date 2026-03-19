@@ -150,8 +150,8 @@ class SettingCubit extends Cubit<SettingState> {
     } catch (_) {
       // Always clear local auth state even if remote logout fails.
     }
-    _localService.saveOdooToken(null);
-    _localService.saveLoginOdooId(null);
+    _localService.saveAuthToken(null);
+    _localService.saveLoginId(null);
     _localService.saveUserEmail(null);
     _localService.saveUserFullName(null);
   }

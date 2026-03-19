@@ -18,11 +18,6 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-# ── Import all models so their tables appear in Base.metadata ──────────────
-# This is the ONLY place alembic autogenerate looks for table definitions.
-import app.models  # noqa: F401  (registers all ORM models)
-from app.core.database import Base
-
 # ── Alembic config ─────────────────────────────────────────────────────────
 config = context.config
 
@@ -34,6 +29,11 @@ if database_url:
 # Interpret the config file for Python logging setup
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+# ── Create metadata from models ─────────────────────────────────────────────
+# Import all models to register them with Base
+import app.models  # noqa: F401
+from app.core.database import Base
 
 # Target metadata for --autogenerate support
 target_metadata = Base.metadata

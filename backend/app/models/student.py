@@ -16,8 +16,8 @@ class Student(Base):
     The Flutter `Employee.fromJson()` parses `id` as `int`, so this model
     intentionally does NOT use UUID as primary key.
 
-    The `pin` and `job_title` (class code alias) columns are kept for
-    backward-compatibility with the legacy Flutter API endpoints.
+    Identity is unified: attendance and face embeddings reference ONLY student_id.
+    The academic_class_id field links to the administrative class (lớp chủ quản).
     """
 
     __tablename__ = "students"
@@ -34,8 +34,13 @@ class Student(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     pin: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
 
-    # `job_title` is repurposed as a class/group code for Flutter backward-compat
-    job_title: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    # Academic class (lớp chủ quản) — administrative class
+    academic_class_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("academic_classes.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     # Avatar / sync metadata
     avatar_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -55,15 +60,28 @@ class Student(Base):
         default=lambda: datetime.now(timezone.utc),
     )
 
+    # Soft delete
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     # ── Relationships ──────────────────────────────────────────
-    user: Mapped["User"] = relationship(  # noqa: F821
+    user: Mapped[Optional["User"]] = relationship(  # noqa: F821
         "User", back_populates="student_profile"
     )
     face_embeddings: Mapped[List["FaceEmbedding"]] = relationship(  # noqa: F821
         "FaceEmbedding", back_populates="student", cascade="all, delete-orphan"
     )
-    attendance_records: Mapped[List["AttendanceRecord"]] = relationship(  # noqa: F821
-        "AttendanceRecord", back_populates="student", cascade="all, delete-orphan"
+    # Note: attendance_records (legacy AttendanceRecord) removed — use Attendance instead
+    classroom_enrollments: Mapped[List["ClassroomStudent"]] = relationship(  # noqa: F821
+        "ClassroomStudent", back_populates="student", cascade="all, delete-orphan"
+    )
+    attendances: Mapped[List["Attendance"]] = relationship(  # noqa: F821
+        "Attendance", back_populates="student"
+    )
+    academic_class: Mapped[Optional["AcademicClass"]] = relationship(  # noqa: F821
+        "AcademicClass", back_populates="students"
     )
 
     def __repr__(self) -> str:

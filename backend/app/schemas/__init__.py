@@ -38,3 +38,40 @@ from app.schemas.face_schema import (  # noqa: F401
     FaceEmbeddingList,
     FaceDataOut,
 )
+from app.schemas.time_slot_schema import (  # noqa: F401
+    TimeSlotCreate,
+    TimeSlotOut,
+    TimeSlotList,
+)
+from app.schemas.classroom_student_schema import (  # noqa: F401
+    ClassroomStudentCreate,
+    ClassroomStudentOut,
+    ClassroomStudentList,
+)
+from app.schemas.schedule_schema import (  # noqa: F401
+    ScheduleCreate,
+    ScheduleOut,
+    ScheduleWithTimeSlot,
+    ScheduleList,
+)
+from app.schemas.session_schema import (  # noqa: F401
+    SessionCreate,
+    SessionUpdate,
+    SessionOut,
+    SessionWithSchedule,
+    SessionList,
+    SessionSummary,
+)
+from app.schemas.attendance_new_schema import (  # noqa: F401
+    AttendanceCreate,
+    AttendanceOut,
+    AttendanceWithDetails,
+    AttendanceList,
+    AttendanceSummary,
+)
+from app.schemas.academic_class_schema import (  # noqa: F401
+    AcademicClassCreate,
+    AcademicClassUpdate,
+    AcademicClassOut,
+    AcademicClassList,
+)

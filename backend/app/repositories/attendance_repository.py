@@ -1,140 +1,157 @@
 from __future__ import annotations
-"""Attendance repository — raw async DB queries for `attendance_records`."""
+"""Attendance repository — async DB queries for the `attendance` table (session-based)."""
 import uuid
 from datetime import datetime
-from typing import Sequence
+from typing import Sequence, Optional
 
-from sqlalchemy import select, and_
+from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.attendance import AttendanceRecord
+from app.core.database import Base
+from app.models.attendance import Attendance
+from app.repositories._base import BaseRepository
 
 
-class AttendanceRepository:
-    """All database interactions for AttendanceRecord.
+class AttendanceRepository(BaseRepository[Attendance]):
+    """All database interactions for Attendance (session-based unified system).
 
-    Bulk-sync deduplication logic lives here so the service layer
-    only needs to handle business decisions (e.g. skip vs reject).
+    All queries automatically exclude soft-deleted records.
+    Duplicate check is enforced via UNIQUE constraint on (session_id, student_id).
     """
+
+    model = Attendance
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    # ── Read ──────────────────────────────────────────────────
-    async def get_by_id(self, record_id: uuid.UUID) -> AttendanceRecord | None:
+    # ── Read ──────────────────────────────────────────────────────────────────
+    async def get_by_id(self, record_id: uuid.UUID) -> Attendance | None:
         result = await self.db.execute(
-            select(AttendanceRecord).where(AttendanceRecord.id == record_id)
+            select(Attendance).where(Attendance.id == record_id)
         )
         return result.scalar_one_or_none()
 
-    async def get_by_student(
-        self, student_id: int, skip: int = 0, limit: int = 200
-    ) -> Sequence[AttendanceRecord]:
+    async def get_by_session_student(
+        self, session_id: uuid.UUID, student_id: int
+    ) -> Attendance | None:
+        """Check if student already has an attendance record for this session."""
         result = await self.db.execute(
-            select(AttendanceRecord)
-            .where(AttendanceRecord.student_id == student_id)
-            .offset(skip)
-            .limit(limit)
-            .order_by(AttendanceRecord.checkin_time.desc())
-        )
-        return result.scalars().all()
-
-    async def get_by_class(
-        self, class_id: uuid.UUID, skip: int = 0, limit: int = 500
-    ) -> Sequence[AttendanceRecord]:
-        result = await self.db.execute(
-            select(AttendanceRecord)
-            .where(AttendanceRecord.class_id == class_id)
-            .offset(skip)
-            .limit(limit)
-            .order_by(AttendanceRecord.checkin_time.desc())
-        )
-        return result.scalars().all()
-
-    async def get_all(self, skip: int = 0, limit: int = 200) -> Sequence[AttendanceRecord]:
-        result = await self.db.execute(
-            select(AttendanceRecord)
-            .offset(skip)
-            .limit(limit)
-            .order_by(AttendanceRecord.sync_time.desc())
-        )
-        return result.scalars().all()
-
-    async def count(self) -> int:
-        from sqlalchemy import func as sa_func
-        result = await self.db.execute(
-            select(sa_func.count()).select_from(AttendanceRecord)
-        )
-        return result.scalar_one()
-
-    async def find_duplicate(
-        self,
-        student_id: int,
-        checkin_time: datetime,
-        record_type: str,
-    ) -> AttendanceRecord | None:
-        """Check if an identical offline record was already synced.
-
-        Duplicates are detected by matching (student_id, checkin_time, record_type).
-        A tolerance of ±1 second is NOT applied here — exact match only.
-        """
-        result = await self.db.execute(
-            select(AttendanceRecord).where(
+            select(Attendance).where(
                 and_(
-                    AttendanceRecord.student_id == student_id,
-                    AttendanceRecord.checkin_time == checkin_time,
-                    AttendanceRecord.record_type == record_type,
+                    Attendance.session_id == session_id,
+                    Attendance.student_id == student_id,
+                    Attendance.is_deleted == False,
                 )
             )
         )
         return result.scalar_one_or_none()
 
-    # ── Write ─────────────────────────────────────────────────
+    async def get_by_student(
+        self, student_id: int, skip: int = 0, limit: int = 200
+    ) -> Sequence[Attendance]:
+        result = await self.db.execute(
+            select(Attendance)
+            .where(
+                and_(
+                    Attendance.student_id == student_id,
+                    Attendance.is_deleted == False,
+                )
+            )
+            .offset(skip)
+            .limit(limit)
+            .order_by(Attendance.checkin_time.desc())
+        )
+        return result.scalars().all()
+
+    async def get_by_session(
+        self, session_id: uuid.UUID, skip: int = 0, limit: int = 1000
+    ) -> Sequence[Attendance]:
+        result = await self.db.execute(
+            select(Attendance)
+            .where(
+                and_(
+                    Attendance.session_id == session_id,
+                    Attendance.is_deleted == False,
+                )
+            )
+            .offset(skip)
+            .limit(limit)
+            .order_by(Attendance.checkin_time.asc())
+        )
+        return result.scalars().all()
+
+    async def get_all(self, skip: int = 0, limit: int = 200) -> Sequence[Attendance]:
+        result = await self.db.execute(
+            select(Attendance)
+            .where(Attendance.is_deleted == False)
+            .offset(skip)
+            .limit(limit)
+            .order_by(Attendance.sync_time.desc())
+        )
+        return result.scalars().all()
+
+    async def count(self) -> int:
+        result = await self.db.execute(
+            select(func.count()).select_from(Attendance).where(Attendance.is_deleted == False)
+        )
+        return result.scalar_one()
+
+    async def count_by_session(self, session_id: uuid.UUID) -> int:
+        result = await self.db.execute(
+            select(func.count()).select_from(Attendance).where(
+                and_(
+                    Attendance.session_id == session_id,
+                    Attendance.is_deleted == False,
+                )
+            )
+        )
+        return result.scalar_one()
+
+    async def count_by_status(
+        self, session_id: uuid.UUID, status: str
+    ) -> int:
+        result = await self.db.execute(
+            select(func.count()).select_from(Attendance).where(
+                and_(
+                    Attendance.session_id == session_id,
+                    Attendance.status == status,
+                    Attendance.is_deleted == False,
+                )
+            )
+        )
+        return result.scalar_one()
+
+    # ── Write ────────────────────────────────────────────────────────────────
     async def create(
         self,
         *,
+        session_id: uuid.UUID,
         student_id: int,
-        class_id: uuid.UUID | None = None,
-        record_type: str = "checkin",
-        checkin_time: datetime | None = None,
-        confidence: float | None = None,
-        device_id: str | None = None,
+        checkin_time: datetime,
+        sync_time: datetime | None = None,
         status: str = "present",
-        latitude: float | None = None,
-        longitude: float | None = None,
-        image_url: str | None = None,
-    ) -> AttendanceRecord:
-        record = AttendanceRecord(
+        confidence: float | None = None,
+        device_id: uuid.UUID | None = None,
+    ) -> Attendance:
+        record = Attendance(
+            session_id=session_id,
             student_id=student_id,
-            class_id=class_id,
-            record_type=record_type,
             checkin_time=checkin_time,
+            sync_time=sync_time or datetime.utcnow(),
+            status=status,
             confidence=confidence,
             device_id=device_id,
-            status=status,
-            latitude=latitude,
-            longitude=longitude,
-            image_url=image_url,
         )
         self.db.add(record)
         await self.db.flush()
         await self.db.refresh(record)
         return record
 
-    async def bulk_create(
-        self, records_data: list[dict]
-    ) -> list[AttendanceRecord]:
-        """Insert many records in one flush for bulk-sync performance."""
-        created: list[AttendanceRecord] = []
-        for data in records_data:
-            r = AttendanceRecord(**data)
-            self.db.add(r)
-            created.append(r)
-        await self.db.flush()
-        for r in created:
-            await self.db.refresh(r)
-        return created
+    async def soft_delete(self, record: Attendance) -> None:
+        """Soft delete: sets is_deleted=True."""
+        await super().soft_delete(record)
 
-    async def delete(self, record: AttendanceRecord) -> None:
+    async def delete(self, record: Attendance) -> None:
+        """Hard delete (reserved — prefer soft_delete)."""
         await self.db.delete(record)
         await self.db.flush()

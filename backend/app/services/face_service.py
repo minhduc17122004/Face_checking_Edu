@@ -1,32 +1,172 @@
 from __future__ import annotations
 """Face service — embedding registration, REST queries, and Flutter export/import."""
 import json
+import uuid
+from collections import defaultdict
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.repositories.face_repository import FaceRepository
 from app.repositories.student_repository import StudentRepository
+from app.repositories.device_repository import DeviceRepository
+from app.models.face_embedding import FaceEmbedding
 from app.schemas.face_schema import (
     FaceRegisterRequest,
     FaceEmbeddingOut,
     FaceEmbeddingList,
     FaceDataOut,
 )
+from app.schemas.v1.face import (
+    FaceStatusResponse,
+    FaceBulkExport,
+    FaceExportItem,
+)
+from app.services.audit_service import AuditService
 
 
 class FaceService:
     """Business logic for face embedding management.
 
     Supports:
+    - v1: register with max-5 / FIFO eviction, face status, classroom export
     - REST: per-student register, retrieve
     - Flutter legacy: full export (GET) and file-based import (PUT)
     """
 
+    MAX_EMBEDDINGS_PER_STUDENT = 5
+
     def __init__(self, db: AsyncSession) -> None:
+        self.db = db
         self.repo = FaceRepository(db)
         self.student_repo = StudentRepository(db)
+        self.device_repo = DeviceRepository(db)
+        self.audit = AuditService()
+
+    # ── v1: register with max-5 / FIFO ───────────────────────────────────────
+    async def register_face_v1(
+        self,
+        student_id: int,
+        embedding: list[float],
+        device_id: uuid.UUID | None = None,
+    ) -> FaceEmbeddingOut:
+        """Register a face embedding with max-5 / FIFO eviction.
+
+        Business rules:
+        1. Validate student exists.
+        2. Validate device is active (optional).
+        3. Count active embeddings.
+        4. If >= 5: evict oldest (FIFO by created_at, hard delete).
+        5. Insert new embedding with is_active=True.
+        """
+        student = await self.student_repo.get_by_id(student_id)
+        if not student or student.is_deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Student {student_id} not found.",
+            )
+
+        if device_id:
+            device = await self.device_repo.get_by_id(device_id)
+            if not device or device.is_deleted or not device.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Device is not valid or not active.",
+                )
+
+        count = await self.repo.get_active_count(student_id)
+        evicted_id = None
+        if count >= self.MAX_EMBEDDINGS_PER_STUDENT:
+            # FIFO eviction: hard-delete the oldest active embedding
+            result = await self.db.execute(
+                select(FaceEmbedding)
+                .where(
+                    FaceEmbedding.student_id == student_id,
+                    FaceEmbedding.is_active == True,  # noqa: E712
+                )
+                .order_by(FaceEmbedding.created_at.asc())
+                .limit(1)
+            )
+            oldest = result.scalar_one_or_none()
+            if oldest:
+                evicted_id = oldest.id
+                await self.db.delete(oldest)
+
+        emb = FaceEmbedding(
+            student_id=student_id,
+            embedding_data=embedding,
+            is_active=True,
+            device_id=device_id,
+        )
+        self.db.add(emb)
+        await self.db.flush()
+        await self.db.refresh(emb)
+
+        new_count = await self.repo.get_active_count(student_id)
+        self.audit.log_face_registered(
+            student_id=student_id,
+            embedding_id=emb.id,
+            embedding_count_after=new_count,
+            device_id=device_id,
+        )
+        if evicted_id:
+            self.audit.log_face_evicted(
+                student_id=student_id,
+                evicted_embedding_id=evicted_id,
+                reason="fifo_max_reached",
+            )
+
+        return FaceEmbeddingOut.model_validate(emb)
+
+    async def get_face_status(self, student_id: int) -> FaceStatusResponse:
+        """GET /api/v1/students/{id}/face-status."""
+        student = await self.student_repo.get_by_id(student_id)
+        if not student or student.is_deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Student {student_id} not found.",
+            )
+        count = await self.repo.get_active_count(student_id)
+        return FaceStatusResponse(
+            student_id=student_id,
+            has_face=count > 0,
+            total_embeddings=count,
+        )
+
+    async def export_for_classroom(self, classroom_id: uuid.UUID) -> FaceBulkExport:
+        """GET /api/v1/classrooms/{id}/face-embeddings — all active embeddings for device."""
+        embeddings = await self.repo.get_all_for_classroom(classroom_id)
+
+        grouped: dict = defaultdict(list)
+        for emb in embeddings:
+            grouped[emb.student_id].append(emb)
+
+        students: list[FaceExportItem] = []
+        for sid, embs in grouped.items():
+            all_vectors: list[list[float]] = []
+            for e in embs:
+                data = e.embedding_data
+                if data and isinstance(data, list) and isinstance(data[0], list):
+                    all_vectors.extend(data)
+                elif data and isinstance(data, list):
+                    all_vectors.append(data)
+            latest = max(e.updated_at for e in embs)
+            students.append(
+                FaceExportItem(
+                    student_id=sid,
+                    embeddings=all_vectors,
+                    updated_at=latest,
+                )
+            )
+
+        return FaceBulkExport(
+            classroom_id=classroom_id,
+            students=students,
+            exported_at=datetime.now(timezone.utc),
+        )
 
     # ── REST operations ────────────────────────────────────────
     async def register(self, req: FaceRegisterRequest) -> FaceEmbeddingList:
@@ -45,7 +185,6 @@ class FaceService:
                 detail="Either 'embedding' or 'embeddings' must be provided.",
             )
 
-        # Atomic replace — treat each register call as an authoritative update
         embeddings = await self.repo.replace_for_student(
             student_id=req.student_id,
             embeddings=vectors,
@@ -74,17 +213,11 @@ class FaceService:
 
     # ── Flutter legacy: export ─────────────────────────────────
     async def export_all(self) -> list[FaceDataOut]:
-        """GET /api/employee/export/json
-
-        Returns all students' embeddings in Flutter's expected format:
-        [ { "empId": 1, "listFaceEmbedding": [[...], ...], "updatedTime": "..." }, ... ]
-        """
+        """GET /api/employee/export/json — all active embeddings for Flutter export."""
         all_embeddings = await self.repo.get_all()
         if not all_embeddings:
             return []
 
-        # Group by student_id, preserving latest updated_at per student
-        from collections import defaultdict
         grouped: dict = defaultdict(list)
         latest_updated: dict = {}
 
@@ -110,14 +243,7 @@ class FaceService:
 
     # ── Flutter legacy: import (file upload) ───────────────────
     async def import_from_file(self, file: UploadFile) -> dict:
-        """PUT /api/employee/update/embedding
-
-        Accepts a .json file upload containing:
-        [ { "empId": 1, "listFaceEmbedding": [[...], ...], "updatedTime": "..." }, ... ]
-
-        For each entry, atomically replaces that student's embeddings.
-        Returns a summary: { "updated": N, "skipped": N, "errors": N }
-        """
+        """PUT /api/employee/update/embedding — bulk face embedding import."""
         if not file.filename or not file.filename.endswith(".json"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

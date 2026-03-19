@@ -1,7 +1,6 @@
 from __future__ import annotations
 from pydantic_settings import BaseSettings
 from functools import lru_cache
-from typing import List
 
 
 class Settings(BaseSettings):
@@ -11,7 +10,8 @@ class Settings(BaseSettings):
     # JWT
     SECRET_KEY: str = "changeme-super-secret-key-please-update-in-production"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15       # Short-lived: 15 minutes
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7          # Long-lived: 7 days
 
     # File uploads
     UPLOAD_DIR: str = "uploads"

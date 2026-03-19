@@ -8,6 +8,11 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import (
+    IntegrityError,
+    OperationalError,
+    DataError,
+)
 
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -29,7 +34,6 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    # Ensure multipart parser dependency exists for UploadFile/FormData routes.
     try:
         import multipart  # type: ignore # noqa: F401
     except Exception as exc:
@@ -40,8 +44,24 @@ async def lifespan(app: FastAPI):
         ) from exc
 
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-    # Create tables if they don't exist (Alembic handles migrations in prod)
     await create_all_tables()
+
+    # ── Phase 6: Auto-update session statuses on startup ──────────────────────
+    try:
+        from app.core.database import AsyncSessionLocal
+        from app.repositories.session_repository import SessionRepository
+        async with AsyncSessionLocal() as db:
+            repo = SessionRepository(db)
+            activated, closed = await repo.auto_update_status()
+            if activated or closed:
+                await db.commit()
+                logger.info(
+                    "Session auto-update on startup: %d activated, %d closed",
+                    activated, closed,
+                )
+    except Exception:
+        logger.warning("Session auto-update on startup failed — non-critical", exc_info=True)
+
     yield
     # Shutdown (nothing to clean up for now)
 
@@ -65,6 +85,9 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
+# ──────────────────────────────────────────────────────────────
+# Global Exception Handlers
+# ──────────────────────────────────────────────────────────────
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
     request: Request,
@@ -86,10 +109,53 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     return JSONResponse(
         status_code=exc.status_code,
         content={
-            "message": "Request failed",
+            "message": exc.detail,
             "detail": exc.detail,
         },
         headers=exc.headers,
+    )
+
+
+@app.exception_handler(IntegrityError)
+async def integrity_error_handler(request: Request, exc: IntegrityError) -> JSONResponse:
+    logger.error("Integrity error on %s: %s", request.url.path, str(exc))
+    error_str = str(exc).lower()
+    if "unique" in error_str or "duplicate" in error_str:
+        return JSONResponse(
+            status_code=409,
+            content={"message": "Duplicate entry", "detail": "A record with this value already exists."},
+        )
+    elif "foreign key" in error_str:
+        return JSONResponse(
+            status_code=422,
+            content={"message": "Referenced record not found", "detail": "A foreign key constraint was violated."},
+        )
+    elif "check" in error_str:
+        return JSONResponse(
+            status_code=422,
+            content={"message": "Constraint violation", "detail": "A data constraint was violated."},
+        )
+    return JSONResponse(
+        status_code=409,
+        content={"message": "Database integrity error", "detail": "A constraint was violated."},
+    )
+
+
+@app.exception_handler(OperationalError)
+async def operational_error_handler(request: Request, exc: OperationalError) -> JSONResponse:
+    logger.error("Operational error on %s: %s", request.url.path, str(exc))
+    return JSONResponse(
+        status_code=503,
+        content={"message": "Database temporarily unavailable", "detail": "Please try again later."},
+    )
+
+
+@app.exception_handler(DataError)
+async def data_error_handler(request: Request, exc: DataError) -> JSONResponse:
+    logger.error("Data error on %s: %s", request.url.path, str(exc))
+    return JSONResponse(
+        status_code=422,
+        content={"message": "Invalid data", "detail": "Data value is invalid or out of range."},
     )
 
 
@@ -100,9 +166,10 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
         status_code=500,
         content={
             "message": "Internal server error",
-            "detail": str(exc),
+            "detail": str(exc) if settings.DEBUG else "An unexpected error occurred.",
         },
     )
+
 
 # ──────────────────────────────────────────────────────────────
 # CORS
@@ -115,6 +182,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # ──────────────────────────────────────────────────────────────
 # Static file serving (avatars / uploads)
 # ──────────────────────────────────────────────────────────────
@@ -123,21 +191,9 @@ app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads"
 
 
 # ──────────────────────────────────────────────────────────────
-# Routers  ✅ Phase 6 — all domain routers registered
+# Routers — Phase 8 database refactor
 # ──────────────────────────────────────────────────────────────
 from fastapi import APIRouter
-
-# Domain routers
-from app.routers.auth_router import router as auth_router
-from app.routers.user_router import router as user_router
-from app.routers.student_router import router as student_router
-from app.routers.classroom_router import router as classroom_router
-from app.routers.attendance_router import router as attendance_router
-from app.routers.face_router import router as face_router
-from app.routers.device_router import router as device_router
-
-# Flutter legacy API router (Phase 7)
-from app.routers.legacy_router import router as legacy_router
 
 # Health check
 health_router = APIRouter(tags=["Health"])
@@ -148,13 +204,42 @@ async def health_check():
     return {"status": "ok", "app": settings.APP_NAME, "version": "1.0.0"}
 
 
+# ── v1 API (clean production-ready endpoints) ────────────────
+# These replace the old /auth, /attendance, /attendance/new, etc.
+from app.routers.v1 import api_v1_router
+
+# ── Legacy routers (kept during Flutter migration) ────────────
+# These will be removed once Flutter app is updated to v1 endpoints.
+from app.routers.auth_router import router as auth_router
+from app.routers.user_router import router as user_router
+from app.routers.student_router import router as student_router
+from app.routers.classroom_router import router as classroom_router
+from app.routers.attendance_router import router as attendance_router
+from app.routers.face_router import router as face_router
+from app.routers.device_router import router as device_router
+from app.routers.legacy_router import router as legacy_router
+from app.routers.time_slot_router import router as time_slot_router
+from app.routers.classroom_student_router import router as classroom_student_router
+from app.routers.schedule_router import router as schedule_router
+from app.routers.session_router import router as session_router
+from app.routers.attendance_new_router import router as attendance_new_router
+from app.routers.academic_class_router import router as academic_class_router
+
 # Register all routers
 app.include_router(health_router)
-app.include_router(auth_router)
-app.include_router(user_router)
-app.include_router(student_router)
-app.include_router(classroom_router)
-app.include_router(attendance_router)
-app.include_router(face_router)
-app.include_router(device_router)
-app.include_router(legacy_router)
+app.include_router(api_v1_router)  # v1 endpoints at /api/v1/*
+# Legacy routers (deprecated — will be removed after Flutter migration)
+app.include_router(auth_router)             # /auth/*
+app.include_router(user_router)             # /users/*
+app.include_router(student_router)          # /students/*
+app.include_router(classroom_router)         # /classes/*
+app.include_router(attendance_router)        # /attendance/*
+app.include_router(face_router)             # /face/*
+app.include_router(device_router)           # /devices/*
+app.include_router(legacy_router)           # /api/* (Flutter legacy)
+app.include_router(time_slot_router)        # /time-slots/*
+app.include_router(classroom_student_router)  # /classroom-students/*
+app.include_router(schedule_router)         # /schedules/*
+app.include_router(session_router)          # /sessions/*
+app.include_router(attendance_new_router)   # /attendance/new/*
+app.include_router(academic_class_router)    # /academic-classes/*

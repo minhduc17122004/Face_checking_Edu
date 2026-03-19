@@ -20,14 +20,21 @@ class StudentRepository:
     # ── Read ──────────────────────────────────────────────────
     async def get_by_id(self, student_id: int) -> Student | None:
         result = await self.db.execute(
-            select(Student).where(Student.id == student_id)
+            select(Student).where(
+                Student.id == student_id,
+                Student.is_deleted == False,  # noqa: E712
+            )
         )
         return result.scalar_one_or_none()
 
     async def get_all(self, skip: int = 0, limit: int = 500) -> Sequence[Student]:
         """Return all students ordered by ID ascending (Flutter sync order)."""
         result = await self.db.execute(
-            select(Student).offset(skip).limit(limit).order_by(Student.id)
+            select(Student)
+            .where(Student.is_deleted == False)  # noqa: E712
+            .offset(skip)
+            .limit(limit)
+            .order_by(Student.id)
         )
         return result.scalars().all()
 

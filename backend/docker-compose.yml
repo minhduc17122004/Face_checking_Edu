@@ -40,7 +40,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      # Override DATABASE_URL to use the Docker service name
+      # Use service name 'db' for Docker network communication
       DATABASE_URL: postgresql+asyncpg://vedura:vedura_pass@db:5432/vedura_db
 
 volumes:

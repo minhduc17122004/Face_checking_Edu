@@ -1,37 +1,56 @@
 from __future__ import annotations
-from typing import Optional
 import uuid
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Integer, String, Float, Text, DateTime, ForeignKey, func
+from sqlalchemy import String, Float, Integer, DateTime, ForeignKey, UniqueConstraint, Boolean, CheckConstraint, Index, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
+if TYPE_CHECKING:
+    from app.models.session import Session
+    from app.models.student import Student
+    from app.models.device import Device
 
-class AttendanceRecord(Base):
-    """Attendance record created during a bulk-sync from the Flutter app.
 
-    Key dual-timestamp design:
-    - `checkin_time` — the real-world timestamp captured **offline** on the device
-      when the face was recognized (may predate `sync_time` by hours/days).
-    - `sync_time`    — the server timestamp when the record was actually pushed.
+class Attendance(Base):
+    """Session-based attendance record (unified, replaces legacy AttendanceRecord).
 
-    This allows the system to accurately reconstruct real attendance timelines
-    even when the device had no network connectivity at scan time.
+    Each record represents a student's attendance within a specific session.
+    Uses ONLY student_id for identity — user_id has been removed.
+
+    Design:
+    - Offline-first: checkin_time (device clock) + sync_time (server clock)
+    - Anti-cheat: device validation, time window enforcement
+    - UNIQUE constraint on (session_id, student_id) prevents duplicate check-ins
     """
 
-    __tablename__ = "attendance_records"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        index=True,
+    __tablename__ = "attendance"
+    __table_args__ = (
+        UniqueConstraint(
+            "session_id", "student_id", name="uq_attendance_session_student"
+        ),
+        CheckConstraint(
+            "status IN ('present', 'late', 'absent')",
+            name="ck_attendance_status",
+        ),
+        # Critical performance indexes
+        Index("ix_attendance_session_student", "session_id", "student_id"),
+        Index("ix_attendance_checkin_time", "checkin_time"),
     )
 
-    # FK: student (required)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # Only student_id — no user_id (unified identity)
     student_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("students.id", ondelete="CASCADE"),
@@ -39,57 +58,50 @@ class AttendanceRecord(Base):
         index=True,
     )
 
-    # FK: class (optional — a checkin can be free-floating without a class context)
-    class_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("classes.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
+    # Dual timestamps for offline-first support
+    checkin_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
     )
-
-    # Record type: 'checkin' or 'checkout'
-    record_type: Mapped[str] = mapped_column(
-        String(10), nullable=False, default="checkin"
-    )
-
-    # Timestamps
-    checkin_time: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )  # Device offline time
     sync_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         default=lambda: datetime.now(timezone.utc),
-    )  # Server receive time
-
-    # Recognition metadata
-    confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    device_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-
-    # Status: 'present' | 'absent' | 'late'
+    )
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="present"
     )
+    confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    device_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("devices.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
-    # Geo-location
-    latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        default=lambda: datetime.now(timezone.utc),
+    )
 
-    # Snapshot image captured at the moment of recognition
-    image_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Soft delete
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # ── Relationships ──────────────────────────────────────────
-    student: Mapped["Student"] = relationship(  # noqa: F821
-        "Student", back_populates="attendance_records"
+    session: Mapped[Session] = relationship(
+        "Session", back_populates="attendance_records"
     )
-    classroom: Mapped["Classroom"] = relationship(  # noqa: F821
-        "Classroom", back_populates="attendance_records"
+    student: Mapped[Student] = relationship(
+        "Student", back_populates="attendances"
+    )
+    device: Mapped[Optional[Device]] = relationship(
+        "Device", back_populates="attendance_records"
     )
 
     def __repr__(self) -> str:
         return (
-            f"<AttendanceRecord id={self.id} "
-            f"student_id={self.student_id} "
-            f"type={self.record_type} "
-            f"status={self.status}>"
+            f"<Attendance id={self.id} session={self.session_id} "
+            f"student={self.student_id} status={self.status}>"
         )

@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 """Auth router — POST /auth/register, POST /auth/login, GET /auth/me, POST /auth/avatar."""
 
 
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status, Body
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -65,12 +68,12 @@ async def me(
     summary="Upload or update user avatar",
 )
 async def upload_avatar(
-    avatar: UploadFile | None = File(
+    avatar: Optional[UploadFile] = File(
         default=None,
         alias="avatar",
         description="Avatar image (field name 'avatar')",
     ),
-    file: UploadFile | None = File(
+    file: Optional[UploadFile] = File(
         default=None,
         alias="file",
         description="Avatar image (field name 'file')",

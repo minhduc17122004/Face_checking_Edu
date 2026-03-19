@@ -32,7 +32,7 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     // Khởi tạo mặc định admin
-    _fillDemoAccount('admin@school.edu', 'admin123');
+    _fillDemoAccount('admin@test.com', 'admin123');
   }
 
   void _fillDemoAccount(String username, String password) {
@@ -288,24 +288,25 @@ class _LoginPageState extends State<LoginPage> {
                                 Center(
                                   child: Wrap(
                                     spacing: 12,
+                                    runSpacing: 8,
                                     children: [
                                       ActionChip(
                                         label: const Text('Admin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary)),
                                         backgroundColor: AppColors.primary.withOpacity(0.1),
                                         side: BorderSide.none,
-                                        onPressed: () => _fillDemoAccount('admin@school.edu', 'admin123'),
+                                        onPressed: () => _fillDemoAccount('admin@test.com', 'admin123'),
                                       ),
                                       ActionChip(
                                         label: const Text('Teacher', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.orange)),
                                         backgroundColor: Colors.orange.withOpacity(0.1),
                                         side: BorderSide.none,
-                                        onPressed: () => _fillDemoAccount('teacher@school.edu', 'teacher123'),
+                                        onPressed: () => _fillDemoAccount('teacher@test.com', 'teacher123'),
                                       ),
                                       ActionChip(
                                         label: const Text('Student', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
                                         backgroundColor: Colors.green.withOpacity(0.1),
                                         side: BorderSide.none,
-                                        onPressed: () => _fillDemoAccount('student@school.edu', 'student123'),
+                                        onPressed: () => _fillDemoAccount('student@test.com', 'student123'),
                                       ),
                                     ],
                                   ),

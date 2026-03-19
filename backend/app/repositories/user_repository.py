@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
@@ -20,27 +20,40 @@ class UserRepository:
         self.db = db
 
     # ── Read ──────────────────────────────────────────────────
-    async def get_by_id(self, user_id: uuid.UUID) -> User | None:
+    async def get_by_id(self, user_id: str | uuid.UUID) -> User | None:
+        uid = uuid.UUID(str(user_id)) if not isinstance(user_id, uuid.UUID) else user_id
         result = await self.db.execute(
-            select(User).where(User.id == user_id)
+            select(User).where(
+                and_(User.id == uid, User.is_deleted == False)  # noqa: E712
+            )
         )
         return result.scalar_one_or_none()
 
     async def get_by_email(self, email: str) -> User | None:
         result = await self.db.execute(
-            select(User).where(User.email == email.lower())
+            select(User).where(
+                and_(User.email == email.lower(), User.is_deleted == False)  # noqa: E712
+            )
         )
         return result.scalar_one_or_none()
 
     async def get_all(self, skip: int = 0, limit: int = 100) -> Sequence[User]:
         result = await self.db.execute(
-            select(User).offset(skip).limit(limit).order_by(User.created_at.desc())
+            select(User)
+            .where(User.is_deleted == False)  # noqa: E712
+            .offset(skip)
+            .limit(limit)
+            .order_by(User.created_at.desc())
         )
         return result.scalars().all()
 
     async def count(self) -> int:
         from sqlalchemy import func as sa_func
-        result = await self.db.execute(select(sa_func.count()).select_from(User))
+        result = await self.db.execute(
+            select(sa_func.count())
+            .select_from(User)
+            .where(User.is_deleted == False)  # noqa: E712
+        )
         return result.scalar_one()
 
     # ── Write ─────────────────────────────────────────────────
@@ -59,7 +72,7 @@ class UserRepository:
             role=role,
         )
         self.db.add(user)
-        await self.db.flush()   # get the UUID without committing
+        await self.db.flush()
         await self.db.refresh(user)
         return user
 
@@ -76,6 +89,9 @@ class UserRepository:
         await self.db.refresh(user)
         return user
 
-    async def delete(self, user: User) -> None:
-        await self.db.delete(user)
+    async def soft_delete(self, user: User) -> None:
+        """Soft delete: sets is_deleted=True."""
+        from datetime import datetime, timezone
+        user.is_deleted = True
+        user.deleted_at = datetime.now(timezone.utc)
         await self.db.flush()

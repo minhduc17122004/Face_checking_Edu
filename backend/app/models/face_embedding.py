@@ -1,12 +1,17 @@
 from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import String, Float, Boolean, DateTime, ForeignKey, func, JSON, Integer
+from sqlalchemy import String, Boolean, DateTime, ForeignKey, Index, func, JSON, Integer
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.student import Student
+    from app.models.device import Device
 
 
 class FaceEmbedding(Base):
@@ -17,9 +22,15 @@ class FaceEmbedding(Base):
     compatibility with the Flutter app's push/pull JSON format:
 
         { "empId": <int>, "listFaceEmbedding": [[...], [...]], "updatedTime": "..." }
+
+    Uses ONLY student_id for identity — user_id has been removed.
+    Supports multiple embeddings per student, active flag, and device tracking.
     """
 
     __tablename__ = "face_embeddings"
+    __table_args__ = (
+        Index("ix_face_embeddings_student_id", "student_id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -27,15 +38,26 @@ class FaceEmbedding(Base):
         default=uuid.uuid4,
         index=True,
     )
+    # Only student_id — no user_id (unified identity)
     student_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("students.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-
     # Stores a list of floats (128-d vector) or a list of lists for multi-pose embeddings
-    embedding_data: Mapped[list] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False)
+    embedding_data: Mapped[list] = mapped_column(
+        JSON().with_variant(JSONB, "postgresql"), nullable=False
+    )
+    # Active flag — only active embeddings are used for recognition
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Device that captured this embedding
+    device_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("devices.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -50,8 +72,11 @@ class FaceEmbedding(Base):
     )
 
     # ── Relationships ──────────────────────────────────────────
-    student: Mapped["Student"] = relationship(  # noqa: F821
+    student: Mapped[Student] = relationship(
         "Student", back_populates="face_embeddings"
+    )
+    device: Mapped[Optional[Device]] = relationship(
+        "Device", back_populates="face_embeddings"
     )
 
     def __repr__(self) -> str:

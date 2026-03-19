@@ -18,13 +18,17 @@ class ClassroomRepository:
     # ── Read ──────────────────────────────────────────────────
     async def get_by_id(self, class_id: uuid.UUID) -> Classroom | None:
         result = await self.db.execute(
-            select(Classroom).where(Classroom.id == class_id)
+            select(Classroom).where(
+                Classroom.id == class_id,
+                Classroom.is_deleted == False,  # noqa: E712
+            )
         )
         return result.scalar_one_or_none()
 
     async def get_all(self, skip: int = 0, limit: int = 200) -> Sequence[Classroom]:
         result = await self.db.execute(
             select(Classroom)
+            .where(Classroom.is_deleted == False)  # noqa: E712
             .offset(skip)
             .limit(limit)
             .order_by(Classroom.created_at.desc())
@@ -34,7 +38,10 @@ class ClassroomRepository:
     async def get_by_teacher(self, teacher_id: uuid.UUID) -> Sequence[Classroom]:
         result = await self.db.execute(
             select(Classroom)
-            .where(Classroom.teacher_id == teacher_id)
+            .where(
+                Classroom.teacher_id == teacher_id,
+                Classroom.is_deleted == False,  # noqa: E712
+            )
             .order_by(Classroom.created_at.desc())
         )
         return result.scalars().all()

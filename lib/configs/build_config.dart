@@ -25,7 +25,7 @@ class BuildConfigProd implements BuildConfig {
   String _baseUrl = _normalizeBaseUrl(
     const String.fromEnvironment(
       'API_BASE_URL',
-      defaultValue: 'http://192.168.1.167:8000',
+      defaultValue: 'http://192.168.2.39:8000',
     ),
   );
 

@@ -190,6 +190,30 @@ def upgrade() -> None:
     op.create_index("ix_attendance_records_student_id", "attendance_records", ["student_id"])
     op.create_index("ix_attendance_records_class_id", "attendance_records", ["class_id"])
 
+    # ── 6b. devices ────────────────────────────────────────────────────────
+    op.create_table(
+        "devices",
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
+        sa.Column("device_name", sa.String(255), nullable=False),
+        sa.Column("device_type", sa.String(50), nullable=True),
+        sa.Column("location", sa.String(255), nullable=True),
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
+        sa.Column("last_seen", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+    )
+    op.create_index("ix_devices_id", "devices", ["id"])
+
     # ── Composite index for duplicate detection ────────────────────────────
     op.create_index(
         "ix_attendance_dedup",
@@ -200,6 +224,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Drop devices first
+    op.drop_index("ix_devices_id", table_name="devices")
+    op.drop_table("devices")
+
     # Drop in reverse dependency order
     op.drop_index("ix_attendance_dedup", table_name="attendance_records")
     op.drop_index("ix_attendance_records_class_id", table_name="attendance_records")

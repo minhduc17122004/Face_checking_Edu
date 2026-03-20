@@ -18,7 +18,7 @@ class LoginState {
     String? password,
     String? message,
     RequestStatus? requestStatus,
-    bool? hasUnsyncedEmployees,
+    bool? hasUnsyncedStudents,
   }) {
     return LoginState(
       username: username ?? this.username,

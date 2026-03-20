@@ -7,12 +7,14 @@ class SettingState {
   final SyncFaceSchedule? syncFaceSchedule;
   final Map<String, TimeOfDay>? shiftTimes;
   final ServerType? serverType;
+  final String? userRole;
 
   SettingState({
     this.isLoading = false,
     this.syncFaceSchedule,
     this.shiftTimes,
     this.serverType,
+    this.userRole,
   });
 
   SettingState copyWith({
@@ -20,12 +22,16 @@ class SettingState {
     SyncFaceSchedule? syncFaceSchedule,
     Map<String, TimeOfDay>? shiftTimes,
     ServerType? serverType,
+    String? userRole,
   }) {
     return SettingState(
       isLoading: isLoading ?? this.isLoading,
       syncFaceSchedule: syncFaceSchedule ?? this.syncFaceSchedule,
       shiftTimes: shiftTimes ?? this.shiftTimes,
       serverType: serverType ?? this.serverType,
+      userRole: userRole ?? this.userRole,
     );
   }
+
+  bool get isAdmin => userRole?.toLowerCase() == 'admin';
 }

@@ -1,7 +1,8 @@
 import 'package:bloc/bloc.dart';
 import 'package:face_time_keeping/common/api_client/data_state.dart';
+import 'package:face_time_keeping/data/models/register_user_request.dart';
 import 'package:face_time_keeping/data/local/local_service.dart';
-import 'package:face_time_keeping/data/models/create_employees_model.dart';
+import 'package:face_time_keeping/data/models/student_request.dart';
 import 'package:face_time_keeping/data/remote/authentication_service.dart';
 import 'package:face_time_keeping/data/remote/user_service.dart';
 import 'package:face_time_keeping/di/injection.dart';
@@ -94,43 +95,53 @@ class SettingCubit extends Cubit<SettingState> {
     }
   }
 
-  Future<bool> hasUnsyncedLocalEmployees() async {
-    return await _localService.hasUnsyncedLocalEmployees();
+  Future<String> getUserRole() async {
+    try {
+      final role = _localService.getUserRole();
+      emit(state.copyWith(userRole: role));
+      return role;
+    } catch (e) {
+      return '';
+    }
   }
 
-  Future<DataState> syncLocalEmployeesToServer() async {
+  Future<bool> hasUnsyncedLocalStudents() async {
+    return await _localService.hasUnsyncedLocalStudents();
+  }
+
+  Future<DataState> syncLocalStudentsToServer() async {
     try {
-      final unsyncedEmployees = await _localService.getUnsyncedLocalEmployees();
-      if (unsyncedEmployees.isEmpty) {
+      final unsyncedStudents = await _localService.getUnsyncedLocalStudents();
+      if (unsyncedStudents.isEmpty) {
         return const DataSuccess<String>('Không có dữ liệu để đồng bộ');
       }
 
-      // Convert Person objects to EmployeeRequest objects
-      final employeeRequests = unsyncedEmployees.map((person) {
-        return EmployeeRequest(
+      // Convert Person objects to StudentRequest objects
+      final studentRequests = unsyncedStudents.map((person) {
+        return StudentRequest(
           name: person.name ?? 'Unknown',
           pin: person.pin ?? '',
           jobTitle: person.jobTitle?.toString() ?? '',
         );
       }).toList();
 
-      final request = CreateEmployeeBatchRequest(employees: employeeRequests);
-      final result = await _userService.registerEmployees(request);
+      final request = CreateStudentBatchRequest(students: studentRequests);
+      final result = await _userService.registerStudents(request);
 
       if (result.isSuccess) {
-        // Mark all synced employees as synced in local DB
-        for (final person in unsyncedEmployees) {
-          await _localService.setPersonSynced(person.employeeId);
+        // Mark all synced students as synced in local DB
+        for (final person in unsyncedStudents) {
+          await _localService.setPersonSynced(person.studentId);
         }
 
-        // Fetch all employees from server and update local DB
+        // Fetch all students from server and update local DB
         final serverType = await _localService.getServerType();
         final serverName = serverType?.label ?? 'Server';
 
-        final employeesResult = await _userService.getEmployees();
-        if (employeesResult.isSuccess && employeesResult.data != null) {
-          await _localService.syncEmployeesFromServer(
-            employeesResult.data!,
+        final studentsResult = await _userService.getStudents();
+        if (studentsResult.isSuccess && studentsResult.data != null) {
+          await _localService.syncStudentsFromServer(
+            studentsResult.data!,
             serverName,
           );
         }
@@ -154,5 +165,10 @@ class SettingCubit extends Cubit<SettingState> {
     _localService.saveLoginId(null);
     _localService.saveUserEmail(null);
     _localService.saveUserFullName(null);
+  }
+
+  Future<DataState<RegisterUserResponse>> registerUser(
+      RegisterUserRequest request) async {
+    return await _userService.registerUser(request);
   }
 }

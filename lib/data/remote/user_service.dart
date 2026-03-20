@@ -5,15 +5,16 @@ import 'package:dio/dio.dart';
 import 'package:face_time_keeping/common/enums/server_type.dart';
 import 'package:face_time_keeping/common/utils/log_util.dart';
 import 'package:face_time_keeping/data/local/local_service.dart';
-import 'package:face_time_keeping/data/models/create_employee_response.dart';
-import 'package:face_time_keeping/data/models/create_employees_model.dart';
+import 'package:face_time_keeping/data/models/batch_student_response.dart';
+import 'package:face_time_keeping/data/models/register_user_request.dart';
+import 'package:face_time_keeping/data/models/student_request.dart';
 import 'package:face_time_keeping/data/models/upload_response.dart';
 import 'package:face_time_keeping/di/injection.dart';
 
-import 'package:face_time_keeping/entities/employee.dart';
+import 'package:face_time_keeping/entities/student.dart';
 import 'package:face_time_keeping/entities/face_data.dart';
 import 'package:face_time_keeping/entities/person.dart';
-import 'package:face_time_keeping/entities/register_employee.dart';
+import 'package:face_time_keeping/entities/register_student.dart';
 import 'package:face_time_keeping/entities/sync_response.dart';
 import 'package:flutter/material.dart';
 
@@ -26,18 +27,20 @@ import 'api_endpoint.dart';
 import 'package:http/http.dart' as http;
 
 abstract class UserService {
-  Future<DataState<List<Employee>>> getEmployees();
+  Future<DataState<List<Student>>> getStudents();
   Future<DataState<bool>> syncCheckInOutData({String? url});
   Future<DateTime> fetchWorldTime({String timezone = 'Etc/UTC'});
-  Future<DataState<Employee>> registerEmployee(
-      RegisterEmployee registerEmployee);
-  Future<DataState<BatchEmployeeResponse>> registerEmployees(
-      CreateEmployeeBatchRequest request);
+  Future<DataState<Student>> registerStudent(
+      RegisterStudent registerStudent);
+  Future<DataState<BatchStudentResponse>> registerStudents(
+      CreateStudentBatchRequest request);
   Future<void> testFunction();
   Future<DataState<String>> pushFaceData({String? url});
   Future<DataState<String>> pullFaceData({String? url});
-  Future<DataState<String>> syncEmployeeData({String? url});
+  Future<DataState<String>> syncStudentData({String? url});
   Future<DataState<UploadResponse>> uploadAvatars(List<File> files);
+  Future<DataState<RegisterUserResponse>> registerUser(
+      RegisterUserRequest request);
 }
 
 @LazySingleton(as: UserService)
@@ -104,7 +107,7 @@ class UserServiceImplement implements UserService {
       if (newPersons.isEmpty) {
         return const DataSuccess<String>('Không có dữ liệu để đồng bộ');
       }
-      final listPushedPersonIds = newPersons.map((e) => e.employeeId).toList();
+      final listPushedPersonIds = newPersons.map((e) => e.studentId).toList();
       final file =
           await _localService.exportModelToJsonFile(persons: newPersons);
       final multiPartFile = await MultipartFile.fromFile(file.path,
@@ -158,30 +161,27 @@ class UserServiceImplement implements UserService {
   }
 
   @override
-  Future<DataState<Employee>> registerEmployee(
-      RegisterEmployee registerEmployee) async {
+  Future<DataState<Student>> registerStudent(
+      RegisterStudent registerStudent) async {
     try {
-      final json = await registerEmployee.toJson();
+      final json = await registerStudent.toJson();
       FormData formData = FormData.fromMap(json);
 
       final ApiResponse response = await _apiClient.post(
-        path: ApiEndpoint.registerEmployee,
+        path: ApiEndpoint.registerStudent,
         data: formData,
-        // headers: {
-        //   'Content-Type': 'multipart/form-data',
-        // },
       );
 
       if (response.isSuccess()) {
-        final employeeData = response.data as Map<String, dynamic>;
-        final employee = Employee.fromJson(employeeData['data']);
-        return DataSuccess<Employee>(employee);
+        final studentData = response.data as Map<String, dynamic>;
+        final student = Student.fromJson(studentData['data']);
+        return DataSuccess<Student>(student);
       } else {
-        return DataFailed<Employee>(response.error ?? 'Registration failed');
+        return DataFailed<Student>(response.error ?? 'Registration failed');
       }
     } catch (e) {
-      await pushLog('Error in registerEmployee: $e');
-      return DataFailed<Employee>(e.toString());
+      await pushLog('Error in registerStudent: $e');
+      return DataFailed<Student>(e.toString());
     }
   }
 
@@ -201,12 +201,12 @@ class UserServiceImplement implements UserService {
               .toList(),
         };
 
-        // Use pin if available, otherwise use employee_id
+        // Use pin if available, otherwise use student_id
         if (bulkUser.pin != null && bulkUser.pin!.isNotEmpty) {
           final pinNumber = int.tryParse(bulkUser.pin!);
           payload['pin'] = pinNumber ?? bulkUser.pin;
         } else {
-          payload['employee_id'] = bulkUser.employeeId;
+          payload['student_id'] = bulkUser.studentId;
         }
 
         return payload;
@@ -215,8 +215,6 @@ class UserServiceImplement implements UserService {
       final Map<String, dynamic> requestPayload = {
         'bulk_users': bulkUsersPayload,
       };
-      // final encode = jsonEncode(requestPayload);
-      // Make the API call
       ApiResponse response;
       if (url != null) {
         response = await _apiClient.post(
@@ -262,102 +260,102 @@ class UserServiceImplement implements UserService {
   }
 
   @override
-  Future<DataState<List<Employee>>> getEmployees() async {
+  Future<DataState<List<Student>>> getStudents() async {
     try {
       final ApiResponse response =
-          await _apiClient.get(path: ApiEndpoint.employees);
+          await _apiClient.get(path: ApiEndpoint.students);
       if (response.isSuccess()) {
         final json = response.data;
         debugPrint('json: $json');
         final realData = json['data'];
-        final employeesData = realData['employees'] as List<dynamic>;
-        final employees =
-            employeesData.map((e) => Employee.fromJson(e)).toList();
-        return DataSuccess<List<Employee>>(employees);
+        final studentsData = realData['students'] as List<dynamic>;
+        final students =
+            studentsData.map((e) => Student.fromJson(e)).toList();
+        return DataSuccess<List<Student>>(students);
       }
-      return DataFailed<List<Employee>>(response.error);
+      return DataFailed<List<Student>>(response.error);
     } on DioError catch (e) {
-      await pushLog('Error in getEmployees: $e');
-      return DataFailed<List<Employee>>(e.message);
+      await pushLog('Error in getStudents: $e');
+      return DataFailed<List<Student>>(e.message);
     } catch (e, stackTrace) {
-      await pushLog('Error in getEmployees: $e');
-      debugPrint('General error in getEmployees: $e\n$stackTrace');
-      return DataFailed<List<Employee>>(e.toString());
+      await pushLog('Error in getStudents: $e');
+      debugPrint('General error in getStudents: $e\n$stackTrace');
+      return DataFailed<List<Student>>(e.toString());
     }
   }
 
   @override
-  Future<DataState<BatchEmployeeResponse>> registerEmployees(
-      CreateEmployeeBatchRequest request) async {
+  Future<DataState<BatchStudentResponse>> registerStudents(
+      CreateStudentBatchRequest request) async {
     try {
       final ApiResponse response = await _apiClient.post(
-        path: ApiEndpoint.registerEmployeeBatch,
+        path: ApiEndpoint.registerStudentBatch,
         data: request.toJson(),
       );
 
       if (response.isSuccess()) {
-        final employeeData = response.data as Map<String, dynamic>;
-        final employee = BatchEmployeeResponse.fromJson(employeeData['data']);
-        return DataSuccess<BatchEmployeeResponse>(employee);
+        final studentData = response.data as Map<String, dynamic>;
+        final student = BatchStudentResponse.fromJson(studentData['data']);
+        return DataSuccess<BatchStudentResponse>(student);
       } else {
-        return DataFailed<BatchEmployeeResponse>(
+        return DataFailed<BatchStudentResponse>(
             response.error ?? 'Registration failed');
       }
     } catch (e) {
-      await pushLog('Error in registerEmployee: $e');
-      return DataFailed<BatchEmployeeResponse>(e.toString());
+      await pushLog('Error in registerStudents: $e');
+      return DataFailed<BatchStudentResponse>(e.toString());
     }
   }
 
   @override
-  Future<DataState<String>> syncEmployeeData({String? url}) async {
+  Future<DataState<String>> syncStudentData({String? url}) async {
     try {
-      // Get unsynced local employees
-      final unsyncedEmployees = await _localService.getUnsyncedLocalEmployees();
+      // Get unsynced local students
+      final unsyncedStudents = await _localService.getUnsyncedLocalStudents();
 
-      if (unsyncedEmployees.isEmpty) {
-        // No local employees to sync, just pull from server
-        await _syncServerToLocalEmployees();
+      if (unsyncedStudents.isEmpty) {
+        // No local students to sync, just pull from server
+        await _syncServerToLocalStudents();
         return const DataSuccess<String>('Đồng bộ học sinh thành công');
       }
 
-      final unsyncEmpsWithoutAvatar = unsyncedEmployees
+      final unsyncStudentsWithoutAvatar = unsyncedStudents
           .where((person) => person.avatar == null || person.avatar!.isEmpty)
           .toList();
 
-      final unsyncEmpsHasAvatar = unsyncedEmployees
+      final unsyncStudentsHasAvatar = unsyncedStudents
           .where((person) => person.avatar != null && person.avatar!.isNotEmpty)
           .toList();
-      if (unsyncEmpsWithoutAvatar.isNotEmpty) {
-        await _createEmployee(unsyncEmpsWithoutAvatar);
+      if (unsyncStudentsWithoutAvatar.isNotEmpty) {
+        await _createStudent(unsyncStudentsWithoutAvatar);
       }
-      if (unsyncEmpsHasAvatar.isNotEmpty) {
-        await _createEmployee(unsyncEmpsHasAvatar);
+      if (unsyncStudentsHasAvatar.isNotEmpty) {
+        await _createStudent(unsyncStudentsHasAvatar);
       }
 
-      // Fetch all employees from server and update local DB
-      await _syncServerToLocalEmployees();
+      // Fetch all students from server and update local DB
+      await _syncServerToLocalStudents();
       return const DataSuccess<String>('Đồng bộ học sinh thành công');
     } catch (e) {
-      await pushLog('Error in syncEmployeeData: $e');
+      await pushLog('Error in syncStudentData: $e');
       return DataFailed<String>('Lỗi đồng bộ học sinh: $e');
     }
   }
 
-  Future<void> _createEmployee(List<Person> persons) async {
+  Future<void> _createStudent(List<Person> persons) async {
     final files = persons
         .map((person) => person.avatar)
         .nonNulls
         .map((path) => File(path))
         .toList();
-    List<EmployeeRequest> requests = [];
+    List<StudentRequest> requests = [];
     DataState<UploadResponse>? result;
     String? uploadId;
     if (files.isNotEmpty) {
       result = await uploadAvatars(files);
       uploadId = result.data?.uploadId;
       for (var i = 0; i < (result.data?.files.length ?? 0); i++) {
-        requests.add(EmployeeRequest(
+        requests.add(StudentRequest(
           name: persons[i].name ?? 'Unknown',
           pin: persons[i].pin ?? '',
           jobTitle: persons[i].jobTitle?.toString() ?? '',
@@ -366,7 +364,7 @@ class UserServiceImplement implements UserService {
       }
     } else {
       requests = persons.map((person) {
-        return EmployeeRequest(
+        return StudentRequest(
           name: person.name ?? 'Unknown',
           pin: person.pin ?? '',
           jobTitle: person.jobTitle?.toString() ?? '',
@@ -375,50 +373,31 @@ class UserServiceImplement implements UserService {
     }
 
     final request =
-        CreateEmployeeBatchRequest(uploadId: uploadId, employees: requests);
-    final response = await registerEmployees(request);
+        CreateStudentBatchRequest(uploadId: uploadId, students: requests);
+    final response = await registerStudents(request);
     if (response.isSuccess) {
-      // Mark all synced employees as synced in local DB
-      if ((response.data?.createdEmployees ?? []).isNotEmpty) {
+      // Mark all synced students as synced in local DB
+      if ((response.data?.createdStudents ?? []).isNotEmpty) {
         final serverType = await _localService.getServerType();
         final serverName = serverType?.label ?? 'Server';
 
-        await _localService.syncEmployeesFromServer(
-            response.data?.createdEmployees ?? [], serverName);
+        await _localService.syncStudentsFromServer(
+            response.data?.createdStudents ?? [], serverName);
       }
     }
   }
 
-  Future<void> _syncServerToLocalEmployees() async {
+  Future<void> _syncServerToLocalStudents() async {
     final serverType = await _localService.getServerType();
     final serverName = serverType?.label ?? 'Server';
-    final employeesResult = await getEmployees();
-    if (employeesResult.isSuccess && employeesResult.data != null) {
-      await _localService.syncEmployeesFromServer(
-        employeesResult.data!,
+    final studentsResult = await getStudents();
+    if (studentsResult.isSuccess && studentsResult.data != null) {
+      await _localService.syncStudentsFromServer(
+        studentsResult.data!,
         serverName,
       );
     }
   }
-
-  // @override
-  // Future<DataState<Employee>> getEmployee(String code) async {
-  //   try {
-  //     final ApiResponse response = await _apiClient.get(
-  //       path: '${ApiEndpoint.employee}/$code',
-  //     );
-  //     if (response.isSuccess()) {
-  //       return DataSuccess<Employee>(Employee.fromJson(response.data));
-  //     }
-  //     return DataFailed<Employee>(response.error);
-  //   } on DioError catch (e) {
-  //     await pushLog('Error in getEmployee: $e');
-  //     return DataFailed<Employee>(e.message);
-  //   } on Exception catch (e) {
-  //     await pushLog('Error in getEmployee: $e');
-  //     return DataFailed<Employee>(e.toString());
-  //   }
-  // }
 
   @override
   Future<DataState<UploadResponse>> uploadAvatars(List<File> files) async {
@@ -440,7 +419,7 @@ class UserServiceImplement implements UserService {
       }
 
       final ApiResponse response = await _apiClient.post(
-        path: ApiEndpoint.uploadEmployeeAvatar,
+        path: ApiEndpoint.uploadStudentAvatar,
         data: formData,
       );
 
@@ -454,6 +433,29 @@ class UserServiceImplement implements UserService {
     } catch (e) {
       await pushLog('Error in uploadAvatars: $e');
       return DataFailed<UploadResponse>(e.toString());
+    }
+  }
+
+  @override
+  Future<DataState<RegisterUserResponse>> registerUser(
+      RegisterUserRequest request) async {
+    try {
+      final ApiResponse response = await _apiClient.post(
+        path: ApiEndpoint.registerUser,
+        data: request.toJson(),
+      );
+
+      if (response.isSuccess()) {
+        final responseData = response.data as Map<String, dynamic>;
+        final userData = RegisterUserResponse.fromJson(responseData);
+        return DataSuccess<RegisterUserResponse>(userData);
+      } else {
+        return DataFailed<RegisterUserResponse>(
+            response.error ?? 'Registration failed');
+      }
+    } catch (e) {
+      await pushLog('Error in registerUser: $e');
+      return DataFailed<RegisterUserResponse>(e.toString());
     }
   }
 }

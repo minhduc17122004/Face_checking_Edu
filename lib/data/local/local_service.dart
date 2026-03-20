@@ -11,7 +11,7 @@ import 'package:face_native/models/face_image_record.dart';
 import 'package:face_time_keeping/entities/bulk_user.dart';
 import 'package:face_time_keeping/entities/check_in_out.dart';
 import 'package:face_time_keeping/entities/check_out.dart';
-import 'package:face_time_keeping/entities/employee.dart';
+import 'package:face_time_keeping/entities/student.dart';
 import 'package:face_time_keeping/entities/face_data.dart';
 import 'package:face_time_keeping/entities/person.dart';
 import 'package:face_time_keeping/entities/sync_face_schedule.dart';
@@ -57,7 +57,7 @@ abstract class LocalService {
     required TimeOfDay nightEnd,
   });
   Future<Map<String, TimeOfDay>> getShiftTimes();
-  Future<bool> isRegistered(int employeeId);
+  Future<bool> isRegistered(int studentId);
   Future<List<CheckInOut>> getCheckInOutByDate(DateTime date);
   Future<List<BulkUser>?> getBulkUsers();
   Future<void> handleSyncResponse(SyncResponse syncResponse);
@@ -100,14 +100,16 @@ abstract class LocalService {
   Future<ServerType?> getTempServerType();
   Future<void> saveServerType(ServerType serverType);
   Future<void> saveTempServerType(ServerType serverType);
-  Future<bool> hasUnsyncedLocalEmployees();
-  Future<List<Person>> getUnsyncedLocalEmployees();
-  Future<void> syncEmployeesFromServer(
-      List<Employee> employees, String serverName);
+  Future<bool> hasUnsyncedLocalStudents();
+  Future<List<Person>> getUnsyncedLocalStudents();
+  Future<void> syncStudentsFromServer(
+      List<Student> students, String serverName);
   Future<void> cloneDataFromPreviousTenant(int oldTenantId, int newTenantId);
   Future<void> clearAllData();
   void saveAvatarPath(String? path);
   String getAvatarPath();
+  void saveUserRole(String? role);
+  String getUserRole();
 }
 
 @LazySingleton(as: LocalService)
@@ -264,7 +266,7 @@ class LocalServiceImplement implements LocalService {
       final persons = await _hiveService.getAllPersons();
       for (final faceData in faceDataList) {
         final person =
-            persons.firstWhereOrNull((e) => e.employeeId == faceData.empId);
+            persons.firstWhereOrNull((e) => e.studentId == faceData.empId);
         if ((person != null &&
                 person.updatedTime.isBefore(faceData.updatedTime)) ||
             person == null) {
@@ -284,7 +286,7 @@ class LocalServiceImplement implements LocalService {
             await _faceNative.addAllRecords(listFaceImageRecord);
             final newPerson = (person == null)
                 ? Person(
-                    employeeId: faceData.empId,
+                    studentId: faceData.empId,
                     updatedTime: faceData.updatedTime,
                     name: faceData.personName ?? 'Unknown',
                   )
@@ -384,7 +386,7 @@ class LocalServiceImplement implements LocalService {
       if (persons == null || persons.isEmpty) {
         records = await _faceNative.getAllImages();
       } else {
-        final personIds = persons.map((e) => e.employeeId).toList();
+        final personIds = persons.map((e) => e.studentId).toList();
         records = await _faceNative.getFaceImageRecordByListEmpId(personIds);
       }
       final map = <int, List<List<double>>>{};
@@ -394,7 +396,7 @@ class LocalServiceImplement implements LocalService {
       }
       final mapUpdatedTime = <int, DateTime>{};
       for (final person in persons ?? []) {
-        mapUpdatedTime[person.employeeId] = person.updatedTime;
+        mapUpdatedTime[person.studentId] = person.updatedTime;
       }
       final faceDataList = map.entries
           .map((e) => FaceData(
@@ -594,12 +596,12 @@ class LocalServiceImplement implements LocalService {
       final unSyncedCheckInOuts = await _hiveService.getUnSyncedCheckInOuts();
       final Map<String, List<CheckInOut>> bulkUsers = {};
       for (final checkInOut in unSyncedCheckInOuts) {
-        bulkUsers.putIfAbsent(checkInOut.employeeId.toString(), () => []);
-        bulkUsers[checkInOut.employeeId.toString()]!.add(checkInOut);
+        bulkUsers.putIfAbsent(checkInOut.studentId.toString(), () => []);
+        bulkUsers[checkInOut.studentId.toString()]!.add(checkInOut);
       }
       return bulkUsers.values
           .map((e) => BulkUser(
-              employeeId: e.first.employeeId, pin: e.first.pin, checkInOuts: e))
+              studentId: e.first.studentId, pin: e.first.pin, checkInOuts: e))
           .toList();
     } catch (e, stackTrace) {
       await pushLog('Error in getBulkUsers: $e\n$stackTrace');
@@ -786,7 +788,7 @@ class LocalServiceImplement implements LocalService {
         name: checkOut.name,
         time: checkOut.time,
         isCheckIn: false,
-        employeeId: checkOut.employeeId,
+        studentId: checkOut.studentId,
         latitude: location.latitude,
         longitude: location.longitude,
       );
@@ -987,6 +989,26 @@ class LocalServiceImplement implements LocalService {
   }
 
   @override
+  void saveUserRole(String? role) {
+    try {
+      _sharedPreferences.put(SharedPrefsKey.userRole, role);
+    } catch (e) {
+      pushLog('Error in saveUserRole: $e');
+    }
+  }
+
+  @override
+  String getUserRole() {
+    try {
+      final String? role = _sharedPreferences.get(SharedPrefsKey.userRole);
+      return role ?? "";
+    } catch (e) {
+      pushLog('Error in getUserRole: $e');
+      return "";
+    }
+  }
+
+  @override
   String getAuthToken() {
     try {
       final String? token = _sharedPreferences.get(SharedPrefsKey.token);
@@ -1070,9 +1092,9 @@ class LocalServiceImplement implements LocalService {
   }
 
   @override
-  Future<bool> isRegistered(int employeeId) async {
+  Future<bool> isRegistered(int studentId) async {
     try {
-      final person = await _hiveService.getPerson(employeeId);
+      final person = await _hiveService.getPerson(studentId);
       return person != null;
     } catch (e) {
       pushLog('Error checking if person is registered: $e');
@@ -1137,90 +1159,89 @@ class LocalServiceImplement implements LocalService {
   }
 
   @override
-  Future<bool> hasUnsyncedLocalEmployees() async {
+  Future<bool> hasUnsyncedLocalStudents() async {
     try {
       final persons = await _hiveService.getAllPersons();
       return persons.any((person) => !person.isSynced);
     } catch (e) {
-      await pushLog('Error checking for unsynced local employees: $e');
+      await pushLog('Error checking for unsynced local students: $e');
       return false;
     }
   }
 
   @override
-  Future<List<Person>> getUnsyncedLocalEmployees() async {
+  Future<List<Person>> getUnsyncedLocalStudents() async {
     try {
       final persons = await _hiveService.getAllPersons();
       return persons.where((person) => !person.isSynced).toList();
     } catch (e) {
-      await pushLog('Error getting unsynced local employees: $e');
+      await pushLog('Error getting unsynced local students: $e');
       return [];
     }
   }
 
   @override
-  Future<void> syncEmployeesFromServer(
-      List<Employee> employees, String serverName) async {
+  Future<void> syncStudentsFromServer(
+      List<Student> students, String serverName) async {
     try {
       final localPersons = await _hiveService.getAllPersons();
 
-      for (final employee in employees) {
-        // Check if employee with same PIN exists in local DB
+      for (final student in students) {
+        // Check if student with same PIN exists in local DB
         final existingPerson = localPersons.firstWhereOrNull(
           (person) =>
-              (person.pin == employee.pin &&
-                  employee.pin != null &&
-                  employee.pin!.isNotEmpty) ||
-              person.employeeId == employee.id,
+              (person.pin == student.pin &&
+                  student.pin != null &&
+                  student.pin!.isNotEmpty) ||
+              person.studentId == student.id,
         );
 
         if (existingPerson != null) {
-          // Update existing employee with server data
+          // Update existing student with server data
           final updatedPerson = existingPerson.copyWith(
-            employeeId: employee.id,
-            name: employee.name,
-            pin: employee.pin,
-            jobTitle: employee.jobTitle,
+            studentId: student.id,
+            name: student.name,
+            pin: student.pin,
+            jobTitle: student.jobTitle,
             updatedTime: DateTime.now(),
             isSynced: true,
-            avatar: employee.avatar,
+            avatar: student.avatar,
           );
-          await _hiveService.deletePerson(existingPerson.employeeId);
+          await _hiveService.deletePerson(existingPerson.studentId);
           await _hiveService.savePerson(updatedPerson);
-          await _faceNative.updatePerson(
-              existingPerson.employeeId, employee.name,
-              newId: employee.id);
+          await _faceNative.updatePerson(existingPerson.studentId, student.name,
+              newId: student.id);
 
-          // Update all CheckInOut records with the new employeeId
+          // Update all CheckInOut records with the new studentId
           final allCheckInOuts = await _hiveService.getAllCheckInOuts();
           final checkInOutsToUpdate = allCheckInOuts
               .where((checkInOut) =>
-                  checkInOut.employeeId == existingPerson.employeeId)
+                  checkInOut.studentId == existingPerson.studentId)
               .toList();
 
           for (final checkInOut in checkInOutsToUpdate) {
             final updatedCheckInOut = checkInOut.copyWith(
-              employeeId: employee.id,
-              name: employee.name,
+              studentId: student.id,
+              name: student.name,
             );
             await _hiveService.updateCheckInOut(updatedCheckInOut);
           }
         } else {
-          // Create new employee in local DB
+          // Create new student in local DB
           final newPerson = Person(
-            employeeId: employee.id,
-            name: employee.name,
-            pin: employee.pin,
-            jobTitle: employee.jobTitle,
+            studentId: student.id,
+            name: student.name,
+            pin: student.pin,
+            jobTitle: student.jobTitle,
             updatedTime: DateTime.now(),
             isSynced: true,
-            avatar: employee.avatar,
+            avatar: student.avatar,
           );
           await _hiveService.savePerson(newPerson);
         }
       }
     } catch (e) {
-      await pushLog('Error syncing employees from server: $e');
+      await pushLog('Error syncing students from server: $e');
       rethrow;
     }
   }
@@ -1268,12 +1289,12 @@ class LocalServiceImplement implements LocalService {
       final allRecords = await _faceNative.getAllImages();
       final empIds = allRecords.map((record) => record.empId).toSet().toList();
 
-      // Remove face embeddings for each employee
+      // Remove face embeddings for each student
       for (final empId in empIds) {
         await _faceNative.removeImages(empId);
       }
       await pushLog(
-          'Cleared all face embeddings for ${empIds.length} employees');
+          'Cleared all face embeddings for ${empIds.length} students');
 
       await pushLog('Successfully cleared all local data');
     } catch (e, stackTrace) {

@@ -1,25 +1,28 @@
 from __future__ import annotations
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import String, Text, DateTime, ForeignKey, func
+from sqlalchemy import String, DateTime, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
+if TYPE_CHECKING:
+    from app.models.user import User
+
 
 class Teacher(Base):
-    """Teacher profile — 1:1 with User (role='teacher').
+    """Teacher profile — strict 1:1 with User (role='teacher').
 
-    Stores teacher-specific business data such as employee code,
-    department, and avatar.
+    Avatar is stored in User model (single source of truth).
     """
 
     __tablename__ = "teachers"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    # Strict 1:1 relationship with User
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -32,7 +35,7 @@ class Teacher(Base):
     )
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     department: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    avatar_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -45,9 +48,15 @@ class Teacher(Base):
         default=lambda: datetime.now(timezone.utc),
     )
 
+    # Soft delete - only deleted_at (removed is_deleted redundancy)
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+
     # ── Relationships ──────────────────────────────────────────
-    user: Mapped["User"] = relationship(  # noqa: F821
-        "User", back_populates="teacher_profile"
+    user: Mapped["User"] = relationship(
+        "User",
+        back_populates="teacher_profile",
     )
 
     def __repr__(self) -> str:

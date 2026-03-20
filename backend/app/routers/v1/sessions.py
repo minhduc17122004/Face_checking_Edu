@@ -8,9 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import get_current_user_id
 from app.core.database import get_db
 from app.repositories.session_repository import SessionRepository
-from app.repositories.classroom_repository import ClassroomRepository
+from app.repositories.course_repository import CourseRepository as ClassroomRepository
 from app.services.attendance_service import AttendanceService
-from app.services._authorization import check_classroom_owner, check_session_owner
+from app.services._authorization import check_course_owner as check_classroom_owner, check_session_owner
 from app.schemas.v1.session import (
     SessionCreate,
     SessionUpdate,

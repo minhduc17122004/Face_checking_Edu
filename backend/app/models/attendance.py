@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import String, Float, Integer, DateTime, ForeignKey, UniqueConstraint, Boolean, CheckConstraint, Index, func
+from sqlalchemy import String, Float, Integer, DateTime, ForeignKey, UniqueConstraint, CheckConstraint, Index, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -16,10 +16,10 @@ if TYPE_CHECKING:
 
 
 class Attendance(Base):
-    """Session-based attendance record (unified, replaces legacy AttendanceRecord).
+    """Session-based attendance record.
 
     Each record represents a student's attendance within a specific session.
-    Uses ONLY student_id for identity — user_id has been removed.
+    Uses ONLY student_id for identity.
 
     Design:
     - Offline-first: checkin_time (device clock) + sync_time (server clock)
@@ -36,14 +36,15 @@ class Attendance(Base):
             "status IN ('present', 'late', 'absent')",
             name="ck_attendance_status",
         ),
-        # Critical performance indexes
         Index("ix_attendance_session_student", "session_id", "student_id"),
         Index("ix_attendance_checkin_time", "checkin_time"),
+        Index("ix_attendance_status", "status"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
+
     session_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("sessions.id", ondelete="CASCADE"),
@@ -67,14 +68,18 @@ class Attendance(Base):
         server_default=func.now(),
         default=lambda: datetime.now(timezone.utc),
     )
+
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="present"
     )
+
+    # Face recognition metadata
     confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     device_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("devices.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -83,20 +88,19 @@ class Attendance(Base):
         default=lambda: datetime.now(timezone.utc),
     )
 
-    # Soft delete
-    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Soft delete - only deleted_at (removed is_deleted redundancy)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
+        DateTime(timezone=True), nullable=True, index=True
     )
 
     # ── Relationships ──────────────────────────────────────────
-    session: Mapped[Session] = relationship(
+    session: Mapped["Session"] = relationship(
         "Session", back_populates="attendance_records"
     )
-    student: Mapped[Student] = relationship(
+    student: Mapped["Student"] = relationship(
         "Student", back_populates="attendances"
     )
-    device: Mapped[Optional[Device]] = relationship(
+    device: Mapped[Optional["Device"]] = relationship(
         "Device", back_populates="attendance_records"
     )
 

@@ -32,11 +32,11 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>We use the camera to capture employee faces for real-time attendance verification, for example when clocking in or out at the kiosk.</string>
+	<string>We use the camera to capture student faces for real-time attendance verification, for example when checking in or out at the school kiosk.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We capture your kiosk location while recording attendance to flag check-ins that happen outside the authorized site boundary.</string>
+	<string>We capture your location while recording attendance to flag check-ins that happen outside the authorized school boundary.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>We save approved face snapshots to your photo library so HR can review the exact photo used for each enrollment or audit.</string>
+	<string>We save approved face snapshots to your photo library so teachers and administrators can review the exact photo used for each enrollment or audit.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

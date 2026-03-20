@@ -3,17 +3,12 @@
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:face_time_keeping/common/api_client/api_client.dart';
-import 'package:face_time_keeping/common/api_client/api_client.dart';
-import 'package:face_time_keeping/common/api_client/api_client.dart';
-import 'package:face_time_keeping/common/api_client/interceptors/cookie_interceptor.dart';
 import 'package:face_time_keeping/data/local/keychain/shared_prefs_key.dart';
 import 'package:flutter/material.dart';
 
 import '../../../configs/build_config.dart';
 import '../../../data/local/keychain/shared_prefs.dart';
 import '../../../di/injection.dart';
-import '../../api_client/api_client.dart';
 import '../../resources/index.dart';
 
 const int ImageLiveNum = 15;

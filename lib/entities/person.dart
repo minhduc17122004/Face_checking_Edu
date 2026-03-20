@@ -1,4 +1,4 @@
-import 'package:face_time_keeping/entities/employee.dart';
+import 'package:face_time_keeping/entities/student.dart';
 import 'package:hive/hive.dart';
 
 part 'person.g.dart';
@@ -6,7 +6,7 @@ part 'person.g.dart';
 @HiveType(typeId: 2)
 class Person extends HiveObject {
   @HiveField(0)
-  final int employeeId;
+  final int studentId;
 
   @HiveField(1)
   final DateTime updatedTime;
@@ -24,7 +24,7 @@ class Person extends HiveObject {
   final String? avatar;
 
   Person({
-    required this.employeeId,
+    required this.studentId,
     required this.updatedTime,
     this.isSynced = false,
     required this.name,
@@ -34,7 +34,7 @@ class Person extends HiveObject {
   });
 
   Person copyWith({
-    int? employeeId,
+    int? studentId,
     DateTime? updatedTime,
     bool? isSynced,
     String? name,
@@ -43,7 +43,7 @@ class Person extends HiveObject {
     String? avatar,
   }) {
     return Person(
-      employeeId: employeeId ?? this.employeeId,
+      studentId: studentId ?? this.studentId,
       updatedTime: updatedTime ?? this.updatedTime,
       isSynced: isSynced ?? this.isSynced,
       name: name ?? this.name,
@@ -53,9 +53,9 @@ class Person extends HiveObject {
     );
   }
 
-  Employee toEmployee() {
-    return Employee(
-      id: employeeId,
+  Student toStudent() {
+    return Student(
+      id: studentId,
       pin: pin,
       name: name ?? '',
       jobTitle: jobTitle,
@@ -65,6 +65,6 @@ class Person extends HiveObject {
 
   @override
   String toString() {
-    return 'Person(employeeId: $employeeId, updatedTime: $updatedTime, isSynced: $isSynced)';
+    return 'Person(studentId: $studentId, updatedTime: $updatedTime, isSynced: $isSynced)';
   }
 }

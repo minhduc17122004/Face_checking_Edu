@@ -34,8 +34,8 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-      final employee = context.getRouteArguments();
-      _bloc.init(employee);
+      final student = context.getRouteArguments();
+      _bloc.init(student);
     });
   }
 
@@ -50,7 +50,7 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
 
   @override
   Widget build(BuildContext context) {
-    //final Employee? employee = context.getRouteArguments();
+    // Student entity from route arguments (Education system)
     return BlocProvider<RegisterFaceBloc>(
       create: (_) => _bloc,
       child: Scaffold(
@@ -85,7 +85,7 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
           builder: (_, state) => Center(
             child: TextButton(
               onPressed: () async {
-                if (state.employee?.pin == null) {
+                if (state.student?.pin == null) {
                   showTopAlert(context,
                       title: 'Cảnh báo chưa có mã học sinh',
                       type: AlertType.warning);

@@ -1,9 +1,11 @@
+
+@Deprecated('Use Student entity instead')
 class User {
   int? id;
   String? barcode;
   String? name;
-  String? employeeCode;
-  String? jobTitle;
+  String? employeeCode;  // Renamed to: studentCode
+  String? jobTitle;  // Renamed to: className (for students)
 
   User({
     this.id,

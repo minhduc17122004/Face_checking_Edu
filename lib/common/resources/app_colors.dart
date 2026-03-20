@@ -38,6 +38,7 @@ class AppColors {
   static const slate900 = Color(0xFF0F172A);
   static const slate500 = Color(0xFF64748B);
   static const slate400 = Color(0xFF94A3B8);
+  static const slate300 = Color(0xFFCBD5E1);
 
   static const blue600 = Color(0xFF2563EB);
   static const blue50 = Color(0xFFEFF6FF);
@@ -57,6 +58,7 @@ class AppColors {
 
   static const purple600 = Color(0xFF9333EA);
   static const purple50 = Color(0xFFF5F3FF);
+  static const purple = Color(0xFF9333EA);
 
   static const teal600 = Color(0xFF0D9488);
   static const teal50 = Color(0xFFF0FDFA);

@@ -30,6 +30,7 @@ class FaceRepository:
                 and_(
                     FaceEmbedding.student_id == student_id,
                     FaceEmbedding.is_active == True,  # noqa: E712
+                    FaceEmbedding.deleted_at.is_(None),
                 )
             )
             .order_by(FaceEmbedding.created_at)
@@ -37,10 +38,15 @@ class FaceRepository:
         return result.scalars().all()
 
     async def get_all(self) -> Sequence[FaceEmbedding]:
-        """Return every embedding row — used by GET /api/employee/export/json."""
+        """Return every embedding row — used by GET /api/student/export/json."""
         result = await self.db.execute(
             select(FaceEmbedding)
-            .where(FaceEmbedding.is_active == True)  # noqa: E712
+            .where(
+                and_(
+                    FaceEmbedding.is_active == True,  # noqa: E712
+                    FaceEmbedding.deleted_at.is_(None),
+                )
+            )
             .order_by(FaceEmbedding.student_id, FaceEmbedding.created_at)
         )
         return result.scalars().all()
@@ -55,6 +61,7 @@ class FaceRepository:
                 and_(
                     FaceEmbedding.student_id == student_id,
                     FaceEmbedding.is_active == True,  # noqa: E712
+                    FaceEmbedding.deleted_at.is_(None),
                 )
             )
         )
@@ -80,7 +87,12 @@ class FaceRepository:
         from sqlalchemy import distinct
         result = await self.db.execute(
             select(distinct(FaceEmbedding.student_id))
-            .where(FaceEmbedding.is_active == True)  # noqa: E712
+            .where(
+                and_(
+                    FaceEmbedding.is_active == True,  # noqa: E712
+                    FaceEmbedding.deleted_at.is_(None),
+                )
+            )
         )
         return list(result.scalars().all())
 
@@ -89,10 +101,17 @@ class FaceRepository:
         self,
         *,
         student_id: int,
-        embedding_data: list,
+        embedding: list,
+        device_id: uuid.UUID | None = None,
+        quality_score: float | None = None,
     ) -> FaceEmbedding:
         """Insert a single embedding row."""
-        emb = FaceEmbedding(student_id=student_id, embedding_data=embedding_data)
+        emb = FaceEmbedding(
+            student_id=student_id,
+            embedding=embedding,
+            device_id=device_id,
+            quality_score=quality_score,
+        )
         self.db.add(emb)
         await self.db.flush()
         await self.db.refresh(emb)
@@ -102,6 +121,7 @@ class FaceRepository:
         self,
         student_id: int,
         embeddings: list[list[float]],
+        device_id: uuid.UUID | None = None,
     ) -> list[FaceEmbedding]:
         """Atomic replace — delete existing rows then insert new vectors."""
         # 1. Delete existing embeddings for this student
@@ -113,7 +133,11 @@ class FaceRepository:
         # 2. Insert fresh embeddings
         created: list[FaceEmbedding] = []
         for vector in embeddings:
-            emb = FaceEmbedding(student_id=student_id, embedding_data=vector)
+            emb = FaceEmbedding(
+                student_id=student_id,
+                embedding=vector,
+                device_id=device_id,
+            )
             self.db.add(emb)
             created.append(emb)
 
@@ -134,22 +158,26 @@ class FaceRepository:
         await self.db.delete(emb)
         await self.db.flush()
 
-    # ── Classroom face export (Phase 4) ──────────────────────────────────────
-    async def get_all_for_classroom(self, classroom_id: uuid.UUID) -> Sequence[FaceEmbedding]:
-        """Return all active embeddings for students enrolled in a classroom.
+    # ── Course face export ───────────────────────────────────────────────────────
+    async def get_all_for_course(self, course_id: uuid.UUID) -> Sequence[FaceEmbedding]:
+        """Return all active embeddings for students enrolled in a course.
 
-        Used by GET /api/v1/classrooms/{id}/face-embeddings for device sync.
+        Used by GET /api/v1/courses/{id}/face-embeddings for device sync.
         """
-        from app.models.classroom_student import ClassroomStudent
+        from app.models.course_enrollment import CourseEnrollment
         from sqlalchemy import select as sa_select
 
         result = await self.db.execute(
             sa_select(FaceEmbedding)
-            .join(ClassroomStudent, FaceEmbedding.student_id == ClassroomStudent.student_id)
+            .join(
+                CourseEnrollment,
+                FaceEmbedding.student_id == CourseEnrollment.student_id,
+            )
             .where(
                 and_(
-                    ClassroomStudent.classroom_id == classroom_id,
+                    CourseEnrollment.course_id == course_id,
                     FaceEmbedding.is_active == True,  # noqa: E712
+                    FaceEmbedding.deleted_at.is_(None),
                 )
             )
             .order_by(FaceEmbedding.student_id, FaceEmbedding.created_at)

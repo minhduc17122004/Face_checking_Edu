@@ -1,13 +1,13 @@
-import 'package:face_time_keeping/entities/employee.dart';
+import 'package:face_time_keeping/entities/student.dart';
 import 'package:flutter/material.dart';
 
 class UserInfoComponent extends StatelessWidget {
   const UserInfoComponent({
     Key? key,
-    this.employee,
+    this.student,
   }) : super(key: key);
 
-  final Employee? employee;
+  final Student? student;
 
   @override
   Widget build(BuildContext context) {
@@ -17,10 +17,10 @@ class UserInfoComponent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.max,
         children: [
-          UserInfoField(label: 'Tên', value: employee?.name ?? '-'),
-          UserInfoField(label: 'PIN', value: employee?.pin ?? '-'),
-          if (employee?.jobTitle != null && employee!.jobTitle is String)
-            UserInfoField(label: 'Lớp', value: employee!.jobTitle as String),
+          UserInfoField(label: 'Tên', value: student?.name ?? '-'),
+          UserInfoField(label: 'PIN', value: student?.pin ?? '-'),
+          if (student?.jobTitle != null && student!.jobTitle is String)
+            UserInfoField(label: 'Lớp', value: student!.jobTitle as String),
         ],
       ),
     );

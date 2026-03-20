@@ -1,5 +1,5 @@
 from __future__ import annotations
-"""Student service — CRUD and Flutter-compatible employee operations."""
+"""Student service — CRUD and Flutter-compatible student operations."""
 import os
 import uuid as _uuid
 from pathlib import Path
@@ -13,17 +13,17 @@ from app.schemas.student_schema import (
     StudentCreate,
     StudentOut,
     StudentList,
-    EmployeeOut,
-    EmployeeCreateLegacy,
+    StudentOutLegacy,
+    StudentCreateLegacy,
     BatchCreateResponse,
-    GetAllEmployeesResponse,
+    GetAllStudentsResponse,
     AvatarUploadFile,
     AvatarUploadResponse,
 )
 
 
 class StudentService:
-    """Handles student CRUD and all Flutter legacy employee operations."""
+    """Handles student CRUD and all Flutter legacy student operations."""
 
     def __init__(self, db: AsyncSession) -> None:
         self.repo = StudentRepository(db)
@@ -57,14 +57,14 @@ class StudentService:
         )
 
     # ── Flutter legacy operations ──────────────────────────────
-    async def get_all_employees(self) -> GetAllEmployeesResponse:
-        """GET /api/employee/get_all_employees — Flutter-compatible list."""
+    async def get_all_students(self) -> GetAllStudentsResponse:
+        """GET /api/student/get_all_students — Flutter-compatible list."""
         students = await self.repo.get_all(limit=10_000)
-        employees = [EmployeeOut.from_student(s) for s in students]
-        return GetAllEmployeesResponse.build(employees)
+        students_out = [StudentOutLegacy.from_student(s) for s in students]
+        return GetAllStudentsResponse.build(students_out)
 
-    async def create_employee_legacy(self, data: EmployeeCreateLegacy) -> EmployeeOut:
-        """POST /api/employee/create — single employee via legacy endpoint."""
+    async def create_student_legacy(self, data: StudentCreateLegacy) -> StudentOutLegacy:
+        """POST /api/student/create — single student via legacy endpoint."""
         student = await self.repo.create(
             name=data.name,
             pin=data.pin,
@@ -72,57 +72,57 @@ class StudentService:
             has_avatar=data.hasAvatar,
             attachment_id=data.attachmentId,
         )
-        return EmployeeOut.from_student(student)
+        return StudentOutLegacy.from_student(student)
 
-    async def batch_create_employees(
-        self, employees: list[EmployeeCreateLegacy]
+    async def batch_create_students(
+        self, students_data: list[StudentCreateLegacy]
     ) -> BatchCreateResponse:
-        """POST /api/employee/create/batch — batch employee creation."""
-        created_list: list[EmployeeOut] = []
+        """POST /api/student/create/batch — batch student creation."""
+        created_list: list[StudentOutLegacy] = []
         failed = 0
 
-        students_data = [
+        students_to_create = [
             {
-                "name": e.name,
-                "pin": e.pin,
-                "job_title": e.jobTitle,
-                "has_avatar": e.hasAvatar,
-                "attachment_id": e.attachmentId,
+                "name": s.name,
+                "pin": s.pin,
+                "job_title": s.jobTitle,
+                "has_avatar": s.hasAvatar,
+                "attachment_id": s.attachmentId,
             }
-            for e in employees
+            for s in students_data
         ]
         try:
-            students = await self.repo.bulk_create(students_data)
-            created_list = [EmployeeOut.from_student(s) for s in students]
+            created = await self.repo.bulk_create(students_to_create)
+            created_list = [StudentOutLegacy.from_student(s) for s in created]
         except Exception:
-            failed = len(employees)
+            failed = len(students_data)
 
         return BatchCreateResponse(
             created=len(created_list),
             failed=failed,
-            employees=created_list,
+            students=created_list,
         )
 
     async def upload_avatars(
         self,
         files: list[UploadFile],
-        emp_ids: list[int],
+        student_ids: list[int],
     ) -> AvatarUploadResponse:
-        """POST /api/employee/avatars/upload — save avatar images, update records."""
+        """POST /api/student/avatars/upload — save avatar images, update records."""
         upload_dir = Path(settings.UPLOAD_DIR) / "avatars"
         upload_dir.mkdir(parents=True, exist_ok=True)
 
         upload_id = str(_uuid.uuid4())
         result_files: list[AvatarUploadFile] = []
 
-        for file, emp_id in zip(files, emp_ids):
-            student = await self.repo.get_by_id(emp_id)
+        for file, student_id in zip(files, student_ids):
+            student = await self.repo.get_by_id(student_id)
             if not student:
-                continue  # skip unknown employee silently
+                continue  # skip unknown student silently
 
-            # Save file with a stable name: <empId>_<original_filename>
+            # Save file with a stable name: <studentId>_<original_filename>
             suffix = Path(file.filename or "avatar.jpg").suffix
-            dest_name = f"{emp_id}{suffix}"
+            dest_name = f"{student_id}{suffix}"
             dest_path = upload_dir / dest_name
 
             content = await file.read()
@@ -132,7 +132,7 @@ class StudentService:
             await self.repo.update_avatar(student, avatar_url=url, has_avatar=True)
 
             result_files.append(
-                AvatarUploadFile(empId=emp_id, fileName=dest_name, url=url)
+                AvatarUploadFile(studentId=student_id, fileName=dest_name, url=url)
             )
 
         return AvatarUploadResponse(

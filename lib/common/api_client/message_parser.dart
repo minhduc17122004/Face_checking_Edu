@@ -4,14 +4,14 @@ Map<String, String> messageParser = {
   'not_found': Strings.localized.notFound,
   'forbidden': Strings.localized.forbidden,
   'ERROR.ACCOUNT.AUTHEN.FAILED': Strings.localized.unauthorized,
-  'ERROR.HRM.EMPLOYEE.NOT_FOUND':
+  'ERROR.EDU.STUDENT.NOT_FOUND':
       'Không tìm thấy học sinh hoặc chưa đăng ký khuôn mặt.',
-  'ERROR.HRM.UPDATE.EMPLOYEE_NOT_FOUND_OR_HAS NOT REGISTED':
-      'Không tìm thấy học sinh hoặc chưa đăng ký',
-  'ERROR.HRM.REGISTER.FAILED': 'Đăng ký thất bại',
-  'ERROR.HRM.EMPLOYEE.CONTACT_ADMIN': 'Đã check in. Hãy liên hệ HR Admin',
-  'ERROR.HRM.EMPLOYEE.NOT_CHECKIN': 'Học sinh chưa điểm danh vào',
-  'ERROR.HRM.EMPLOYEE.FACE.EMPTY': 'Chưa đăng ký khuôn mặt.',
-  'ERROR.HRM.REGISTER.EXISTS': 'Khuôn mặt đã được đăng ký bởi học sinh khác.',
-  'ERROR.HRM.REGISTER.IMAGE.IS_BLUR': 'Hình bị mờ. Hãy chụp lại'
+  'ERROR.EDU.UPDATE.STUDENT_NOT_FOUND_OR_HAS_NOT_REGISTERED':
+      'Không tìm thấy học sinh hoặc chưa đăng ký khuôn mặt.',
+  'ERROR.EDU.REGISTER.FAILED': 'Đăng ký thất bại',
+  'ERROR.EDU.STUDENT.CONTACT_ADMIN': 'Đã check in. Hãy liên hệ Admin',
+  'ERROR.EDU.STUDENT.NOT_CHECKIN': 'Học sinh chưa điểm danh vào',
+  'ERROR.EDU.STUDENT.FACE.EMPTY': 'Chưa đăng ký khuôn mặt.',
+  'ERROR.EDU.REGISTER.EXISTS': 'Khuôn mặt đã được đăng ký bởi học sinh khác.',
+  'ERROR.EDU.REGISTER.IMAGE.IS_BLUR': 'Hình bị mờ. Hãy chụp lại'
 };

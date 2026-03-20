@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.security import get_current_user_id
 from app.models.schedule import Schedule
-from app.models.classroom import Classroom
+from app.models.course import Course as Classroom
 from app.models.time_slot import TimeSlot
 from app.schemas.schedule_schema import (
     ScheduleCreate,

@@ -76,10 +76,14 @@ class LoginBloc extends Cubit<LoginState> {
         _localService.saveUserId(userIdStr.hashCode.abs());
 
         if (avatarUrl != null && avatarUrl.isNotEmpty) {
-           _localService.saveAvatarPath(activeBaseUrl + avatarUrl);
+          _localService.saveAvatarPath(activeBaseUrl + avatarUrl);
         } else {
-           _localService.saveAvatarPath("");
+          _localService.saveAvatarPath("");
         }
+
+        // Save user role from login response (always — independent of avatar)
+        final userRole = result.data?.user?.role;
+        _localService.saveUserRole(userRole);
 
         // Sử dụng một database dummy cho cấu trúc cũ
         final String database = "fastapi_db";
@@ -113,12 +117,12 @@ class LoginBloc extends Cubit<LoginState> {
               oldTenantId, tenantId);
         }
 
-        // Check for unsynced local employees
-        final hasUnsynced = await _localService.hasUnsyncedLocalEmployees();
-        log('LoginBloc.onLogin completed | hasUnsyncedEmployees=$hasUnsynced');
+        // Check for unsynced local students
+        final hasUnsynced = await _localService.hasUnsyncedLocalStudents();
+        log('LoginBloc.onLogin completed | hasUnsyncedStudents=$hasUnsynced');
         emit(state.copyWith(
           requestStatus: RequestStatus.success,
-          hasUnsyncedEmployees: hasUnsynced,
+          hasUnsyncedStudents: hasUnsynced,
         ));
       } else {
         log('LoginBloc.onLogin failed from API | error=${result.error}');
@@ -132,9 +136,9 @@ class LoginBloc extends Cubit<LoginState> {
     }
   }
 
-  Future<void> syncLocalEmployeesToServer() async {
-    log('LoginBloc.syncLocalEmployeesToServer started');
-    await SyncJobsUtil.syncEmployeeDataNow();
-    log('LoginBloc.syncLocalEmployeesToServer finished');
+  Future<void> syncLocalStudentsToServer() async {
+    log('LoginBloc.syncLocalStudentsToServer started');
+    await SyncJobsUtil.syncStudentDataNow();
+    log('LoginBloc.syncLocalStudentsToServer finished');
   }
 }

@@ -30,11 +30,11 @@ class AppBloc extends Cubit<AppState> with EventBusMixin {
       _getCurrentPosition();
     });
 
-    // Listen to sync employee events
-    listenEvent<SyncEmployeeEvent>((e) => _onSyncEmployeeEvent(e));
+    // Listen to sync student events
+    listenEvent<SyncStudentEvent>((e) => _onSyncStudentEvent(e));
   }
 
-  void _onSyncEmployeeEvent(SyncEmployeeEvent event) async {
+  void _onSyncStudentEvent(SyncStudentEvent event) async {
     if (event.status == 'in_progress') {
       emit(state.copyWith(
         syncStatus: SyncProgressStatus.syncing,

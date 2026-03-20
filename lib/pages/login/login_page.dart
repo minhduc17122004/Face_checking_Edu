@@ -64,7 +64,7 @@ class _LoginPageState extends State<LoginPage> {
               break;
             case RequestStatus.success:
               IgnoreLoadingIndicator().hide(context);
-              _showSyncEmployeesDialog();
+              _showSyncStudentsDialog();
               break;
             case RequestStatus.failed:
               IgnoreLoadingIndicator().hide(context);
@@ -141,7 +141,8 @@ class _LoginPageState extends State<LoginPage> {
 
                           // ── Hero Image ──
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 8),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(16),
                               child: SizedBox(
@@ -154,7 +155,8 @@ class _LoginPageState extends State<LoginPage> {
                                       fit: BoxFit.cover,
                                       errorBuilder: (_, __, ___) => Container(
                                         color: Colors.grey[200],
-                                        child: const Icon(Icons.image, size: 48, color: Colors.grey),
+                                        child: const Icon(Icons.image,
+                                            size: 48, color: Colors.grey),
                                       ),
                                     ),
                                     Container(
@@ -225,7 +227,8 @@ class _LoginPageState extends State<LoginPage> {
                                   controller: _usernameController,
                                   validator: Validator.nullOrEmptyValidation,
                                   hintText: 'Enter your ID',
-                                  onChanged: (value) => _bloc.onChangeUsername(value),
+                                  onChanged: (value) =>
+                                      _bloc.onChangeUsername(value),
                                   background: const Color(0xFFF8FAFC),
                                   outlinedColor: const Color(0xFFE2E8F0),
                                   prefixIcon: Icon(
@@ -233,7 +236,8 @@ class _LoginPageState extends State<LoginPage> {
                                     size: 20,
                                     color: Colors.grey[400],
                                   ),
-                                  inputContextPadding: const EdgeInsets.symmetric(
+                                  inputContextPadding:
+                                      const EdgeInsets.symmetric(
                                     horizontal: 16,
                                     vertical: 16,
                                   ),
@@ -255,7 +259,8 @@ class _LoginPageState extends State<LoginPage> {
                                 PasswordField(
                                   controller: _passwordController,
                                   validatePass: true,
-                                  onChanged: (value) => _bloc.onChangePass(value),
+                                  onChanged: (value) =>
+                                      _bloc.onChangePass(value),
                                 ),
                                 const SizedBox(height: 6),
 
@@ -269,7 +274,8 @@ class _LoginPageState extends State<LoginPage> {
                                     style: TextButton.styleFrom(
                                       padding: EdgeInsets.zero,
                                       minimumSize: const Size(0, 0),
-                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
                                     ),
                                     child: const Text(
                                       'Forgot Password?',
@@ -291,22 +297,40 @@ class _LoginPageState extends State<LoginPage> {
                                     runSpacing: 8,
                                     children: [
                                       ActionChip(
-                                        label: const Text('Admin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                                        backgroundColor: AppColors.primary.withOpacity(0.1),
+                                        label: const Text('Admin',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.primary)),
+                                        backgroundColor:
+                                            AppColors.primary.withOpacity(0.1),
                                         side: BorderSide.none,
-                                        onPressed: () => _fillDemoAccount('admin@test.com', 'admin123'),
+                                        onPressed: () => _fillDemoAccount(
+                                            'admin@test.com', 'admin123'),
                                       ),
                                       ActionChip(
-                                        label: const Text('Teacher', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.orange)),
-                                        backgroundColor: Colors.orange.withOpacity(0.1),
+                                        label: const Text('Teacher',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.orange)),
+                                        backgroundColor:
+                                            Colors.orange.withOpacity(0.1),
                                         side: BorderSide.none,
-                                        onPressed: () => _fillDemoAccount('teacher@test.com', 'teacher123'),
+                                        onPressed: () => _fillDemoAccount(
+                                            'teacher@test.com', 'teacher123'),
                                       ),
                                       ActionChip(
-                                        label: const Text('Student', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
-                                        backgroundColor: Colors.green.withOpacity(0.1),
+                                        label: const Text('Student',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.green)),
+                                        backgroundColor:
+                                            Colors.green.withOpacity(0.1),
                                         side: BorderSide.none,
-                                        onPressed: () => _fillDemoAccount('student@test.com', 'student123'),
+                                        onPressed: () => _fillDemoAccount(
+                                            'student@test.com', 'student123'),
                                       ),
                                     ],
                                   ),
@@ -323,13 +347,15 @@ class _LoginPageState extends State<LoginPage> {
                                       backgroundColor: AppColors.primary,
                                       foregroundColor: Colors.white,
                                       elevation: 4,
-                                      shadowColor: AppColors.primary.withOpacity(0.3),
+                                      shadowColor:
+                                          AppColors.primary.withOpacity(0.3),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(14),
                                       ),
                                     ),
                                     child: const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Text(
                                           'Login',
@@ -350,9 +376,12 @@ class _LoginPageState extends State<LoginPage> {
                                 // ── Divider "Or login with" ──
                                 Row(
                                   children: [
-                                    Expanded(child: Divider(color: Colors.grey[300])),
+                                    Expanded(
+                                        child:
+                                            Divider(color: Colors.grey[300])),
                                     Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16),
                                       child: Text(
                                         'OR LOGIN WITH',
                                         style: TextStyle(
@@ -363,7 +392,9 @@ class _LoginPageState extends State<LoginPage> {
                                         ),
                                       ),
                                     ),
-                                    Expanded(child: Divider(color: Colors.grey[300])),
+                                    Expanded(
+                                        child:
+                                            Divider(color: Colors.grey[300])),
                                   ],
                                 ),
 
@@ -379,7 +410,8 @@ class _LoginPageState extends State<LoginPage> {
                                     },
                                     style: OutlinedButton.styleFrom(
                                       side: BorderSide(
-                                        color: AppColors.primary.withOpacity(0.15),
+                                        color:
+                                            AppColors.primary.withOpacity(0.15),
                                         width: 2,
                                       ),
                                       shape: RoundedRectangleBorder(
@@ -387,13 +419,15 @@ class _LoginPageState extends State<LoginPage> {
                                       ),
                                     ),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Container(
                                           width: 34,
                                           height: 34,
                                           decoration: BoxDecoration(
-                                            color: AppColors.primary.withOpacity(0.1),
+                                            color: AppColors.primary
+                                                .withOpacity(0.1),
                                             shape: BoxShape.circle,
                                           ),
                                           child: const Icon(
@@ -469,7 +503,7 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  void _showSyncEmployeesDialog() {
+  void _showSyncStudentsDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -562,7 +596,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   ElevatedButton(
                     onPressed: () async {
-                      await _bloc.syncLocalEmployeesToServer();
+                      await _bloc.syncLocalStudentsToServer();
                       AppNavigator.pushNamedAndRemoveUntil(
                           RouterName.home, (_) => false);
                     },

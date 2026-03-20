@@ -39,7 +39,7 @@ class SessionRepository(BaseRepository[Session]):
         skip: int = 0,
         limit: int = 100,
     ) -> Sequence[Session]:
-        conditions = [Session.classroom_id == classroom_id, Session.is_deleted == False]
+        conditions = [Session.classroom_id == classroom_id, Session.deleted_at.is_(None)]
         if session_date:
             from datetime import datetime
             start = datetime.combine(session_date, datetime.min.time())
@@ -63,7 +63,7 @@ class SessionRepository(BaseRepository[Session]):
                 and_(
                     Session.classroom_id == classroom_id,
                     Session.status == "active",
-                    Session.is_deleted == False,
+                    Session.deleted_at.is_(None),
                 )
             )
         )
@@ -77,7 +77,7 @@ class SessionRepository(BaseRepository[Session]):
         skip: int = 0,
         limit: int = 100,
     ) -> tuple[Sequence[Session], int]:
-        conditions = [Session.is_deleted == False]
+        conditions = [Session.deleted_at.is_(None)]
         if classroom_id:
             conditions.append(Session.classroom_id == classroom_id)
         if session_date:
@@ -163,7 +163,7 @@ class SessionRepository(BaseRepository[Session]):
                 and_(
                     Session.status == "scheduled",
                     Session.start_time <= now,
-                    Session.is_deleted == False,
+                    Session.deleted_at.is_(None),
                 )
             )
         )
@@ -178,7 +178,7 @@ class SessionRepository(BaseRepository[Session]):
                 and_(
                     Session.status == "active",
                     Session.end_time <= now,
-                    Session.is_deleted == False,
+                    Session.deleted_at.is_(None),
                 )
             )
         )

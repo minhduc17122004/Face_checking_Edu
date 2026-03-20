@@ -47,7 +47,7 @@
   "status": "TRẠNG THÁI",
   "working": "ĐANG SẢN XUẤT",
   "pauseWorking": "TẠM DỪNG SẢN XUẤT",
-  "employee": "Học sinh",
+  "student": "Học sinh",
   "continueWorkingConfirmation": "Bạn có chắc chắn muốn tiếp tục không?",
   "pauseWorkingConfirmation": "Bạn có chắc chắn muốn tạm dừng không?",
   "finishWorkingConfirmation": "Bạn có chắc chắn muốn kết thúc không?",

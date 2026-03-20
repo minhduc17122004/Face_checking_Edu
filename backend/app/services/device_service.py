@@ -7,9 +7,9 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.device_repository import DeviceRepository
-from app.repositories.classroom_repository import ClassroomRepository
+from app.repositories.course_repository import CourseRepository
 from app.repositories.session_repository import SessionRepository
-from app.repositories.classroom_student_repository import ClassroomStudentRepository
+from app.repositories.course_enrollment_repository import CourseEnrollmentRepository
 from app.repositories.face_repository import FaceRepository
 from app.repositories.attendance_repository import AttendanceRepository
 from app.services.face_service import FaceService
@@ -58,9 +58,9 @@ class DeviceService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
         self.device_repo = DeviceRepository(db)
-        self.classroom_repo = ClassroomRepository(db)
+        self.course_repo = CourseRepository(db)
         self.session_repo = SessionRepository(db)
-        self.cs_repo = ClassroomStudentRepository(db)
+        self.enrollment_repo = CourseEnrollmentRepository(db)
         self.face_repo = FaceRepository(db)
         self.face_svc = FaceService(db)
         self.att_svc = AttendanceService(db)
@@ -71,46 +71,46 @@ class DeviceService:
         """GET /api/v1/devices/{id}/sync — pull all offline data for a device.
 
         Returns:
-        - students: enrolled in device's classroom
+        - students: enrolled in device's course
         - embeddings: active face embeddings for those students
-        - sessions: today's sessions for device's classroom
+        - sessions: today's sessions for device's course
         """
         device = await self.device_repo.get_by_id(device_id)
-        if not device or device.is_deleted or not device.is_active:
+        if not device or device.deleted_at is not None or not device.is_active:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Device is not valid or not active.",
             )
 
-        if not device.classroom_id:
+        if not device.course_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Device is not assigned to a classroom.",
+                detail="Device is not assigned to a course.",
             )
 
-        classroom = await self.classroom_repo.get_by_id(device.classroom_id)
-        if not classroom or classroom.is_deleted:
+        course = await self.course_repo.get_by_id(device.course_id)
+        if not course or course.deleted_at is not None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Device's classroom not found.",
+                detail="Device's course not found.",
             )
 
         # 1. Enrolled students
-        enrollments = await self.cs_repo.get_by_classroom(device.classroom_id)
+        enrollments = await self.enrollment_repo.get_by_course(device.course_id)
         student_ids = [e.student_id for e in enrollments]
 
         # 2. Today's sessions
         today = datetime.now(timezone.utc).date()
-        sessions = await self.session_repo.get_by_classroom(
-            device.classroom_id,
+        sessions = await self.session_repo.get_by_course(
+            device.course_id,
             session_date=today,
         )
 
         # 3. Face embeddings for enrolled students
-        face_export = await self.face_svc.export_for_classroom(device.classroom_id)
+        face_export = await self.face_svc.export_for_course(device.course_id)
 
         # Update device last sync
-        device.last_sync_at = datetime.now(timezone.utc)
+        device.last_active_at = datetime.now(timezone.utc)
         await self.db.flush()
 
         self.audit.log_device_sync(
@@ -143,7 +143,7 @@ class DeviceService:
         """
         if req.device_id:
             device = await self.device_repo.get_by_id(req.device_id)
-            if not device or device.is_deleted or not device.is_active:
+            if not device or device.deleted_at is not None or not device.is_active:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Device is not valid or not active.",

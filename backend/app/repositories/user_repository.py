@@ -24,7 +24,7 @@ class UserRepository:
         uid = uuid.UUID(str(user_id)) if not isinstance(user_id, uuid.UUID) else user_id
         result = await self.db.execute(
             select(User).where(
-                and_(User.id == uid, User.is_deleted == False)  # noqa: E712
+                and_(User.id == uid, User.deleted_at.is_(None))
             )
         )
         return result.scalar_one_or_none()
@@ -32,7 +32,7 @@ class UserRepository:
     async def get_by_email(self, email: str) -> User | None:
         result = await self.db.execute(
             select(User).where(
-                and_(User.email == email.lower(), User.is_deleted == False)  # noqa: E712
+                and_(User.email == email.lower(), User.deleted_at.is_(None))
             )
         )
         return result.scalar_one_or_none()
@@ -40,7 +40,7 @@ class UserRepository:
     async def get_all(self, skip: int = 0, limit: int = 100) -> Sequence[User]:
         result = await self.db.execute(
             select(User)
-            .where(User.is_deleted == False)  # noqa: E712
+            .where(User.deleted_at.is_(None))
             .offset(skip)
             .limit(limit)
             .order_by(User.created_at.desc())
@@ -52,7 +52,7 @@ class UserRepository:
         result = await self.db.execute(
             select(sa_func.count())
             .select_from(User)
-            .where(User.is_deleted == False)  # noqa: E712
+            .where(User.deleted_at.is_(None))
         )
         return result.scalar_one()
 

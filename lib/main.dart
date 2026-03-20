@@ -36,8 +36,8 @@ void main() async {
 
       await configureDependencies(environment);
       IsolateListenUtil.listen((msg) {
-        if (msg is Map && msg['type'] == sendPortSyncEmployeeType) {
-          EventBusMixin.shareStaticEvent(SyncEmployeeEvent(
+        if (msg is Map && msg['type'] == sendPortSyncStudentType) {
+          EventBusMixin.shareStaticEvent(SyncStudentEvent(
             status: msg['status'] as String? ?? 
                    (msg['success'] == true ? 'success' : 'failed'),
             success: msg['success'] as bool?,

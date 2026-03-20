@@ -1,10 +1,10 @@
 import 'dart:io';
 
 import 'package:face_time_keeping/common/enums/request_status.dart';
-import 'package:face_time_keeping/entities/employee.dart';
+import 'package:face_time_keeping/entities/student.dart';
 
 class RegisterFaceState {
-  Employee? employee;
+  Student? student;
   File? image;
   RequestStatus requestStatus;
   String? message;
@@ -13,7 +13,7 @@ class RegisterFaceState {
   List<int> addedImageIds;
 
   RegisterFaceState copyWith({
-    Employee? employee,
+    Student? student,
     File? image,
     RequestStatus? requestStatus,
     String? message,
@@ -22,7 +22,7 @@ class RegisterFaceState {
     List<int>? addedImageIds,
   }) {
     return RegisterFaceState(
-      employee: employee ?? this.employee,
+      student: student ?? this.student,
       image: image ?? this.image,
       requestStatus: requestStatus ?? this.requestStatus,
       message: message ?? this.message,
@@ -33,7 +33,7 @@ class RegisterFaceState {
   }
 
   RegisterFaceState({
-    this.employee,
+    this.student,
     this.image,
     this.requestStatus = RequestStatus.initial,
     this.message,

@@ -14,15 +14,15 @@ from app.schemas.student_schema import (  # noqa: F401
     StudentCreate,
     StudentOut,
     StudentList,
-    EmployeeOut,
-    EmployeeCreateLegacy,
+    StudentOutLegacy,
+    StudentCreateLegacy,
     BatchCreateRequest,
     BatchCreateResponse,
-    GetAllEmployeesResponse,
+    GetAllStudentsResponse,
     AvatarUploadFile,
     AvatarUploadResponse,
 )
-from app.schemas.classroom_schema import ClassCreate, ClassOut, ClassList  # noqa: F401
+from app.schemas.course_schema import CourseCreate, CourseOut, CourseList  # noqa: F401
 from app.schemas.attendance_schema import (  # noqa: F401
     CheckinRequest,
     AttendanceOut,
@@ -43,10 +43,10 @@ from app.schemas.time_slot_schema import (  # noqa: F401
     TimeSlotOut,
     TimeSlotList,
 )
-from app.schemas.classroom_student_schema import (  # noqa: F401
-    ClassroomStudentCreate,
-    ClassroomStudentOut,
-    ClassroomStudentList,
+from app.schemas.course_enrollment_schema import (  # noqa: F401
+    CourseEnrollmentCreate,
+    CourseEnrollmentOut,
+    CourseEnrollmentList,
 )
 from app.schemas.schedule_schema import (  # noqa: F401
     ScheduleCreate,
@@ -69,9 +69,9 @@ from app.schemas.attendance_new_schema import (  # noqa: F401
     AttendanceList,
     AttendanceSummary,
 )
-from app.schemas.academic_class_schema import (  # noqa: F401
-    AcademicClassCreate,
-    AcademicClassUpdate,
-    AcademicClassOut,
-    AcademicClassList,
+from app.schemas.student_group_schema import (  # noqa: F401
+    StudentGroupCreate,
+    StudentGroupUpdate,
+    StudentGroupOut,
+    StudentGroupList,
 )

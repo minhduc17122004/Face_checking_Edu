@@ -29,7 +29,7 @@ import 'package:face_time_keeping/pages/bootstrap/bootstrap_cubit.dart'
 import 'package:face_time_keeping/pages/checking/bloc/checking_bloc.dart'
     as _i309;
 import 'package:face_time_keeping/pages/domain/bloc/domain_bloc.dart' as _i981;
-import 'package:face_time_keeping/pages/employee/blocs/employee_bloc.dart'
+import 'package:face_time_keeping/pages/student/blocs/student_bloc.dart'
     as _i481;
 import 'package:face_time_keeping/pages/login/bloc/login_bloc.dart' as _i128;
 import 'package:face_time_keeping/pages/register_face/bloc/register_face_bloc.dart'
@@ -121,7 +121,7 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i840.LocalService>(),
           gh<_i687.UserService>(),
         ));
-    gh.factory<_i481.EmployeeBloc>(() => _i481.EmployeeBloc(
+    gh.factory<_i481.StudentBloc>(() => _i481.StudentBloc(
           gh<_i687.UserService>(),
           gh<_i106.HiveService>(),
         ));

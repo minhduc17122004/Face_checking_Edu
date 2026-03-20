@@ -32,7 +32,7 @@ class FaceService:
     """Business logic for face embedding management.
 
     Supports:
-    - v1: register with max-5 / FIFO eviction, face status, classroom export
+    - v1: register with max-5 / FIFO eviction, face status, course export
     - REST: per-student register, retrieve
     - Flutter legacy: full export (GET) and file-based import (PUT)
     """
@@ -52,6 +52,7 @@ class FaceService:
         student_id: int,
         embedding: list[float],
         device_id: uuid.UUID | None = None,
+        quality_score: float | None = None,
     ) -> FaceEmbeddingOut:
         """Register a face embedding with max-5 / FIFO eviction.
 
@@ -63,7 +64,7 @@ class FaceService:
         5. Insert new embedding with is_active=True.
         """
         student = await self.student_repo.get_by_id(student_id)
-        if not student or student.is_deleted:
+        if not student or student.deleted_at is not None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Student {student_id} not found.",
@@ -71,7 +72,7 @@ class FaceService:
 
         if device_id:
             device = await self.device_repo.get_by_id(device_id)
-            if not device or device.is_deleted or not device.is_active:
+            if not device or device.deleted_at is not None or not device.is_active:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Device is not valid or not active.",
@@ -97,9 +98,10 @@ class FaceService:
 
         emb = FaceEmbedding(
             student_id=student_id,
-            embedding_data=embedding,
+            embedding=embedding,
             is_active=True,
             device_id=device_id,
+            quality_score=quality_score,
         )
         self.db.add(emb)
         await self.db.flush()
@@ -124,7 +126,7 @@ class FaceService:
     async def get_face_status(self, student_id: int) -> FaceStatusResponse:
         """GET /api/v1/students/{id}/face-status."""
         student = await self.student_repo.get_by_id(student_id)
-        if not student or student.is_deleted:
+        if not student or student.deleted_at is not None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Student {student_id} not found.",
@@ -136,9 +138,9 @@ class FaceService:
             total_embeddings=count,
         )
 
-    async def export_for_classroom(self, classroom_id: uuid.UUID) -> FaceBulkExport:
-        """GET /api/v1/classrooms/{id}/face-embeddings — all active embeddings for device."""
-        embeddings = await self.repo.get_all_for_classroom(classroom_id)
+    async def export_for_course(self, course_id: uuid.UUID) -> FaceBulkExport:
+        """GET /api/v1/courses/{id}/face-embeddings — all active embeddings for device."""
+        embeddings = await self.repo.get_all_for_course(course_id)
 
         grouped: dict = defaultdict(list)
         for emb in embeddings:
@@ -148,7 +150,7 @@ class FaceService:
         for sid, embs in grouped.items():
             all_vectors: list[list[float]] = []
             for e in embs:
-                data = e.embedding_data
+                data = e.embedding
                 if data and isinstance(data, list) and isinstance(data[0], list):
                     all_vectors.extend(data)
                 elif data and isinstance(data, list):
@@ -163,7 +165,7 @@ class FaceService:
             )
 
         return FaceBulkExport(
-            classroom_id=classroom_id,
+            course_id=course_id,
             students=students,
             exported_at=datetime.now(timezone.utc),
         )
@@ -213,7 +215,7 @@ class FaceService:
 
     # ── Flutter legacy: export ─────────────────────────────────
     async def export_all(self) -> list[FaceDataOut]:
-        """GET /api/employee/export/json — all active embeddings for Flutter export."""
+        """GET /api/student/export/json — all active embeddings for Flutter export."""
         all_embeddings = await self.repo.get_all()
         if not all_embeddings:
             return []
@@ -243,7 +245,7 @@ class FaceService:
 
     # ── Flutter legacy: import (file upload) ───────────────────
     async def import_from_file(self, file: UploadFile) -> dict:
-        """PUT /api/employee/update/embedding — bulk face embedding import."""
+        """PUT /api/student/update/embedding — bulk face embedding import."""
         if not file.filename or not file.filename.endswith(".json"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -270,21 +272,21 @@ class FaceService:
         errors = 0
 
         for item in payload:
-            emp_id = item.get("empId")
+            student_id = item.get("studentId")
             vectors = item.get("listFaceEmbedding", [])
 
-            if not isinstance(emp_id, int) or not vectors:
+            if not isinstance(student_id, int) or not vectors:
                 errors += 1
                 continue
 
-            student = await self.student_repo.get_by_id(emp_id)
+            student = await self.student_repo.get_by_id(student_id)
             if not student:
                 skipped += 1
                 continue
 
             try:
                 await self.repo.replace_for_student(
-                    student_id=emp_id,
+                    student_id=student_id,
                     embeddings=vectors,
                 )
                 updated += 1

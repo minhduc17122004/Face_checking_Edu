@@ -22,8 +22,8 @@ class LoggingEvent {
 
 class SyncDataEvent {}
 
-class SyncEmployeeEvent {
-  SyncEmployeeEvent({
+class SyncStudentEvent {
+  SyncStudentEvent({
     required this.status,
     this.success,
     this.message,
@@ -34,8 +34,20 @@ class SyncEmployeeEvent {
   final String? message;
 }
 
+class DidChangeStudentEvent {
+  Student? student;
+  DidChangeStudentEvent(this.student);
+}
+
 class AvatarChangedEvent {
   AvatarChangedEvent({required this.avatarPath});
 
   final String avatarPath;
+}
+
+class Student {
+  final int? id;
+  final String? name;
+
+  Student({this.id, this.name});
 }

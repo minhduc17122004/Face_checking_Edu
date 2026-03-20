@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import get_current_user_id
 from app.core.database import get_db
 from app.repositories.schedule_repository import ScheduleRepository
-from app.repositories.classroom_repository import ClassroomRepository
+from app.repositories.course_repository import CourseRepository as ClassroomRepository
 from app.models.schedule import Schedule
 from app.schemas.v1.schedule import (
     ScheduleCreate,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:face_time_keeping/pages/home/home_page.dart';
 import 'package:face_time_keeping/pages/account/account_page.dart';
+import 'package:face_time_keeping/pages/course/course_list_page.dart';
 
 class TabPage extends StatefulWidget {
   const TabPage({super.key});
@@ -14,8 +15,8 @@ class _TabPageState extends State<TabPage> {
 
   final List<Widget> _pages = [
     const HomePage(),
-    const Center(child: Text("Classes")),
-    const Center(child: Text("Messages")),
+    const CourseListPage(),
+    const Center(child: Text("Cập nhật sau")),
     const AccountPage(),
   ];
 
@@ -32,10 +33,10 @@ class _TabPageState extends State<TabPage> {
 
   Widget _buildBottomNav() {
     const items = [
-      {'icon': Icons.home, 'label': 'Home'},
-      {'icon': Icons.school, 'label': 'Classes'},
-      {'icon': Icons.chat_bubble_outline, 'label': 'Messages'},
-      {'icon': Icons.person_outline, 'label': 'Account'},
+      {'icon': Icons.home, 'label': 'Trang chủ'},
+      {'icon': Icons.school, 'label': 'Học phần'},
+      {'icon': Icons.notifications_none, 'label': 'Thông báo'},
+      {'icon': Icons.person_outline, 'label': 'Tài khoản'},
     ];
 
     return Container(

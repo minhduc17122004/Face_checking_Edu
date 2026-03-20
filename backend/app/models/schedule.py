@@ -3,30 +3,33 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional, List
 
-from sqlalchemy import Integer, String, Boolean, DateTime, ForeignKey, CheckConstraint, UniqueConstraint, func
+from sqlalchemy import Integer, String, DateTime, ForeignKey, CheckConstraint, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
 if TYPE_CHECKING:
-    from app.models.classroom import Classroom
+    from app.models.course import Course
     from app.models.time_slot import TimeSlot
     from app.models.session import Session
 
 
 class Schedule(Base):
-    """Weekly class schedule definition.
+    """Weekly course schedule definition.
 
-    Links a classroom to a specific day_of_week and time_slot.
-    Multiple classrooms can share the same time_slot (same period).
+    Links a course to a specific day_of_week and time_slot.
+    Multiple courses can share the same time_slot (same period).
+
+    Renamed: classroom_id → course_id
+    Renamed: subject_name → room (location)
     """
 
     __tablename__ = "schedules"
     __table_args__ = (
         UniqueConstraint(
-            "classroom_id", "day_of_week", "time_slot_id",
-            name="uq_schedule_class_day_slot"
+            "course_id", "day_of_week", "time_slot_id",
+            name="uq_schedule_course_day_slot"
         ),
         CheckConstraint("day_of_week BETWEEN 1 AND 7", name="ck_day_of_week"),
     )
@@ -34,17 +37,23 @@ class Schedule(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    classroom_id: Mapped[uuid.UUID] = mapped_column(
+
+    # Renamed: classroom_id → course_id
+    course_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("classes.id", ondelete="CASCADE"),
+        ForeignKey("courses.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
+
     day_of_week: Mapped[int] = mapped_column(Integer, nullable=False)
     time_slot_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("time_slots.id"), nullable=False
     )
-    subject_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    # Room/location for this schedule
+    room: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -57,25 +66,33 @@ class Schedule(Base):
         default=lambda: datetime.now(timezone.utc),
     )
 
-    # Soft delete
-    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Soft delete - only deleted_at (removed is_deleted redundancy)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
+        DateTime(timezone=True), nullable=True, index=True
+    )
+
+    # Audit fields
+    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    updated_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True
     )
 
     # ── Relationships ──────────────────────────────────────────
-    classroom: Mapped[Classroom] = relationship(
-        "Classroom", back_populates="schedules"
+    # Renamed: classroom → course
+    course: Mapped["Course"] = relationship(
+        "Course", back_populates="schedules"
     )
-    time_slot: Mapped[TimeSlot] = relationship(
+    time_slot: Mapped["TimeSlot"] = relationship(
         "TimeSlot", back_populates="schedules"
     )
-    sessions: Mapped[List[Session]] = relationship(
+    sessions: Mapped[List["Session"]] = relationship(
         "Session", back_populates="schedule"
     )
 
     def __repr__(self) -> str:
         return (
-            f"<Schedule id={self.id} classroom={self.classroom_id} "
+            f"<Schedule id={self.id} course={self.course_id} "
             f"day={self.day_of_week} slot={self.time_slot_id}>"
         )

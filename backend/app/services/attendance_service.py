@@ -211,7 +211,7 @@ class AttendanceService:
         for r in records:
             student = await self.student_repo.get_by_id(r.student_id)
             session_obj = await self.session_repo.get_by_id(session_id)
-            from app.models.classroom import Classroom
+            from app.models.course import Course as Classroom
             from sqlalchemy import select
             classroom_name = None
             if session_obj and session_obj.classroom_id:

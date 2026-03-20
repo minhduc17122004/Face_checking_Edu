@@ -24,4 +24,5 @@ class SharedPrefsKey {
   static const String tempServerType = 'tempServerType';
   static const String savedCookied = 'savedCookied';
   static const String avatarPath = 'avatarPath';
+  static const String userRole = 'userRole';
 }

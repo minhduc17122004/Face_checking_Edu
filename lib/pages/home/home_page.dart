@@ -2,15 +2,10 @@ import 'dart:async';
 import 'package:face_time_keeping/common/utils/log_util.dart';
 import 'package:face_time_keeping/common/event/event_bus_event.dart';
 import 'package:face_time_keeping/common/event/event_bus_mixin.dart';
-import 'package:face_time_keeping/common/utils/sync_jobs_util.dart';
-import 'package:face_time_keeping/data/remote/user_service.dart';
-import 'package:face_time_keeping/entities/sync_face_schedule.dart';
-import 'package:face_time_keeping/entities/sync_schedule.dart';
 import 'package:face_time_keeping/pages/checking/checking_page.dart';
 import 'package:face_time_keeping/pages/setting/setting_page.dart';
 import 'package:face_time_keeping/route/app_route.dart';
 import 'package:face_time_keeping/route/navigator.dart';
-import 'package:face_time_keeping/pages/bloc/app_bloc.dart';
 import 'package:face_time_keeping/di/injection.dart';
 import 'package:face_time_keeping/data/local/local_service.dart';
 import 'package:face_time_keeping/common/resources/index.dart';
@@ -482,6 +477,26 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           children: [
+            _QuickAccessCard(
+              icon: Icons.class_,
+              title: 'Lớp học',
+              subtitle: 'Danh sách lớp chủ quản',
+              iconBg: AppColors.blue50,
+              iconColor: AppColors.blue600,
+              onTap: () {
+                AppNavigator.pushNamed(RouterName.studentGroupList);
+              },
+            ),
+            _QuickAccessCard(
+              icon: Icons.school,
+              title: 'Học phần',
+              subtitle: 'Danh sách học phần',
+              iconBg: AppColors.green100,
+              iconColor: AppColors.green600,
+              onTap: () {
+                AppNavigator.pushNamed(RouterName.courseList);
+              },
+            ),
             _QuickAccessCard(
               icon: Icons.history,
               title: 'Lịch sử',

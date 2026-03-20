@@ -1,12 +1,12 @@
 from __future__ import annotations
-"""Student schemas — Flutter-compatible employee shapes + REST shapes.
+"""Student schemas — Flutter-compatible student shapes + REST shapes.
 
-Flutter legacy API uses the term "employee" / "Employee" for what this
-system calls a "student".  The schemas in this file are designed to satisfy
-BOTH the modern REST API and the legacy Flutter API response contract:
+Flutter legacy API uses the term "student" / "Student" for the person entity.
+The schemas in this file are designed to satisfy BOTH the modern REST API and
+the legacy Flutter API response contract:
 
-    GET /api/employee/get_all_employees
-    → { "data": { "employees": [<EmployeeOut>, ...] } }
+    GET /api/student/get_all_students
+    → { "data": { "students": [<StudentOutLegacy>, ...] } }
 """
 import uuid
 from datetime import datetime
@@ -21,11 +21,10 @@ from pydantic import BaseModel, Field
 class StudentCreate(BaseModel):
     """POST /students — create a single student (modern REST)."""
 
-    name: str = Field(..., min_length=1, max_length=255, examples=["Trần Thị B"])
+    user_id: Optional[uuid.UUID] = Field(None)
+    student_code: Optional[str] = Field(None, max_length=50, examples=["221121521101"])
     pin: Optional[str] = Field(None, max_length=10, examples=["1234"])
-    job_title: Optional[str] = Field(None, max_length=100, examples=["12A1"])
-    has_avatar: bool = Field(False)
-    attachment_id: Optional[str] = Field(None, max_length=255)
+    student_group_id: Optional[uuid.UUID] = Field(None)
 
 
 class StudentOut(BaseModel):
@@ -33,13 +32,9 @@ class StudentOut(BaseModel):
 
     id: int
     user_id: Optional[uuid.UUID]
-    name: str
+    student_code: Optional[str]
     pin: Optional[str]
-    job_title: Optional[str]
-    avatar_url: Optional[str]
-    has_avatar: bool
-    attachment_id: Optional[str]
-    is_synced: bool
+    student_group_id: Optional[uuid.UUID]
     created_at: datetime
     updated_at: datetime
 
@@ -57,8 +52,8 @@ class StudentList(BaseModel):
 # Flutter legacy API schemas
 # These mirror the exact JSON shapes the Flutter app sends / expects.
 # ──────────────────────────────────────────────────────────────
-class EmployeeCreateLegacy(BaseModel):
-    """POST /api/employee/create — Flutter multipart-equivalent body.
+class StudentCreateLegacy(BaseModel):
+    """POST /api/student/create — Flutter multipart-equivalent body.
 
     The Flutter app sends these fields as multipart form data.
     We handle file separately via UploadFile; only JSON fields here.
@@ -67,20 +62,19 @@ class EmployeeCreateLegacy(BaseModel):
     name: str = Field(..., examples=["Trần Thị B"])
     pin: Optional[str] = Field(None, examples=["1234"])
     jobTitle: Optional[str] = Field(None, examples=["12A1"])   # camelCase from Flutter
-    hasAvatar: bool = Field(False)
-    attachmentId: Optional[str] = Field(None)
 
 
-class EmployeeOut(BaseModel):
-    """Single employee record in the Flutter legacy response format.
+class StudentOutLegacy(BaseModel):
+    """Single student record in the Flutter legacy response format.
 
-    Maps to Flutter's `Employee.fromJson()`:
+    Maps to Flutter's `Student.fromJson()`:
         id        → int
-        name      → String
+        name      → String (from users.full_name)
         pin       → String?
         jobTitle  → String?    (used as class code)
-        hasAvatar → bool
+        hasAvatar → bool (derived from users.avatar_url)
         attachmentId → String?
+        avatarUrl → String? (from users.avatar_url)
     """
 
     id: int
@@ -94,56 +88,56 @@ class EmployeeOut(BaseModel):
     model_config = {"from_attributes": True, "populate_by_name": True}
 
     @classmethod
-    def from_student(cls, s: Any) -> "EmployeeOut":
-        """Convert a Student ORM instance to Flutter-compatible EmployeeOut."""
+    def from_student(cls, s: Any) -> "StudentOutLegacy":
+        """Convert a Student ORM instance to Flutter-compatible StudentOutLegacy."""
         return cls(
             id=s.id,
-            name=s.name,
+            name=s.name if hasattr(s, 'name') else (s.user.full_name if s.user else ""),
             pin=s.pin,
-            jobTitle=s.job_title,
-            hasAvatar=s.has_avatar,
-            attachmentId=s.attachment_id,
-            avatarUrl=s.avatar_url,
+            jobTitle=getattr(s, 'student_code', None),
+            hasAvatar=s.has_avatar if hasattr(s, 'has_avatar') else bool(s.user.avatar_url if s.user else None),
+            attachmentId=None,
+            avatarUrl=s.user.avatar_url if s.user else None,
         )
 
 
 class BatchCreateRequest(BaseModel):
-    """POST /api/employee/create/batch — array of employees."""
+    """POST /api/student/create/batch — array of students."""
 
-    employees: list[EmployeeCreateLegacy]
+    students: list[StudentCreateLegacy]
 
 
 class BatchCreateResponse(BaseModel):
-    """Response for batch employee creation."""
+    """Response for batch student creation."""
 
     created: int
     failed: int
-    employees: list[EmployeeOut]
+    students: list[StudentOutLegacy]
 
 
-class GetAllEmployeesResponse(BaseModel):
-    """GET /api/employee/get_all_employees Flutter response envelope."""
+class GetAllStudentsResponse(BaseModel):
+    """GET /api/student/get_all_students Flutter response envelope."""
 
     class _Data(BaseModel):
-        employees: list[EmployeeOut]
+        students: list[StudentOutLegacy]
 
     data: _Data
 
     @classmethod
-    def build(cls, employees: list[EmployeeOut]) -> "GetAllEmployeesResponse":
-        return cls(data=cls._Data(employees=employees))
+    def build(cls, students: list[StudentOutLegacy]) -> "GetAllStudentsResponse":
+        return cls(data=cls._Data(students=students))
 
 
 class AvatarUploadFile(BaseModel):
     """Single uploaded avatar file descriptor inside the upload response."""
 
-    empId: int
+    studentId: int
     fileName: str
     url: str
 
 
 class AvatarUploadResponse(BaseModel):
-    """POST /api/employee/avatars/upload Flutter response envelope."""
+    """POST /api/student/avatars/upload Flutter response envelope."""
 
     class _Data(BaseModel):
         uploadId: str

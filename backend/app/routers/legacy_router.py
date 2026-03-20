@@ -6,12 +6,12 @@ that the Flutter app's `ApiEndpoint` constants reference, allowing the
 mobile app to work without any code changes.
 
 Flutter endpoint constants (from api_endpoint.dart):
-    GET  /api/employee/get_all_employees
-    GET  /api/employee/export/json
-    PUT  /api/employee/update/embedding
-    POST /api/employee/create
-    POST /api/employee/create/batch
-    POST /api/employee/avatars/upload
+    GET  /api/student/get_all_students
+    GET  /api/student/export/json
+    PUT  /api/student/update/embedding
+    POST /api/student/create
+    POST /api/student/create/batch
+    POST /api/student/avatars/upload
     POST /api/attendance/history/sync_bulk_io
 """
 from typing import List, Any
@@ -22,11 +22,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.security import get_current_user_id
 from app.schemas.student_schema import (
-    EmployeeCreateLegacy,
-    EmployeeOut,
+    StudentCreateLegacy,
+    StudentOutLegacy,
     BatchCreateRequest,
     BatchCreateResponse,
-    GetAllEmployeesResponse,
+    GetAllStudentsResponse,
     AvatarUploadResponse,
 )
 from app.schemas.face_schema import FaceDataOut
@@ -38,72 +38,72 @@ from app.services.attendance_service import AttendanceService
 router = APIRouter(prefix="/api", tags=["Flutter Legacy API"])
 
 
-# ── Employee (Student) endpoints ──────────────────────────────────────────────
+# ── Student endpoints ──────────────────────────────────────────────
 
 @router.get(
-    "/employee/get_all_employees",
-    response_model=GetAllEmployeesResponse,
-    summary="[Flutter] Get all employees (students)",
+    "/student/get_all_students",
+    response_model=GetAllStudentsResponse,
+    summary="[Flutter] Get all students",
 )
-async def get_all_employees(
+async def get_all_students(
     _: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
-) -> GetAllEmployeesResponse:
-    """Returns `{ "data": { "employees": [...] } }` exactly as Flutter expects."""
-    return await StudentService(db).get_all_employees()
+) -> GetAllStudentsResponse:
+    """Returns `{ "data": { "students": [...] } }` exactly as Flutter expects."""
+    return await StudentService(db).get_all_students()
 
 
 @router.post(
-    "/employee/create",
-    response_model=EmployeeOut,
+    "/student/create",
+    response_model=StudentOutLegacy,
     status_code=201,
-    summary="[Flutter] Create a single employee",
+    summary="[Flutter] Create a single student",
 )
-async def create_employee(
-    body: EmployeeCreateLegacy,
+async def create_student(
+    body: StudentCreateLegacy,
     _: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
-) -> EmployeeOut:
-    """Create a single student via the legacy Flutter employee contract."""
-    return await StudentService(db).create_employee_legacy(body)
+) -> StudentOutLegacy:
+    """Create a single student via the legacy Flutter contract."""
+    return await StudentService(db).create_student_legacy(body)
 
 
 @router.post(
-    "/employee/create/batch",
+    "/student/create/batch",
     response_model=BatchCreateResponse,
     status_code=201,
-    summary="[Flutter] Batch create employees",
+    summary="[Flutter] Batch create students",
 )
-async def batch_create_employees(
+async def batch_create_students(
     body: BatchCreateRequest,
     _: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ) -> BatchCreateResponse:
     """Create multiple students in a single call."""
-    return await StudentService(db).batch_create_employees(body.employees)
+    return await StudentService(db).batch_create_students(body.students)
 
 
 @router.post(
-    "/employee/avatars/upload",
+    "/student/avatars/upload",
     response_model=AvatarUploadResponse,
-    summary="[Flutter] Upload avatar images for employees",
+    summary="[Flutter] Upload avatar images for students",
 )
 async def upload_avatars(
     files: List[UploadFile] = File(...),
-    emp_ids: List[int] = Form(...),
+    student_ids: List[int] = Form(...),
     _: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ) -> AvatarUploadResponse:
-    """Upload avatar images. `files` and `emp_ids` must be parallel arrays
-    (files[i] belongs to emp_ids[i]).
+    """Upload avatar images. `files` and `student_ids` must be parallel arrays
+    (files[i] belongs to student_ids[i]).
     """
-    return await StudentService(db).upload_avatars(files=files, emp_ids=emp_ids)
+    return await StudentService(db).upload_avatars(files=files, student_ids=student_ids)
 
 
 # ── Face embedding endpoints ───────────────────────────────────────────────────
 
 @router.get(
-    "/employee/export/json",
+    "/student/export/json",
     response_model=List[FaceDataOut],
     summary="[Flutter] Export all face embeddings as JSON",
 )
@@ -111,7 +111,7 @@ async def export_face_embeddings(
     _: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ) -> list[FaceDataOut]:
-    """Returns `[{ "empId": 1, "listFaceEmbedding": [[...]], "updatedTime": "..." }]`
+    """Returns `[{ "studentId": 1, "listFaceEmbedding": [[...]], "updatedTime": "..." }]`
     for ALL students. The Flutter app pulls this on startup to load its local
     face recognition engine.
     """
@@ -119,7 +119,7 @@ async def export_face_embeddings(
 
 
 @router.put(
-    "/employee/update/embedding",
+    "/student/update/embedding",
     summary="[Flutter] Push updated face embeddings via .json file upload",
 )
 async def update_face_embedding(
@@ -170,4 +170,3 @@ async def log_client_error(
     logger = logging.getLogger("flutter_client")
     logger.error(f"Client error reported: {payload}")
     return {"status": "ok", "message": "Log recorded"}
-

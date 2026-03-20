@@ -1,13 +1,16 @@
 import 'package:face_time_keeping/pages/checking/checking_page.dart';
 import 'package:face_time_keeping/pages/domain/choose_db.dart';
 import 'package:face_time_keeping/pages/domain/domain_page.dart';
-import 'package:face_time_keeping/pages/employee/employee_page.dart';
+import 'package:face_time_keeping/pages/student/student_page.dart';
 import 'package:face_time_keeping/pages/login/login_confirm_widget.dart';
 import 'package:face_time_keeping/pages/login/login_page.dart';
 import 'package:face_time_keeping/pages/register_face/register_face_page.dart';
 import 'package:face_time_keeping/pages/setting/attendance_report.dart';
 import 'package:face_time_keeping/pages/setting/setting_page.dart';
 import 'package:face_time_keeping/pages/setting/server_setting_page.dart';
+import 'package:face_time_keeping/pages/student_group/student_group_list_page.dart';
+import 'package:face_time_keeping/pages/course/course_list_page.dart';
+
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -21,7 +24,7 @@ class RouterName {
   static const String home = '/home';
   static const String login = '/login';
   static const String checking = '/checking';
-  static const String employees = '/employees';
+  static const String students = '/students';  // Education: Students
   static const String registerFace = '/registerFace';
   static const String adminConfirm = '/adminConfirm';
   static const String domain = '/domain';
@@ -29,6 +32,9 @@ class RouterName {
   static const String attendanceReport = '/attendanceReport';
   static const String chooseDb = '/chooseDb';
   static const String serverSettings = '/serverSettings';
+  static const String studentGroupList = '/studentGroupList';
+  static const String courseList = '/courseList';
+
 }
 
 class AppRoutes {
@@ -49,8 +55,8 @@ class AppRoutes {
         return _materialRoute(settings, const LoginConfirmWidget());
       case RouterName.checking:
         return _materialRoute(settings, const CheckingPage());
-      case RouterName.employees:
-        return _materialRoute(settings, const EmployeePage());
+      case RouterName.students:
+        return _materialRoute(settings, const StudentPage());
       case RouterName.registerFace:
         return _materialRoute(settings, const RegisterFacePage());
       case RouterName.settings:
@@ -59,6 +65,10 @@ class AppRoutes {
         return _materialRoute(settings, const ServerSettingPage());
       case RouterName.attendanceReport:
         return _materialRoute(settings, const AttendanceReport());
+      case RouterName.studentGroupList:
+        return _materialRoute(settings, const StudentGroupListPage());
+      case RouterName.courseList:
+        return _materialRoute(settings, const CourseListPage());
       case RouterName.chooseDb:
         return _materialRoute(
             settings, ChooseDb(dbList: settings.arguments as List<String>));

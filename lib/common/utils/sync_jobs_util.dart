@@ -31,13 +31,13 @@ import '../../data/local/local_service.dart';
 const _uniqueName = 'sync-data';
 const _periodicUniqueName = 'sync-data-periodic';
 const _faceDataPeriodicUniqueName = 'sync-face-data-periodic';
-const _employeeDataPeriodicUniqueName = 'sync-employee-data-periodic';
+const _studentDataPeriodicUniqueName = 'sync-student-data-periodic';
 const _iosFaceDataPeriodicUniqueName =
     'com.example.face_time_keeping.syncCheckInOut1';
 const _iosCheckInOutUniqueName = 'com.example.face_time_keeping.syncCheckFace1';
-const _iosEmployeeDataUniqueName =
-    'com.example.face_time_keeping.syncEmployee1';
-const sendPortSyncEmployeeType = 'sync_employee';
+const _iosStudentDataUniqueName =
+    'com.example.face_time_keeping.syncStudent1';
+const sendPortSyncStudentType = 'sync_student';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -98,32 +98,32 @@ void callbackDispatcher() {
           //   body: 'Đã đồng bộ dữ liệu vào lúc ${DateTime.now().toLocal()} ',
           // );
           debugPrint('sync face data done');
-        } else if (taskName.contains(_employeeDataPeriodicUniqueName)) {
+        } else if (taskName.contains(_studentDataPeriodicUniqueName)) {
           // Send sync started message
           var sendPort = IsolateNameServer.lookupPortByName(
               IsolateListenUtil.bgToUiPortName);
           if (sendPort != null) {
             sendPort.send({
-              'type': sendPortSyncEmployeeType,
+              'type': sendPortSyncStudentType,
               'status': 'in_progress',
               'message': 'Đang đồng bộ học sinh...',
             });
           }
 
-          final result = await userService.syncEmployeeData(url: url);
+          final result = await userService.syncStudentData(url: url);
 
           // Send sync completed message
           sendPort = IsolateNameServer.lookupPortByName(
               IsolateListenUtil.bgToUiPortName);
           if (sendPort != null) {
             sendPort.send({
-              'type': sendPortSyncEmployeeType,
+              'type': sendPortSyncStudentType,
               'status': result.isSuccess ? 'success' : 'failed',
               'success': result.isSuccess,
               'message': result.isSuccess ? result.data : result.error,
             });
           }
-          debugPrint('sync employee data done');
+          debugPrint('sync student data done');
         }
       } else if (Platform.isIOS) {
         if (taskName == "com.example.face_time_keeping.processing1") {
@@ -138,32 +138,32 @@ void callbackDispatcher() {
           if (sendPort != null) {
             sendPort.send(null);
           }
-        } else if (taskName == _iosEmployeeDataUniqueName) {
+        } else if (taskName == _iosStudentDataUniqueName) {
           // Send sync started message
           var sendPort = IsolateNameServer.lookupPortByName(
               IsolateListenUtil.bgToUiPortName);
           if (sendPort != null) {
             sendPort.send({
-              'type': sendPortSyncEmployeeType,
+              'type': sendPortSyncStudentType,
               'status': 'in_progress',
               'message': 'Đang đồng bộ học sinh...',
             });
           }
 
-          final result = await userService.syncEmployeeData(url: url);
+          final result = await userService.syncStudentData(url: url);
 
           // Send sync completed message
           sendPort = IsolateNameServer.lookupPortByName(
               IsolateListenUtil.bgToUiPortName);
           if (sendPort != null) {
             sendPort.send({
-              'type': sendPortSyncEmployeeType,
+              'type': sendPortSyncStudentType,
               'status': result.isSuccess ? 'success' : 'failed',
               'success': result.isSuccess,
               'message': result.isSuccess ? result.data : result.error,
             });
           }
-          debugPrint('sync employee data done');
+          debugPrint('sync student data done');
         }
       }
 
@@ -314,19 +314,19 @@ class SyncJobsUtil {
     );
   }
 
-  static Future<void> syncEmployeeDataNow() async {
+  static Future<void> syncStudentDataNow() async {
     if (Platform.isIOS) {
       await Workmanager().registerOneOffTask(
-        _iosEmployeeDataUniqueName,
-        _iosEmployeeDataUniqueName,
+        _iosStudentDataUniqueName,
+        _iosStudentDataUniqueName,
         constraints: Constraints(
           networkType: NetworkType.connected,
         ),
       );
     } else {
       await Workmanager().registerOneOffTask(
-        _employeeDataPeriodicUniqueName,
-        _employeeDataPeriodicUniqueName,
+        _studentDataPeriodicUniqueName,
+        _studentDataPeriodicUniqueName,
         constraints: Constraints(
           networkType: NetworkType.connected,
         ),

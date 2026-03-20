@@ -140,15 +140,35 @@ class BootstrapCubit extends Cubit<BootstrapState> with EventBusMixin {
       return false;
     }
 
-    final httpClient = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 3);
+    final httpClient = HttpClient()..connectionTimeout = const Duration(seconds: 3);
     try {
       final request = await httpClient.getUrl(uri);
       request.followRedirects = false;
       final response =
           await request.close().timeout(const Duration(seconds: 3));
-      return response.statusCode >= 200 && response.statusCode < 300;
+
+      // Any HTTP response (even 500) means the host is reachable.
+      // The /health endpoint is optional — we only treat socket/timeout
+      // as "unreachable". This is intentional: if the backend is up but
+      // crashed (e.g. Migration 0014 left stale references), the app
+      // should still pick it so the user sees a clear error instead
+      // of being asked to re-enter the server URL.
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        debugPrint(
+            '🔵 Bootstrap: "$baseUrl" → reachable (HTTP ${response.statusCode})');
+        return true;
+      }
+      // Non-2xx but the host responded → backend is up but unhealthy.
+      // Treat as "reachable" so the user lands on the login page
+      // instead of being redirected to the domain-entry screen.
+      debugPrint(
+          '⚠ Bootstrap: "$baseUrl" → backend responded but HTTP '
+          '${response.statusCode} (backend may have an internal error). '
+          'Treating as reachable to allow login attempt.');
+      return true;
     } on SocketException {
+      return false;
+    } on HttpException {
       return false;
     } catch (_) {
       return false;

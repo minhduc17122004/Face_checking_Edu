@@ -7,7 +7,7 @@ class CheckInOut extends HiveObject {
   // for backup database
   int? id;
   @HiveField(0)
-  int employeeId;
+  int studentId;
   @HiveField(1) // pin is not a primary key
   String? pin;
   @HiveField(2)
@@ -27,7 +27,7 @@ class CheckInOut extends HiveObject {
 
   CheckInOut({
     this.id,
-    required this.employeeId,
+    required this.studentId,
     this.pin,
     required this.name,
     required this.time,
@@ -39,7 +39,7 @@ class CheckInOut extends HiveObject {
   });
   CheckInOut copyWith({
     int? id,
-    int? employeeId,
+    int? studentId,
     String? pin,
     String? name,
     DateTime? time,
@@ -51,7 +51,7 @@ class CheckInOut extends HiveObject {
   }) =>
       CheckInOut(
           id: id ?? this.id,
-          employeeId: employeeId ?? this.employeeId,
+          studentId: studentId ?? this.studentId,
           pin: pin ?? this.pin,
           name: name ?? this.name,
           time: time ?? this.time,

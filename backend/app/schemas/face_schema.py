@@ -3,10 +3,10 @@ from typing import Optional, List
 """Face embedding schemas — register/retrieve face vectors.
 
 Flutter push/pull contract:
-    GET /api/employee/export/json
-    → [ { "empId": 1, "listFaceEmbedding": [[...128 floats...], ...], "updatedTime": "..." }, ... ]
+    GET /api/student/export/json
+    → [ { "studentId": 1, "listFaceEmbedding": [[...128 floats...], ...], "updatedTime": "..." }, ... ]
 
-    PUT /api/employee/update/embedding
+    PUT /api/student/update/embedding
     → multipart upload of a .json file containing the same structure.
 """
 import uuid
@@ -74,10 +74,10 @@ class FaceDataOut(BaseModel):
     """Single student's face data in the Flutter export format.
 
     Flutter contract:
-        { "empId": <int>, "listFaceEmbedding": [[...], ...], "updatedTime": "..." }
+        { "studentId": <int>, "listFaceEmbedding": [[...], ...], "updatedTime": "..." }
     """
 
-    empId: int
+    studentId: int
     listFaceEmbedding: list[list[float]]
     updatedTime: str = Field(
         ..., description="ISO-8601 datetime string of the latest embedding update."
@@ -95,14 +95,14 @@ class FaceDataOut(BaseModel):
             else:
                 all_vectors.append(data)          # flat list → wrap
         return cls(
-            empId=student_id,
+            studentId=student_id,
             listFaceEmbedding=all_vectors,
             updatedTime=updated_at.isoformat(),
         )
 
 
 class FaceExportResponse(RootModel[List[FaceDataOut]]):
-    """GET /api/employee/export/json — full export payload.
+    """GET /api/student/export/json — full export payload.
 
     Flutter iterates this list to load all known face embeddings into
     the on-device recognition engine.

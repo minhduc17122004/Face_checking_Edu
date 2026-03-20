@@ -179,16 +179,23 @@ class ApiClient {
         error: Strings.localized.somethingWentWrong,
       );
     } on DioError catch (e) {
-      debugPrint('error: $e');
+      debugPrint('API error: ${e.message}');
       final response = e.response?.data;
       if (response is Map<String, dynamic>) {
         return ApiResponse(
           success: false,
           status: 'error',
-          error: response['error'] ?? Strings.localized.somethingWentWrong,
+          error: response['error'] ?? response['detail'] ?? Strings.localized.somethingWentWrong,
         );
       }
       return await _handleRequestError(e);
+    } catch (e) {
+      debugPrint('Unhandled API Exception: $e');
+      return ApiResponse(
+        success: false,         
+        status: 'error',
+        error: Strings.localized.somethingWentWrong,
+      );
     }
   }
 

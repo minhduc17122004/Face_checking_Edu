@@ -44,7 +44,7 @@ class CheckInWidget extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    checkInData?.employeeName ?? 'Unknown',
+                    checkInData?.studentName ?? 'Unknown',
                     style: TextStyles.blackSmallRegular,
                   ),
                   const SizedBox(height: 8),

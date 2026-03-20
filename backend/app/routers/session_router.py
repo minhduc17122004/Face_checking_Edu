@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.security import get_current_user_id
 from app.models.session import Session
-from app.models.classroom import Classroom
+from app.models.course import Course as Classroom
 from app.models.schedule import Schedule
 from app.models.attendance import Attendance
 from app.schemas.session_schema import (

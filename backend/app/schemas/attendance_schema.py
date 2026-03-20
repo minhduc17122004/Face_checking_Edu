@@ -5,7 +5,7 @@ from typing import Optional
 The Flutter app syncs attendance via:
     POST /api/attendance/history/sync_bulk_io
 
-Payload is a list of per-employee sync records, each containing
+Payload is a list of per-student sync records, each containing
 a list of check-in / check-out entries captured offline on the device.
 """
 import uuid
@@ -69,7 +69,7 @@ class BulkSyncEntry(BaseModel):
     Field names match the Flutter app's JSON serialisation exactly.
     """
 
-    empId: int = Field(..., description="Student integer ID")
+    studentId: int = Field(..., description="Student integer ID")
     checkTime: str = Field(
         ...,
         description="ISO-8601 datetime string of the device-side scan time.",
@@ -105,7 +105,7 @@ class BulkSyncRequest(BaseModel):
 class BulkSyncItemResult(BaseModel):
     """Per-record result inside the bulk sync response."""
 
-    empId: int
+    studentId: int
     checkTime: str
     recordType: str
     status: str = Field(..., description="'synced' | 'duplicate' | 'error'")

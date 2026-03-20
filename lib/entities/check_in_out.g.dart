@@ -17,7 +17,7 @@ class CheckInOutAdapter extends TypeAdapter<CheckInOut> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return CheckInOut(
-      employeeId: fields[0] as int,
+      studentId: fields[0] as int,
       pin: fields[1] as String?,
       name: fields[2] as String,
       time: fields[3] as DateTime,
@@ -34,7 +34,7 @@ class CheckInOutAdapter extends TypeAdapter<CheckInOut> {
     writer
       ..writeByte(9)
       ..writeByte(0)
-      ..write(obj.employeeId)
+      ..write(obj.studentId)
       ..writeByte(1)
       ..write(obj.pin)
       ..writeByte(2)

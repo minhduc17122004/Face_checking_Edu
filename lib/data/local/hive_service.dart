@@ -9,8 +9,6 @@ import 'package:face_time_keeping/entities/check_in_out.dart';
 import 'package:injectable/injectable.dart';
 
 abstract class HiveService {
-  // Future<DateTime?> isCheckedIn(String pin);
-  // // Future<bool> isCheckOut(int employeeId);
   Future<int> saveCheckInOut(CheckInOut checkInOut);
   Future<List<CheckInOut>> getAllCheckInOuts();
   Future<List<CheckInOut>> getCheckInOutsOnOrAfter(DateTime? date);
@@ -20,8 +18,8 @@ abstract class HiveService {
   Future<void> dispose();
   Future<void> clearCheckInOut();
   Future<void> savePerson(Person person);
-  Future<Person?> getPerson(int employeeId);
-  Future<void> deletePerson(int employeeId);
+  Future<Person?> getPerson(int studentId);
+  Future<void> deletePerson(int studentId);
   Future<void> updatePerson(Person person);
   Future<void> clearPersons();
   Future<List<CheckInOut>> getUnSyncedCheckInOuts();
@@ -32,7 +30,7 @@ abstract class HiveService {
   Future<List<Person>> getAllPersons();
   Future<void> refreshCheckInOutBox();
   Future<void> refreshPersonBox();
-  Future<void> updatePersonSynced(int employeeId, bool isSynced);
+  Future<void> updatePersonSynced(int studentId, bool isSynced);
   Future<void> cloneDataFromOldTenant(String oldTenantKey, String newTenantKey);
 }
 
@@ -243,14 +241,14 @@ class HiveServiceImplement implements HiveService {
     await checkTenantKey();
     _personBox ??= await Hive.openBox<Person>('$_personBoxName-$_tenantKey');
 
-    await _personBox!.put(person.employeeId, person);
+    await _personBox!.put(person.studentId, person);
   }
 
   @override
-  Future<Person?> getPerson(int employeeId) async {
+  Future<Person?> getPerson(int studentId) async {
     await checkTenantKey();
     _personBox ??= await Hive.openBox<Person>('$_personBoxName-$_tenantKey');
-    return _personBox!.get(employeeId);
+    return _personBox!.get(studentId);
   }
 
   @override
@@ -260,7 +258,7 @@ class HiveServiceImplement implements HiveService {
     final key = (_personBox?.keys ?? []).firstWhereOrNull(
       (k) {
         final p = _personBox!.get(k);
-        return p != null && p.employeeId == person.employeeId;
+        return p != null && p.studentId == person.studentId;
       },
     );
     if (key != null) {
@@ -269,13 +267,13 @@ class HiveServiceImplement implements HiveService {
   }
 
   @override
-  Future<void> deletePerson(int employeeId) async {
+  Future<void> deletePerson(int studentId) async {
     await checkTenantKey();
     _personBox ??= await Hive.openBox<Person>('$_personBoxName-$_tenantKey');
     final key = (_personBox?.keys ?? []).firstWhereOrNull(
       (k) {
         final p = _personBox!.get(k);
-        return p != null && p.employeeId == employeeId;
+        return p != null && p.studentId == studentId;
       },
     );
     if (key != null) {
@@ -296,15 +294,15 @@ class HiveServiceImplement implements HiveService {
   }
 
   @override
-  Future<void> updatePersonSynced(int employeeId, bool isSynced) async {
+  Future<void> updatePersonSynced(int studentId, bool isSynced) async {
     try {
       await checkTenantKey();
       _personBox ??= await Hive.openBox<Person>('$_personBoxName-$_tenantKey');
-      final currentPerson = _personBox!.get(employeeId);
+      final currentPerson = _personBox!.get(studentId);
       await _personBox!.put(
-          employeeId,
+          studentId,
           Person(
-            employeeId: employeeId,
+            studentId: studentId,
             updatedTime: DateTime.now(),
             isSynced: isSynced,
             name: currentPerson?.name ?? '',

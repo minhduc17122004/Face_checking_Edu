@@ -6,7 +6,7 @@ import 'package:face_time_keeping/common/utils/log_util.dart';
 import 'package:face_time_keeping/data/local/hive_service.dart';
 import 'package:face_time_keeping/data/local/local_service.dart';
 
-import 'package:face_time_keeping/entities/employee.dart';
+import 'package:face_time_keeping/entities/student.dart';
 import 'package:face_time_keeping/entities/person.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
@@ -23,17 +23,17 @@ class RegisterFaceBloc extends Cubit<RegisterFaceState> {
   final HiveService _hiveService;
   late final FaceNative _faceNative;
 
-  Future<void> init(Employee? employee) async {
+  Future<void> init(Student? student) async {
     try {
-      emit(state.copyWith(employee: employee));
-      if (employee?.id != null) {
-        final isRegistered = await _localService.isRegistered(employee!.id);
+      emit(state.copyWith(student: student));
+      if (student?.id != null) {
+        final isRegistered = await _localService.isRegistered(student!.id);
         List<int> oldImageIds = [];
         if (isRegistered) {
-          oldImageIds = await _faceNative.getImageIdsByEmpId(employee.id);
+          oldImageIds = await _faceNative.getImageIdsByEmpId(student.id);
         }
         // Chỉ thực sự đã đăng ký khi có ảnh trong native engine.
-        // Hive lưu Person cho tất cả nhân viên được sync từ server,
+        // Hive lưu Person cho tất cả học sinh được sync từ server,
         // nên không thể dùng isRegistered (Hive) một mình để kết luận.
         final actuallyRegistered = isRegistered && oldImageIds.isNotEmpty;
         emit(state.copyWith(isRegistered: actuallyRegistered, oldImageIds: oldImageIds));
@@ -49,7 +49,7 @@ class RegisterFaceBloc extends Cubit<RegisterFaceState> {
 
   Future<void> onLivenessResetStep() async {
     try {
-      await _faceNative.removeImages(state.employee!.id);
+      await _faceNative.removeImages(state.student!.id);
     } catch (e) {
       await pushLog('Error in onLivenessResetStep: $e');
     }
@@ -59,10 +59,10 @@ class RegisterFaceBloc extends Cubit<RegisterFaceState> {
     try {
       if (imagePath != null) {
         final imageId = await _faceNative.addImage(
-          empId: state.employee!.id,
-          personName: state.employee!.name,
+          empId: state.student!.id,
+          personName: state.student!.name,
           imageUri: imagePath,
-          pin: state.employee!.pin,
+          pin: state.student!.pin,
         );
         if (imageId != -1) {
           await insertAddedImageIds(imageId);
@@ -88,15 +88,15 @@ class RegisterFaceBloc extends Cubit<RegisterFaceState> {
 
   Future<void> registerFace() async {
     try {
-      if (state.employee?.id == null) {
+      if (state.student?.id == null) {
         return;
       }
       emit(state.copyWith(requestStatus: RequestStatus.requesting));
       await _hiveService.savePerson(Person(
-        employeeId: state.employee!.id,
-        name: state.employee!.name,
-        pin: state.employee!.pin,
-        jobTitle: state.employee!.jobTitle,
+        studentId: state.student!.id,
+        name: state.student!.name,
+        pin: state.student!.pin,
+        jobTitle: state.student!.jobTitle,
         updatedTime: DateTime.now(),
       ));
       emit(state.copyWith(
@@ -105,7 +105,7 @@ class RegisterFaceBloc extends Cubit<RegisterFaceState> {
       ));
     } catch (e) {
       await pushLog('Error in registerFace: $e');
-      _faceNative.removeImages(state.employee!.id);
+      _faceNative.removeImages(state.student!.id);
       emit(state.copyWith(
         requestStatus: RequestStatus.failed,
         message: e.toString(),
@@ -115,14 +115,14 @@ class RegisterFaceBloc extends Cubit<RegisterFaceState> {
 
   Future<void> updateFace() async {
     try {
-      if (state.employee?.id == null) {
+      if (state.student?.id == null) {
         return;
       }
       emit(state.copyWith(requestStatus: RequestStatus.requesting));
 
       // Remove existing images first
       await _faceNative.removeImagesByIds(state.oldImageIds);
-      await _hiveService.updatePersonSynced(state.employee!.id, false);
+      await _hiveService.updatePersonSynced(state.student!.id, false);
       emit(state.copyWith(
         requestStatus: RequestStatus.success,
         message: 'Cập nhật thành công! ',

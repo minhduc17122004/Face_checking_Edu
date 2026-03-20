@@ -26,7 +26,7 @@ class FaceStatusResponse(BaseModel):
 
 
 class FaceExportItem(BaseModel):
-    """Single student entry in the classroom face export payload."""
+    """Single student entry in the course face export payload."""
 
     student_id: int
     embeddings: list[list[float]]
@@ -34,9 +34,9 @@ class FaceExportItem(BaseModel):
 
 
 class FaceBulkExport(BaseModel):
-    """GET /api/v1/classrooms/{id}/face-embeddings — all embeddings for a classroom."""
+    """GET /api/v1/courses/{id}/face-embeddings — all embeddings for a course."""
 
-    classroom_id: uuid.UUID
+    course_id: uuid.UUID
     students: list[FaceExportItem]
     exported_at: datetime
 

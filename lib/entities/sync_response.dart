@@ -31,7 +31,7 @@ class IOResult {
 }
 
 class SyncResponse {
-  final int employeeId;
+  final int studentId;
   final String pin;
   final bool success;
   final String message;
@@ -39,7 +39,7 @@ class SyncResponse {
   final int status;
 
   const SyncResponse({
-    required this.employeeId,
+    required this.studentId,
     required this.pin,
     required this.success,
     required this.message,
@@ -48,7 +48,7 @@ class SyncResponse {
   });
 
   factory SyncResponse.fromJson(Map<String, dynamic> json) => SyncResponse(
-        employeeId: json['employee_id'] as int,
+        studentId: json['student_id'] as int,
         pin: (json['pin'] ?? '').toString(),
         success: json['success'] as bool,
         message: json['message'] ?? '',

@@ -213,17 +213,17 @@ from app.routers.v1 import api_v1_router
 from app.routers.auth_router import router as auth_router
 from app.routers.user_router import router as user_router
 from app.routers.student_router import router as student_router
-from app.routers.classroom_router import router as classroom_router
+from app.routers.course_router import router as course_router
 from app.routers.attendance_router import router as attendance_router
 from app.routers.face_router import router as face_router
 from app.routers.device_router import router as device_router
 from app.routers.legacy_router import router as legacy_router
 from app.routers.time_slot_router import router as time_slot_router
-from app.routers.classroom_student_router import router as classroom_student_router
+from app.routers.course_enrollment_router import router as course_enrollment_router
 from app.routers.schedule_router import router as schedule_router
 from app.routers.session_router import router as session_router
 from app.routers.attendance_new_router import router as attendance_new_router
-from app.routers.academic_class_router import router as academic_class_router
+from app.routers.student_group_router import router as student_group_router
 
 # Register all routers
 app.include_router(health_router)
@@ -232,14 +232,14 @@ app.include_router(api_v1_router)  # v1 endpoints at /api/v1/*
 app.include_router(auth_router)             # /auth/*
 app.include_router(user_router)             # /users/*
 app.include_router(student_router)          # /students/*
-app.include_router(classroom_router)         # /classes/*
+app.include_router(course_router)            # /courses/*
 app.include_router(attendance_router)        # /attendance/*
 app.include_router(face_router)             # /face/*
 app.include_router(device_router)           # /devices/*
 app.include_router(legacy_router)           # /api/* (Flutter legacy)
 app.include_router(time_slot_router)        # /time-slots/*
-app.include_router(classroom_student_router)  # /classroom-students/*
+app.include_router(course_enrollment_router)  # /course-enrollments/*
 app.include_router(schedule_router)         # /schedules/*
 app.include_router(session_router)          # /sessions/*
 app.include_router(attendance_new_router)   # /attendance/new/*
-app.include_router(academic_class_router)    # /academic-classes/*
+app.include_router(student_group_router)     # /student-groups/*

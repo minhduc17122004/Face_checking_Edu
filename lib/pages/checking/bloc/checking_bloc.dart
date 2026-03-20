@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:developer';
 import 'dart:io';
-
 import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
@@ -15,13 +13,11 @@ import 'package:face_time_keeping/common/utils/log_util.dart';
 import 'package:face_time_keeping/data/local/local_service.dart';
 
 import 'package:face_time_keeping/entities/check_in.dart';
-import 'package:face_time_keeping/entities/check_out.dart';
-import 'package:face_time_keeping/entities/employee.dart';
+import 'package:face_time_keeping/entities/student.dart';
 import 'package:face_time_keeping/pages/bloc/app_bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
-//import 'package:flutter_tts/flutter_tts.dart';
 import 'package:injectable/injectable.dart';
 import 'package:image/image.dart' as img;
 
@@ -42,20 +38,18 @@ class CheckingBloc extends Cubit<CheckingState> {
   late Position _location;
   StreamSubscription? _positionSubscription;
 
-  /// Ensures FaceNative (Koin) is initialized before use
   Future<void> _ensureFaceNativeInitialized() async {
     try {
       final tenantId = await _localService.getTenantId();
       await _faceNative.initObjectBox(tenantId.toString());
-      debugPrint('🟢 FaceNative reinitialized in CheckingBloc');
+      debugPrint('FaceNative reinitialized in CheckingBloc');
     } catch (e) {
-      debugPrint('⚠️ Failed to reinitialize FaceNative: $e');
-          if (!isClosed) {
-            emit(state.copyWith(
-                requestStatus: RequestStatus.failed,
-                message: e.toString()));
-          }
-          return;
+      debugPrint('Failed to reinitialize FaceNative: $e');
+      if (!isClosed) {
+        emit(state.copyWith(
+            requestStatus: RequestStatus.failed,
+            message: e.toString()));
+      }
     }
   }
 
@@ -104,26 +98,23 @@ class CheckingBloc extends Cubit<CheckingState> {
               requestStatus: RequestStatus.failed, message: 'Spoof detected'));
           return;
         }
-        final verifyEmployee = Employee(
+        final verifyStudent = Student(
           name: recognitionResult.personName,
           pin: recognitionResult.pin,
-          id: recognitionResult.employeeId,
+          id: recognitionResult.studentId,
         );
         emit(state.copyWith(isAllowCapture: false));
-        await _checkInLocal(verifyEmployee, file);
-
+        await _checkInLocal(verifyStudent, file);
         await _resetState();
       } else {
         emit(state.copyWith(requestStatus: RequestStatus.failed, message: ''));
       }
     } catch (e) {
       final errorMsg = e.toString();
-      // Check if Koin/Singleton not initialized error
       if (errorMsg.contains('Singleton') ||
           errorMsg.contains('create instance') ||
           errorMsg.contains('KoinApplication')) {
-        debugPrint(
-            '🔴 Koin not initialized in CheckingBloc, reinitializing...');
+        debugPrint('Koin not initialized in CheckingBloc, reinitializing...');
         await _ensureFaceNativeInitialized();
         await verify(file, isCheckIn);
         return;
@@ -141,45 +132,40 @@ class CheckingBloc extends Cubit<CheckingState> {
     int quality = 10,
   }) async {
     final String outputPath = "${xfile.path}_compressed.jpg";
-    
-    () async {
+
     try {
-        Uint8List bytes = await xfile.readAsBytes();
-        img.Image? originalImage = img.decodeImage(bytes);
-        if (originalImage == null) throw Exception("Không decode được ảnh");
+      Uint8List bytes = await xfile.readAsBytes();
+      img.Image? originalImage = img.decodeImage(bytes);
+      if (originalImage == null) throw Exception("Không decode được ảnh");
 
-        img.Image resized = img.copyResize(originalImage, width: targetWidth);
-        List<int> compressedBytes = img.encodeJpg(resized, quality: quality);
+      img.Image resized = img.copyResize(originalImage, width: targetWidth);
+      List<int> compressedBytes = img.encodeJpg(resized, quality: quality);
 
-        final outputFile = File(outputPath);
-        await outputFile.writeAsBytes(compressedBytes);
-      } catch (e) {
-        print("Image compression failed: $e");
-      }
-    }();
+      final outputFile = File(outputPath);
+      await outputFile.writeAsBytes(compressedBytes);
+    } catch (e) {
+      debugPrint("Image compression failed: $e");
+    }
 
-    // Trả về path ngay lập tức
     return outputPath;
   }
 
-  Future<void> _checkInLocal(Employee employee, XFile file) async {
+  Future<void> _checkInLocal(Student student, XFile file) async {
     try {
       emit(state.copyWith(checkingStatus: RequestStatus.requesting));
       final compressedImage = await compressImageFromXFile(file);
 
       final checkIn = CheckInOut(
-        pin: employee.pin,
-        name: employee.name,
+        pin: student.pin,
+        name: student.name,
         time: DateTime.now(),
         isCheckIn: true,
         imagePath: compressedImage,
-        employeeId: employee.id,
+        studentId: student.id,
         latitude: _location.latitude,
         longitude: _location.longitude,
       );
-      final Map<String, dynamic> result = await _localService.checkIn(
-        checkIn,
-      );
+      final Map<String, dynamic> result = await _localService.checkIn(checkIn);
       if (result['errorMessage'] != null) {
         emit(state.copyWith(
             checkingStatus: RequestStatus.failed,
@@ -194,7 +180,7 @@ class CheckingBloc extends Cubit<CheckingState> {
               time: checkIn.time,
               pin: checkIn.pin,
               imagePath: checkIn.imagePath ?? '',
-              employeeName: employee.name),
+              studentName: student.name),
           checkingStatus: RequestStatus.success,
           image: file));
     } catch (e) {
@@ -204,61 +190,20 @@ class CheckingBloc extends Cubit<CheckingState> {
     }
   }
 
-  // Future<void> _checkOutLocal(Employee employee, XFile file) async {
-  //   try {
-  //     emit(state.copyWith(checkingStatus: RequestStatus.requesting));
-  //     final checkOut = CheckOut(
-  //       pin: employee.pin,
-  //       time: DateTime.now(),
-  //       name: employee.name,
-  //       employeeId: employee.id,
-  //     );
+  // ============================================================
+  // DEPRECATED: Use Student entity instead
+  // ============================================================
 
-  //     final Map<String, dynamic> result = await _localService.checkOut(
-  //       checkOut,
-  //       _location,
-  //     );
-  //     if (result['errorMessage'] != null) {
-  //       emit(state.copyWith(
-  //           checkingStatus: RequestStatus.failed, checkingMessage: result['errorMessage']));
-  //       return;
-  //     }
-  //     _playSuccessAudio();
-  //     emit(state.updateCheckout(
-  //         checkOut: CheckOut(
-  //             time: checkOut.time, pin: checkOut.pin, name: employee.name, employeeId: employee.id),
-  //         checkingStatus: RequestStatus.success,
-  //         image: file));
-  //   } catch (e) {
-  //     await pushLog('Error in checkOutLocal: $e');
-  //     emit(state.copyWith(checkingStatus: RequestStatus.failed, checkingMessage: e.toString()));
-  //   }
-  // }
+  // ============================================================
+  // DEPRECATED: Use Student entity instead
+  // ============================================================
 
   Future<void> _playSuccessAudio() async {
     try {
       await player.play(AssetSource(AssetSounds.successSound));
       await Future.delayed(const Duration(milliseconds: 600));
     } catch (e) {
-      log('play sound failed!');
-    }
-  }
-
-  Future<void> _playFailedAudio() async {
-    try {
-      await player.play(AssetSource(AssetSounds.failedSound));
-      await Future.delayed(const Duration(milliseconds: 600));
-    } catch (e) {
-      log('play sound failed!');
-    }
-  }
-
-  Future<void> _playCheckInLateAudio(int minutesLate) async {
-    try {
-      await player.play(AssetSource(AssetSounds.successSound));
-      await Future.delayed(const Duration(milliseconds: 600));
-    } catch (e) {
-      log('play sound failed!');
+      debugPrint('play sound failed!');
     }
   }
 

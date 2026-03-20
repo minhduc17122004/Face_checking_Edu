@@ -14,7 +14,7 @@ class ApiResponse {
       final errorJson = json['error'];
       if (errorJson is Map<String, dynamic>) {
         data = errorJson['data'];
-        error = data['message'] ?? "Lỗi";
+        error = (data is Map) ? data['message'] ?? "Lỗi" : errorJson['message'] ?? "Lỗi";
       } else if (errorJson is String) {
         error = errorJson;
       }

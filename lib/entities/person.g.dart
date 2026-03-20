@@ -17,7 +17,7 @@ class PersonAdapter extends TypeAdapter<Person> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return Person(
-      employeeId: fields[0] as int,
+      studentId: fields[0] as int,
       updatedTime: fields[1] as DateTime,
       isSynced: fields[2] as bool,
       name: fields[4] as String?,
@@ -32,7 +32,7 @@ class PersonAdapter extends TypeAdapter<Person> {
     writer
       ..writeByte(7)
       ..writeByte(0)
-      ..write(obj.employeeId)
+      ..write(obj.studentId)
       ..writeByte(1)
       ..write(obj.updatedTime)
       ..writeByte(2)

@@ -63,12 +63,14 @@ class LoginBloc extends Cubit<LoginState> {
 
       if (result.isSuccess) {
         final token = result.data?.token;
+        final refreshToken = result.data?.refreshToken;
         final userEmail = result.data?.user?.email ?? state.username;
         final userFullName = result.data?.user?.fullName?.trim();
         final userIdStr = result.data?.user?.id ?? "1";
         final avatarUrl = result.data?.user?.avatarUrl;
 
         _localService.saveAuthToken(token);
+        _localService.saveRefreshToken(refreshToken);
         // Lưu role/email tương ứng
         _localService.saveLoginId(userEmail);
         _localService.saveUserEmail(userEmail);

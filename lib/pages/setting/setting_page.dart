@@ -11,6 +11,7 @@ import 'package:face_time_keeping/pages/setting/pin_app_page.dart';
 import 'package:face_time_keeping/pages/setting/sync_schedule_page.dart';
 import 'package:face_time_keeping/entities/sync_face_schedule.dart';
 import 'package:face_time_keeping/pages/widgets/app_dialog.dart';
+import 'package:face_time_keeping/pages/setting/teacher_list_page.dart';
 import 'package:face_time_keeping/pages/widgets/default_app_bar.dart';
 import 'package:face_time_keeping/route/app_route.dart';
 import 'package:face_time_keeping/route/navigator.dart';
@@ -1210,6 +1211,19 @@ class _SettingPageState extends State<SettingPage> {
                         title: "Quản lý người dùng",
                         subtitle: "Đăng ký student và teacher",
                         onTap: _showRegisterUserDialog,
+                      ),
+                      _buildSettingItem(
+                        icon: Icons.list_alt,
+                        title: "Danh sách giáo viên",
+                        subtitle: "Quản lý danh sách giáo viên",
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const TeacherListPage(),
+                            ),
+                          );
+                        },
                       ),
                     ],
                     _buildSettingItem(

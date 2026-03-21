@@ -41,6 +41,7 @@ class _StudentPageState extends State<StudentPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
       _bloc.init();
+      _bloc.fetchServerStudents();
       await _checkServerConfig();
     });
   }
@@ -77,7 +78,7 @@ class _StudentPageState extends State<StudentPage> {
           ],
         ),
         backgroundColor: AppColors.white,
-        body: _buildStudentList(),
+        body: _buildMergedStudentList(),
         floatingActionButton: FloatingActionButton(
           onPressed: _showAddStudentDialog,
           backgroundColor: AppColors.primaryColor,
@@ -87,123 +88,206 @@ class _StudentPageState extends State<StudentPage> {
     );
   }
 
-  Widget _buildStudentList() {
+  Widget _buildMergedStudentList() {
     return BlocBuilder<StudentBloc, StudentState>(builder: (context, state) {
+      final students = state.mergedStudents ?? [];
+      final isLoading = state.status == DataSourceStatus.refreshing ||
+          state.serverStatus == DataSourceStatus.refreshing;
+
       return Column(
         children: [
           const Spacing(),
+          // Thanh tìm kiếm
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: SearchTextField(
               onChanged: (text) {
-                _bloc.onSearch(text, isServerTab: false);
+                _bloc.onSearch(text);
               },
               hintText: 'Nhập tên để tìm...',
             ),
           ),
+          // Chú thích màu
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6),
+            child: Row(
+              children: [
+                _buildLegendChip(
+                  color: AppColors.cyan2,
+                  label: 'Server',
+                ),
+                const SizedBox(width: 8),
+                _buildLegendChip(
+                  color: Colors.orange.shade700,
+                  label: 'Chưa đồng bộ',
+                ),
+                const Spacer(),
+                if (isLoading)
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+          ),
           Expanded(
-            child: ContentBundle(
-              status: state.status,
-              onRefresh: (_) => _bloc.onRefresh(),
-              emptyAction: (_) {
-                _bloc.onRefresh();
-              },
-              emptyActionTitle: 'Thử lại',
-              child: ListView.separated(
-                padding: const EdgeInsets.only(
-                    top: 8, left: 8, right: 8, bottom: 80),
-                itemCount: state.students?.length ?? 0,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (context, index) {
-                  final student = state.students?[index];
-                  final color = getRandomColor();
-                  final firstChar = (student?.name ?? 'U').isNotEmpty
-                      ? student?.name[0].toUpperCase()
-                      : 'U';
-
-                  return Material(
-                    color: AppColors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        AppNavigator.pushNamed(
-                          RouterName.registerFace,
-                          arguments: student,
-                        );
-                      },
-                      child: Ink(
-                        decoration: BoxDecoration(
-                          color: AppColors.cyan2,
-                          borderRadius: BorderRadius.circular(8),
+            child: students.isEmpty && !isLoading
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.people_outline,
+                            size: 64, color: AppColors.gray200),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Chưa có học sinh nào',
+                          style: TextStyle(
+                              color: AppColors.gray200, fontSize: 16),
                         ),
-                        height: 60,
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              (student?.avatar?.isNotEmpty ?? false)
-                                  ? DefaultImageWidget(
-                                      student?.avatar,
-                                      width: 40,
-                                      height: 40,
-                                      radius: 20,
-                                      fit: BoxFit.cover,
-                                      defaultImage: CircleAvatar(
-                                        backgroundColor: Colors.white,
-                                        child: Text(
-                                          firstChar ?? '',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: color,
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: () async {
+                      _bloc.onRefresh();
+                      _bloc.fetchServerStudents();
+                    },
+                    child: ListView.separated(
+                      padding: const EdgeInsets.only(
+                          top: 8, left: 8, right: 8, bottom: 80),
+                      itemCount: students.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final student = students[index];
+                        final isServer = student.isFromServer;
+                        final cardColor =
+                            isServer ? AppColors.cyan2 : Colors.orange.shade700;
+                        final color = getRandomColor();
+                        final firstChar = student.name.isNotEmpty
+                            ? student.name[0].toUpperCase()
+                            : 'U';
+
+                        return Material(
+                          color: AppColors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              AppNavigator.pushNamed(
+                                RouterName.registerFace,
+                                arguments: student,
+                              );
+                            },
+                            child: Ink(
+                              decoration: BoxDecoration(
+                                color: cardColor,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              height: 60,
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  children: [
+                                    (student.avatar?.isNotEmpty ?? false)
+                                        ? DefaultImageWidget(
+                                            student.avatar,
+                                            width: 40,
+                                            height: 40,
+                                            radius: 20,
+                                            fit: BoxFit.cover,
+                                            defaultImage: CircleAvatar(
+                                              backgroundColor: Colors.white,
+                                              child: Text(
+                                                firstChar,
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: color,
+                                                ),
+                                              ),
+                                            ),
+                                          )
+                                        : CircleAvatar(
+                                            backgroundColor: Colors.white,
+                                            child: Text(
+                                              firstChar,
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: color,
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                      ),
-                                    )
-                                  : CircleAvatar(
-                                      backgroundColor: Colors.white,
-                                      child: Text(
-                                        firstChar ?? '',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: color,
-                                        ),
+                                    const SizedBox(height: 8, width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            student.name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          if (!isServer)
+                                            const Text(
+                                              'Local',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.white70,
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                     ),
-                              const SizedBox(height: 8, width: 8),
-                              Expanded(
-                                child: Text(
-                                  student?.name ?? Strings.localized.unknown,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.more_vert,
+                                        color: Colors.white,
+                                      ),
+                                      onPressed: () =>
+                                          _showItemOptions(student),
+                                      tooltip: 'Thêm',
+                                    ),
+                                  ],
                                 ),
                               ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.more_vert,
-                                  color: Colors.white,
-                                ),
-                                onPressed: () => _showItemOptions(student),
-                                tooltip: 'Thêm',
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
-            ),
+                  ),
           ),
         ],
       );
     });
   }
+
+  Widget _buildLegendChip({required Color color, required String label}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.gray200)),
+      ],
+    );
+  }
+
+  
 
   Color getRandomColor() {
     return Color.fromARGB(

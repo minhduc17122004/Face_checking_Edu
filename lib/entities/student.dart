@@ -10,6 +10,7 @@ class Student {
   final dynamic error;
   final String? attachmentId;
   final String? avatar;
+  final bool isFromServer;
 
   Student({
     required this.id,
@@ -20,6 +21,7 @@ class Student {
     this.error,
     this.attachmentId,
     this.avatar,
+    this.isFromServer = false,
   });
 
   factory Student.fromJson(Map<String, dynamic> json) {
@@ -35,6 +37,25 @@ class Student {
             : null,
         avatar:
             json['avatar_url'] is String ? json['avatar_url'] as String : null);
+  }
+
+  /// Construct from a User API response (UUID string id).
+  factory Student.fromUserJson(Map<String, dynamic> json) {
+    final idStr = json['id'] as String;
+    final idInt = idStr.hashCode;
+    // Chỉ gán pin nếu có student_code (MSSV), nếu không thì để null để UI tự chặn
+    final pin = json['student_code'] as String?;
+    return Student(
+      id: idInt.abs(),
+      pin: pin,
+      name: json['full_name'] as String,
+      jobTitle: null,
+      hasAvatar: (json['avatar_url'] as String?)?.isNotEmpty ?? false,
+      error: null,
+      attachmentId: null,
+      avatar: json['avatar_url'] as String?,
+      isFromServer: true,
+    );
   }
 
   factory Student.fromErrorJson(Map<String, dynamic> json) {
@@ -58,6 +79,7 @@ class Student {
       'error': error,
       'attachment_id': attachmentId,
       'avatar_url': avatar,
+      'is_from_server': isFromServer,
     };
   }
 
@@ -87,12 +109,14 @@ class Student {
     dynamic barcode,
     String? name,
     dynamic jobTitle,
+    bool? isFromServer,
   }) {
     return Student(
       id: id ?? this.id,
       pin: pin ?? this.pin,
       name: name ?? this.name,
       jobTitle: jobTitle ?? this.jobTitle,
+      isFromServer: isFromServer ?? this.isFromServer,
     );
   }
 

@@ -5,6 +5,7 @@ from typing import Sequence
 
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.user import User
 
@@ -37,23 +38,40 @@ class UserRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_all(self, skip: int = 0, limit: int = 100) -> Sequence[User]:
+    async def get_all(
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        role: str | None = None,
+    ) -> Sequence[User]:
+        query = select(User).where(User.deleted_at.is_(None))
+        if role:
+            query = query.where(User.role == role)
+        if role == "student":
+            query = query.options(selectinload(User.student_profile))
+        elif role == "teacher":
+            query = query.options(selectinload(User.teacher_profile))
+        else:
+            query = query.options(
+                selectinload(User.student_profile),
+                selectinload(User.teacher_profile)
+            )
         result = await self.db.execute(
-            select(User)
-            .where(User.deleted_at.is_(None))
+            query
             .offset(skip)
             .limit(limit)
             .order_by(User.created_at.desc())
         )
         return result.scalars().all()
 
-    async def count(self) -> int:
+    async def count(self, role: str | None = None) -> int:
         from sqlalchemy import func as sa_func
-        result = await self.db.execute(
-            select(sa_func.count())
-            .select_from(User)
-            .where(User.deleted_at.is_(None))
+        query = select(sa_func.count()).select_from(User).where(
+            User.deleted_at.is_(None)
         )
+        if role:
+            query = query.where(User.role == role)
+        result = await self.db.execute(query)
         return result.scalar_one()
 
     # ── Write ─────────────────────────────────────────────────
@@ -64,6 +82,8 @@ class UserRepository:
         password_hash: str,
         full_name: str,
         role: str = "student",
+        pin: str | None = None,
+        job_title: str | None = None,
     ) -> User:
         user = User(
             email=email.lower(),
@@ -72,6 +92,26 @@ class UserRepository:
             role=role,
         )
         self.db.add(user)
+        # Bắt buộc flush để tạo ra user.id trước khi link với profile
+        await self.db.flush()
+
+        # Tạo profile tương ứng cho từng Role
+        if role == "student":
+            from app.models.student import Student
+            student_profile = Student(
+                user_id=user.id,
+                student_code=pin,
+            )
+            self.db.add(student_profile)
+        elif role == "teacher":
+            from app.models.teacher import Teacher
+            teacher_profile = Teacher(
+                user_id=user.id,
+                department=job_title,
+                employee_code=pin,
+            )
+            self.db.add(teacher_profile)
+
         await self.db.flush()
         await self.db.refresh(user)
         return user

@@ -20,14 +20,16 @@ class UserInfo {
 
 class LoginResponse {
   String? token;
+  String? refreshToken;
   UserInfo? user;
 
-  LoginResponse({this.token, this.user});
+  LoginResponse({this.token, this.refreshToken, this.user});
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
     return LoginResponse(
       token: json['access_token'],
+      refreshToken: json['refresh_token'],
       user: json['user'] != null ? UserInfo.fromJson(json['user']) : null,
-    );  
+    );
   }
 }

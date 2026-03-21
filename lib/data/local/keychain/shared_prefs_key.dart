@@ -1,5 +1,6 @@
 class SharedPrefsKey {
   static const String token = 'token';
+  static const String refreshToken = 'refreshToken';
   static const String userId = 'userId';
   static const String loginId = 'loginId';
   static const String userEmail = 'userEmail';

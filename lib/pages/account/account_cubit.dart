@@ -11,6 +11,9 @@ import 'package:injectable/injectable.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'package:face_time_keeping/data/remote/authentication_service.dart';
+import 'package:face_time_keeping/di/injection.dart';
+
 import 'account_state.dart';
 
 @injectable
@@ -147,5 +150,18 @@ class AccountCubit extends Cubit<AccountState> with EventBusMixin {
   bool _isNetworkAvatar(String avatarPath) {
     return avatarPath.startsWith('http://') ||
         avatarPath.startsWith('https://');
+  }
+
+  Future<void> logout() async {
+    try {
+      await getIt<AuthenticationService>().logout();
+    } catch (_) {
+      // Always clear local auth state even if remote logout fails.
+    }
+    _localService.saveAuthToken(null);
+    _localService.saveRefreshToken(null);
+    _localService.saveLoginId(null);
+    _localService.saveUserEmail(null);
+    _localService.saveUserFullName(null);
   }
 }

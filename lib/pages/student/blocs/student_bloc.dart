@@ -7,6 +7,7 @@ import 'package:face_time_keeping/common/utils/extensions/string_extension.dart'
 import 'package:face_time_keeping/common/utils/log_util.dart';
 import 'package:face_time_keeping/common/utils/sync_jobs_util.dart';
 import 'package:face_time_keeping/data/local/hive_service.dart';
+import 'package:face_time_keeping/data/models/register_user_request.dart';
 import 'package:face_time_keeping/data/remote/user_service.dart';
 import 'package:face_time_keeping/entities/student.dart' as student_entity;
 import 'package:face_time_keeping/entities/person.dart';
@@ -31,6 +32,7 @@ class StudentBloc extends Cubit<StudentState> with EventBusMixin {
   final FaceNative _faceNative = FaceNative();
   List<student_entity.Student> _savedStudents = [];
   List<student_entity.Student> _savedServerStudents = [];
+  List<student_entity.Student> _savedMergedStudents = [];
   List<StreamSubscription> _eventSubscriptions = [];
 
   @override
@@ -63,13 +65,21 @@ class StudentBloc extends Cubit<StudentState> with EventBusMixin {
   Future<void> fetchServerStudents() async {
     try {
       emit(state.copyWith(serverStatus: DataSourceStatus.refreshing));
-      final DataState<List<student_entity.Student>> result =
-          await _userRepository.getStudents();
+      final DataState<List<UserInfo>> result =
+          await _userRepository.getUsersByRole('student');
       if (result.isSuccess) {
-        _savedServerStudents = result.data ?? [];
+        final students = (result.data ?? [])
+            .map((u) => student_entity.Student.fromUserJson({
+                  'id': u.id,
+                  'full_name': u.fullName,
+                  'avatar_url': u.avatarUrl,
+                  'student_code': u.studentCode,
+                }))
+            .toList();
+        _savedServerStudents = students;
         emit(state.copyWith(
-            studentsFromServer: result.data,
-            serverStatus: (result.data ?? []).isEmpty
+            studentsFromServer: students,
+            serverStatus: students.isEmpty
                 ? DataSourceStatus.empty
                 : DataSourceStatus.success));
       } else {
@@ -79,6 +89,31 @@ class StudentBloc extends Cubit<StudentState> with EventBusMixin {
       await pushLog('Error in fetchServerStudents: $e');
       emit(state.copyWith(serverStatus: DataSourceStatus.failed));
     }
+    _emitMergedStudents();
+  }
+
+  /// Gộp danh sách local + server, loại trùng (ưu tiên server).
+  /// Local-only students = chưa sync lên server (isFromServer = false).
+  void _emitMergedStudents() {
+    final Map<String, student_entity.Student> merged = {};
+
+    // 1. Thêm server students trước (ưu tiên)
+    for (final s in _savedServerStudents) {
+      final key = s.pin ?? 'server_${s.id}';
+      merged[key] = s; // isFromServer = true đã set sẵn trong fromUserJson
+    }
+
+    // 2. Thêm local students — nếu pin trùng với server thì bỏ qua
+    for (final s in _savedStudents) {
+      final key = s.pin ?? 'local_${s.id}';
+      if (!merged.containsKey(key)) {
+        merged[key] = s; // isFromServer = false (default)
+      }
+    }
+
+    final mergedList = merged.values.toList();
+    _savedMergedStudents = mergedList;
+    emit(state.copyWith(mergedStudents: mergedList));
   }
 
   Future<void> syncData() async {
@@ -122,6 +157,7 @@ class StudentBloc extends Cubit<StudentState> with EventBusMixin {
           status: students.isEmpty
               ? DataSourceStatus.empty
               : DataSourceStatus.success));
+      _emitMergedStudents();
     } catch (e) {
       await pushLog('Error in _fetchStudents: $e');
       emit(state.copyWith(status: DataSourceStatus.failed));
@@ -135,6 +171,8 @@ class StudentBloc extends Cubit<StudentState> with EventBusMixin {
       } else {
         emit(state.copyWith(students: _savedStudents));
       }
+      // Cập nhật merged khi xóa tìm kiếm
+      emit(state.copyWith(mergedStudents: _savedMergedStudents));
       return;
     }
     final textLower = text!.removeVietnameseDiacritics().toLowerCase();
@@ -155,6 +193,13 @@ class StudentBloc extends Cubit<StudentState> with EventBusMixin {
           .toList();
       emit(state.copyWith(students: results));
     }
+    // Search trong merged list
+    final mergedResults = List<student_entity.Student>.from(_savedMergedStudents)
+        .where((element) => element.name
+            .removeVietnameseDiacritics()
+            .contains(text.removeVietnameseDiacritics()))
+        .toList();
+    emit(state.copyWith(mergedStudents: mergedResults));
   }
 
   Future<bool> onRegisterStudent(

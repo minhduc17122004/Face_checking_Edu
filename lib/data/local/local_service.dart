@@ -40,6 +40,8 @@ abstract class LocalService {
   String getUserFullName();
   String getAuthToken();
   void saveAuthToken(String? token);
+  String? getRefreshToken();
+  void saveRefreshToken(String? token);
   void saveServerUrl(String? domain);
   String getServerUrl();
   List<String> getRecentDomains();
@@ -378,6 +380,7 @@ class LocalServiceImplement implements LocalService {
   Future<void> saveDatabaseName(String dbName) async {
     await _sharedPreferences.put(SharedPrefsKey.dbName, dbName);
   }
+
 
   @override
   Future<File> exportModelToJsonFile({List<Person>? persons}) async {
@@ -1025,6 +1028,26 @@ class LocalServiceImplement implements LocalService {
       _sharedPreferences.put(SharedPrefsKey.token, token);
     } catch (e) {
       pushLog('Error in saveToken: $e');
+      log(e.toString());
+    }
+  }
+
+  @override
+  String? getRefreshToken() {
+    try {
+      return _sharedPreferences.get(SharedPrefsKey.refreshToken);
+    } catch (e) {
+      pushLog('Error in getRefreshToken: $e');
+      return null;
+    }
+  }
+
+  @override
+  void saveRefreshToken(String? token) {
+    try {
+      _sharedPreferences.put(SharedPrefsKey.refreshToken, token);
+    } catch (e) {
+      pushLog('Error in saveRefreshToken: $e');
       log(e.toString());
     }
   }

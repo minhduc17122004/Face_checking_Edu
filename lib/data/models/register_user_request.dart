@@ -67,6 +67,7 @@ class UserInfo {
   final String role;
   final String? avatarUrl;
   final String? createdAt;
+  final String? studentCode;
 
   UserInfo({
     required this.id,
@@ -75,6 +76,7 @@ class UserInfo {
     required this.role,
     this.avatarUrl,
     this.createdAt,
+    this.studentCode,
   });
 
   factory UserInfo.fromJson(Map<String, dynamic> json) {
@@ -85,6 +87,7 @@ class UserInfo {
       role: json['role'] as String,
       avatarUrl: json['avatar_url'] as String?,
       createdAt: json['created_at'] as String?,
+      studentCode: json['student_code'] as String?,
     );
   }
 }

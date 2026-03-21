@@ -5,7 +5,7 @@ import 'package:face_time_keeping/common/resources/app_colors.dart';
 import 'package:face_time_keeping/di/injection.dart';
 import 'package:face_time_keeping/pages/account/account_cubit.dart';
 import 'package:face_time_keeping/pages/account/account_state.dart';
-import 'package:face_time_keeping/pages/setting/cubit/setting/setting_cubit.dart';
+
 import 'package:face_time_keeping/pages/widgets/app_dialog.dart';
 import 'package:face_time_keeping/route/app_route.dart';
 import 'package:face_time_keeping/route/navigator.dart';
@@ -21,7 +21,6 @@ class AccountPage extends StatefulWidget {
 }
 
 class _AccountPageState extends State<AccountPage> {
-  late final SettingCubit _settingCubit = getIt();
   late final AccountCubit _accountCubit = getIt<AccountCubit>();
 
   @override
@@ -136,7 +135,7 @@ class _AccountPageState extends State<AccountPage> {
             ),
             ElevatedButton(
               onPressed: () async {
-                await _settingCubit.logout();
+                await _accountCubit.logout();
                 if (!mounted) return;
                 Navigator.of(dialogContext).pop();
                 AppNavigator.pushNamedAndRemoveUntil(
@@ -162,7 +161,6 @@ class _AccountPageState extends State<AccountPage> {
   @override
   void dispose() {
     _accountCubit.close();
-    _settingCubit.close();
     super.dispose();
   }
 

@@ -3,6 +3,7 @@
 class ApiEndpoint {
   static const String login = '/api/v1/auth/login';
   static const String logout = '/api/v1/auth/logout';
+  static const String refreshToken = '/api/v1/auth/refresh';
   static const String me = '/api/v1/auth/me';
   static const String students = '/api/student/get_all_students';
   static const String student = '/student';
@@ -16,4 +17,5 @@ class ApiEndpoint {
   static const String uploadStudentAvatar = "/api/student/avatars/upload";
   static const String uploadUserAvatar = "/auth/avatar";
   static const String registerUser = "/api/v1/auth/register";
+  static const String getUsersByRole = "/api/v1/users/";
 }

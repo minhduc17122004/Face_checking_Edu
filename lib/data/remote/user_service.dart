@@ -28,6 +28,7 @@ import 'package:http/http.dart' as http;
 
 abstract class UserService {
   Future<DataState<List<Student>>> getStudents();
+  Future<DataState<List<UserInfo>>> getUsersByRole(String role);
   Future<DataState<bool>> syncCheckInOutData({String? url});
   Future<DateTime> fetchWorldTime({String timezone = 'Etc/UTC'});
   Future<DataState<Student>> registerStudent(
@@ -281,6 +282,27 @@ class UserServiceImplement implements UserService {
       await pushLog('Error in getStudents: $e');
       debugPrint('General error in getStudents: $e\n$stackTrace');
       return DataFailed<List<Student>>(e.toString());
+    }
+  }
+
+  @override
+  Future<DataState<List<UserInfo>>> getUsersByRole(String role) async {
+    try {
+      final ApiResponse response = await _apiClient.get(
+        path: '${ApiEndpoint.getUsersByRole}?role=$role',
+      );
+      if (response.isSuccess()) {
+        final json = response.data as Map<String, dynamic>;
+        final items = json['items'] as List<dynamic>;
+        final users = items
+            .map((e) => UserInfo.fromJson(e as Map<String, dynamic>))
+            .toList();
+        return DataSuccess<List<UserInfo>>(users);
+      }
+      return DataFailed<List<UserInfo>>(response.error);
+    } catch (e) {
+      await pushLog('Error in getUsersByRole: $e');
+      return DataFailed<List<UserInfo>>(e.toString());
     }
   }
 

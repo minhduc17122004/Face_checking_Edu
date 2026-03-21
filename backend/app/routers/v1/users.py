@@ -16,14 +16,23 @@ router = APIRouter(prefix="/users", tags=["v1 — Users"])
 async def list_users(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
+    role: str | None = Query(None, description="Filter by role: student, teacher, admin"),
     user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all users."""
+    """List all users, optionally filtered by role."""
     repo = UserRepository(db)
-    users = await repo.get_all(skip=skip, limit=limit)
-    total = await repo.count()
-    return UserList(total=total, items=[UserOut.model_validate(u) for u in users])
+    users = await repo.get_all(skip=skip, limit=limit, role=role)
+    total = await repo.count(role=role)
+    items = []
+    for u in users:
+        out = UserOut.model_validate(u)
+        if u.role == 'student' and getattr(u, 'student_profile', None):
+            out.student_code = u.student_profile.student_code
+        elif u.role == 'teacher' and getattr(u, 'teacher_profile', None):
+            out.student_code = u.teacher_profile.employee_code
+        items.append(out)
+    return UserList(total=total, items=items)
 
 
 @router.get("/{target_id}", response_model=UserOut)

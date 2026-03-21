@@ -14,6 +14,8 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=6)
     full_name: str = Field(min_length=1, max_length=255)
     role: str = Field(default="student", pattern="^(teacher|student|admin)$")
+    pin: str | None = None
+    job_title: str | None = None
 
 
 class RefreshRequest(BaseModel):

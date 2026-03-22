@@ -14,10 +14,10 @@ class BaseRepository(Generic[ModelT]):
 
     All subclasses automatically exclude soft-deleted records from queries.
     Inherit from this class and set `model` to get:
-    - get_by_id() with soft-delete filter
+    - get_by_id() with soft-delete filter (deleted_at IS NULL)
     - list() with soft-delete filter and pagination
     - count() with soft-delete filter
-    - soft_delete() — sets is_deleted=True, deleted_at=now
+    - soft_delete() — sets deleted_at=now
     """
 
     model: type[Base] = Base  # Override in subclass
@@ -28,8 +28,8 @@ class BaseRepository(Generic[ModelT]):
     # ── Soft-delete helpers ──────────────────────────────────────────────────────
     @staticmethod
     def _active(stmt) -> Any:
-        """Append is_deleted=False filter to any select statement."""
-        return stmt.where(getattr(BaseRepository.model, "is_deleted") == False)  # noqa: E501, E714
+        """Append deleted_at IS NULL filter to any select statement."""
+        return stmt.where(BaseRepository.model.deleted_at.is_(None))
 
     # ── Read ────────────────────────────────────────────────────────────────────
     async def get_by_id(self, id: Any) -> ModelT | None:
@@ -65,8 +65,7 @@ class BaseRepository(Generic[ModelT]):
         return instance
 
     async def soft_delete(self, instance: ModelT) -> None:
-        """Set is_deleted=True instead of hard delete."""
+        """Soft delete by setting deleted_at."""
         from datetime import datetime, timezone
-        instance.is_deleted = True
         instance.deleted_at = datetime.now(timezone.utc)
         await self.db.flush()

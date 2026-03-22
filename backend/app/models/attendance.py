@@ -109,3 +109,8 @@ class Attendance(Base):
             f"<Attendance id={self.id} session={self.session_id} "
             f"student={self.student_id} status={self.status}>"
         )
+
+    @property
+    def is_deleted(self) -> bool:
+        """Check if attendance is soft-deleted (compatibility accessor)."""
+        return self.deleted_at is not None

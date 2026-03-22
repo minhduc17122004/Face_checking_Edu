@@ -27,26 +27,26 @@ class ScheduleRepository(BaseRepository[Schedule]):
         )
         return result.scalar_one_or_none()
 
-    async def get_by_classroom_day(
-        self, classroom_id: uuid.UUID, day_of_week: int
+    async def get_by_course_day(
+        self, course_id: uuid.UUID, day_of_week: int
     ) -> Sequence[Schedule]:
         result = await self.db.execute(
             select(Schedule).where(
                 and_(
-                    Schedule.classroom_id == classroom_id,
+                    Schedule.course_id == course_id,
                     Schedule.day_of_week == day_of_week,
-                    Schedule.is_deleted == False,
+                    Schedule.deleted_at.is_(None),
                 )
             )
         )
         return result.scalars().all()
 
-    async def get_by_classroom(self, classroom_id: uuid.UUID) -> Sequence[Schedule]:
+    async def get_by_course(self, course_id: uuid.UUID) -> Sequence[Schedule]:
         result = await self.db.execute(
             select(Schedule).where(
                 and_(
-                    Schedule.classroom_id == classroom_id,
-                    Schedule.is_deleted == False,
+                    Schedule.course_id == course_id,
+                    Schedule.deleted_at.is_(None),
                 )
             )
         )
@@ -54,14 +54,14 @@ class ScheduleRepository(BaseRepository[Schedule]):
 
     async def list(
         self,
-        classroom_id: uuid.UUID | None = None,
+        course_id: uuid.UUID | None = None,
         day_of_week: int | None = None,
         skip: int = 0,
         limit: int = 200,
     ) -> tuple[Sequence[Schedule], int]:
-        conditions = [Schedule.is_deleted == False]
-        if classroom_id:
-            conditions.append(Schedule.classroom_id == classroom_id)
+        conditions = [Schedule.deleted_at.is_(None)]
+        if course_id:
+            conditions.append(Schedule.course_id == course_id)
         if day_of_week is not None:
             conditions.append(Schedule.day_of_week == day_of_week)
         where_clause = and_(*conditions)
@@ -77,3 +77,18 @@ class ScheduleRepository(BaseRepository[Schedule]):
 
     async def soft_delete(self, schedule: Schedule) -> None:
         await super().soft_delete(schedule)
+
+    async def update(
+        self,
+        schedule: Schedule,
+        *,
+        day_of_week: int | None = None,
+        time_slot_id: int | None = None,
+    ) -> Schedule:
+        if day_of_week is not None:
+            schedule.day_of_week = day_of_week
+        if time_slot_id is not None:
+            schedule.time_slot_id = time_slot_id
+        await self.db.flush()
+        await self.db.refresh(schedule)
+        return schedule

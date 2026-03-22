@@ -23,16 +23,28 @@ class UserRepository:
     # ── Read ──────────────────────────────────────────────────
     async def get_by_id(self, user_id: str | uuid.UUID) -> User | None:
         uid = uuid.UUID(str(user_id)) if not isinstance(user_id, uuid.UUID) else user_id
+        from app.models.student import Student
         result = await self.db.execute(
-            select(User).where(
+            select(User)
+            .options(
+                selectinload(User.student_profile).selectinload(Student.student_group),
+                selectinload(User.teacher_profile)
+            )
+            .where(
                 and_(User.id == uid, User.deleted_at.is_(None))
             )
         )
         return result.scalar_one_or_none()
 
     async def get_by_email(self, email: str) -> User | None:
+        from app.models.student import Student
         result = await self.db.execute(
-            select(User).where(
+            select(User)
+            .options(
+                selectinload(User.student_profile).selectinload(Student.student_group),
+                selectinload(User.teacher_profile)
+            )
+            .where(
                 and_(User.email == email.lower(), User.deleted_at.is_(None))
             )
         )
@@ -102,15 +114,33 @@ class UserRepository:
                 user_id=user.id,
                 student_code=pin,
             )
+            
+            # Map job_title (passed as class name) to StudentGroup
+            if job_title:
+                from sqlalchemy import select
+                from app.models.student_group import StudentGroup
+                group_query = select(StudentGroup).where(StudentGroup.code == job_title)
+                group_result = await self.db.execute(group_query)
+                group = group_result.scalar_one_or_none()
+                
+                if not group:
+                    group = StudentGroup(code=job_title, name=job_title)
+                    self.db.add(group)
+                    await self.db.flush()
+                
+                student_profile.student_group_id = group.id
+                student_profile.student_group = group
+                
             self.db.add(student_profile)
+            user.student_profile = student_profile
         elif role == "teacher":
             from app.models.teacher import Teacher
             teacher_profile = Teacher(
                 user_id=user.id,
-                department=job_title,
-                employee_code=pin,
+                teacher_id=pin,
             )
             self.db.add(teacher_profile)
+            user.teacher_profile = teacher_profile
 
         await self.db.flush()
         await self.db.refresh(user)
@@ -130,8 +160,7 @@ class UserRepository:
         return user
 
     async def soft_delete(self, user: User) -> None:
-        """Soft delete: sets is_deleted=True."""
+        """Soft delete: sets deleted_at."""
         from datetime import datetime, timezone
-        user.is_deleted = True
         user.deleted_at = datetime.now(timezone.utc)
         await self.db.flush()

@@ -12,7 +12,7 @@ class DeviceBase(BaseModel):
     is_active: bool = True
     device_type: Optional[str] = Field(None, max_length=50, examples=["tablet"])
     ip_address: Optional[str] = Field(None, max_length=45)
-    classroom_id: Optional[uuid.UUID] = None
+    course_id: Optional[uuid.UUID] = None
 
 
 class DeviceCreate(DeviceBase):
@@ -24,7 +24,7 @@ class DeviceUpdate(BaseModel):
     is_active: Optional[bool] = None
     device_type: Optional[str] = Field(None, max_length=50)
     ip_address: Optional[str] = Field(None, max_length=45)
-    classroom_id: Optional[uuid.UUID] = None
+    course_id: Optional[uuid.UUID] = None
 
 
 class DeviceResponse(DeviceBase):
@@ -32,7 +32,6 @@ class DeviceResponse(DeviceBase):
     last_active_at: Optional[datetime]
     created_at: datetime
     updated_at: datetime
-    is_deleted: bool
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -17,7 +17,9 @@ from app.models.time_slot import TimeSlot  # noqa: F401
 from app.models.schedule import Schedule  # noqa: F401
 from app.models.session import Session  # noqa: F401
 from app.models.attendance import Attendance  # noqa: F401
+from app.models.department import Department  # noqa: F401
 from app.models.device import Device  # noqa: F401
+from app.models.room import Room  # noqa: F401
 from app.models.face_embedding import FaceEmbedding  # noqa: F401
 from app.models.refresh_token import RefreshToken  # noqa: F401
 
@@ -31,9 +33,11 @@ __all__ = [
     "Attendance",
     "Course",
     "CourseEnrollment",
+    "Department",
     "Device",
     "FaceEmbedding",
     "RefreshToken",
+    "Room",
     "Schedule",
     "Session",
     "Student",

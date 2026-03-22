@@ -41,6 +41,8 @@ class UserInfo(BaseModel):
     role: str
     avatar_url: str | None = None
     created_at: datetime
+    student_code: str | None = None
+    class_name: str | None = None
 
     model_config = {"from_attributes": True}
 

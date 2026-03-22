@@ -114,6 +114,37 @@ class User(Base):
         return self.deleted_at is None
 
     @property
+    def is_deleted(self) -> bool:
+        """Check if user is soft-deleted (compatibility accessor)."""
+        return self.deleted_at is not None
+
+    @property
+    def checkin_code(self) -> str | None:
+        try:
+            if self.role == "teacher" and self.teacher_profile:
+                return self.teacher_profile.teacher_id
+            if self.role == "student" and self.student_profile:
+                return self.student_profile.student_code
+        except Exception:
+            pass
+        return None
+
+    @property
+    def student_code(self) -> str | None:
+        return self.checkin_code
+
+    @property
+    def class_name(self) -> str | None:
+        try:
+            if self.role == "teacher" and self.teacher_profile and self.teacher_profile.department:
+                return self.teacher_profile.department
+            if self.role == "student" and self.student_profile and self.student_profile.student_group:
+                return self.student_profile.student_group.name
+        except Exception:
+            pass
+        return None
+
+    @property
     def display_name(self) -> str:
         """Get display name, falls back to email prefix."""
         return self.full_name or self.email.split("@")[0]

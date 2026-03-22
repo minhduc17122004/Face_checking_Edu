@@ -1,14 +1,17 @@
-from __future__ import annotations
+
 """v1 Attendance router — /api/v1/attendance endpoints (unified session-based)."""
 import uuid
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user_id
 from app.core.database import get_db
+from app.core.rate_limit import limiter
 from app.services.attendance_service import AttendanceService
 from app.schemas.v1.attendance import (
     AttendanceCreate,
+    CheckinRequest,
+    CheckinResponse,
     AttendanceOut,
     AttendanceList,
     AttendanceSummary,
@@ -26,6 +29,25 @@ async def create_attendance(
     """Create a new attendance record with full anti-cheat validation."""
     svc = AttendanceService(db)
     return await svc.create_attendance(req)
+
+
+@router.post("/checkin", response_model=CheckinResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("30/minute")
+async def realtime_checkin(
+    request: Request,
+    req: CheckinRequest,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Real-time device-initiated check-in.
+
+    Streamlined endpoint for face-recognition devices.
+    Uses server time for all anti-cheat decisions (check-in window, late detection).
+    All validation (device, enrollment, duplicate, check-in window) is applied.
+    Rate limited: 30 attempts/minute per client IP.
+    """
+    svc = AttendanceService(db)
+    return await svc.realtime_checkin(req)
 
 
 @router.get("/session/{session_id}", response_model=AttendanceList)

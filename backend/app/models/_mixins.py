@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime
+from sqlalchemy import DateTime
 from sqlalchemy.orm import Mapped, mapped_column
 
 
@@ -11,13 +11,13 @@ def _utc_now() -> datetime:
 
 
 class SoftDeleteMixin:
-    """Adds is_deleted + deleted_at to any SQLAlchemy model.
+    """Adds deleted_at to any SQLAlchemy model.
 
     All queries against models using this mixin should filter
-    is_deleted == False by default (enforced in BaseRepository).
+    deleted_at IS NULL by default (enforced in BaseRepository).
+    is_deleted property provided for backward compatibility.
     """
 
-    is_deleted: Mapped[bool] = mapped_column(Boolean(), default=False, nullable=False)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 

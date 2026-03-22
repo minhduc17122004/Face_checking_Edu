@@ -79,6 +79,13 @@ from app.schemas.v1.face import (
     BulkAttendanceResponse,
     BulkResultItem,
 )
+from app.schemas.v1.room import (
+    RoomCreate,
+    RoomUpdate,
+    RoomOut,
+    RoomList,
+    AssignRoomRequest,
+)
 
 __all__ = [
     # Auth
@@ -149,4 +156,10 @@ __all__ = [
     "BulkAttendanceItem",
     "BulkAttendanceResponse",
     "BulkResultItem",
+    # Room
+    "RoomCreate",
+    "RoomUpdate",
+    "RoomOut",
+    "RoomList",
+    "AssignRoomRequest",
 ]

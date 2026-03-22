@@ -15,17 +15,17 @@ class SessionCreate(BaseModel):
     session_date is kept for convenience but will be combined with start_time.
     """
 
-    classroom_id: uuid.UUID = Field(..., examples=["550e8400-e29b-41d4-a716-446655440000"])
+    course_id: uuid.UUID = Field(..., examples=["550e8400-e29b-41d4-a716-446655440000"])
     schedule_id: Optional[uuid.UUID] = Field(None)
     session_date: date = Field(..., examples=["2026-03-19"])
     start_time: datetime = Field(..., examples=["2026-03-19T07:30:00"])
     end_time: Optional[datetime] = Field(None, examples=["2026-03-19T08:15:00"])
-    checkin_start_time: Optional[datetime] = Field(
+    checkin_window_start: Optional[datetime] = Field(
         None,
         examples=["2026-03-19T07:00:00"],
         description="When check-in opens (optional)"
     )
-    checkin_end_time: Optional[datetime] = Field(
+    checkin_window_end: Optional[datetime] = Field(
         None,
         examples=["2026-03-19T08:00:00"],
         description="When check-in closes (optional)"
@@ -44,8 +44,8 @@ class SessionUpdate(BaseModel):
         examples=["active"]
     )
     end_time: Optional[datetime] = Field(None, examples=["2026-03-19T08:15:00"])
-    checkin_start_time: Optional[datetime] = Field(None)
-    checkin_end_time: Optional[datetime] = Field(None)
+    checkin_window_start: Optional[datetime] = Field(None)
+    checkin_window_end: Optional[datetime] = Field(None)
 
 
 class SessionOut(BaseModel):
@@ -55,7 +55,7 @@ class SessionOut(BaseModel):
     """
 
     id: uuid.UUID
-    classroom_id: uuid.UUID
+    course_id: uuid.UUID
     schedule_id: Optional[uuid.UUID]
     session_date: Optional[date] = Field(
         None,
@@ -63,12 +63,11 @@ class SessionOut(BaseModel):
     )
     start_time: datetime
     end_time: Optional[datetime]
-    checkin_start_time: Optional[datetime]
-    checkin_end_time: Optional[datetime]
+    checkin_window_start: Optional[datetime]
+    checkin_window_end: Optional[datetime]
     status: str
     created_at: datetime
     updated_at: datetime
-    is_deleted: bool
 
     model_config = {"from_attributes": True}
 

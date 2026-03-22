@@ -17,9 +17,11 @@ import 'widgets/face_detector_view.dart';
 
 class CheckingArgs {
   final bool isCheckIn;
+  final String? sessionId;
 
   const CheckingArgs({
     required this.isCheckIn,
+    this.sessionId,
   });
 }
 

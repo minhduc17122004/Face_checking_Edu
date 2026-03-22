@@ -33,7 +33,7 @@ async def create_attendance(
     """Create a new attendance record tied to a session.
 
     This endpoint includes anti-cheat validation:
-    - Device must belong to the session's classroom
+    - Device must belong to the session's course
     - Check-in must be within the allowed time window
     """
     anti_cheat = AntiCheatService(db)
@@ -42,7 +42,7 @@ async def create_attendance(
     result = await db.execute(
         select(Student).where(
             Student.id == body.student_id,
-            Student.is_deleted == False,
+            Student.deleted_at.is_(None),
         )
     )
     if not result.scalar_one_or_none():
@@ -103,7 +103,7 @@ async def get_session_attendance(
         .options(selectinload(Attendance.student))
         .where(
             Attendance.session_id == session_id,
-            Attendance.is_deleted == False,
+            Attendance.deleted_at.is_(None),
         )
         .order_by(Attendance.checkin_time)
     )
@@ -138,7 +138,7 @@ async def get_student_attendance(
         )
         .where(
             Attendance.student_id == student_id,
-            Attendance.is_deleted == False,
+            Attendance.deleted_at.is_(None),
         )
         .order_by(Attendance.checkin_time.desc())
         .offset(skip)
@@ -148,7 +148,7 @@ async def get_student_attendance(
     total_result = await db.execute(
         select(func.count(Attendance.id)).where(
             Attendance.student_id == student_id,
-            Attendance.is_deleted == False,
+            Attendance.deleted_at.is_(None),
         )
     )
     total = total_result.scalar_one()
@@ -166,7 +166,7 @@ async def get_attendance(
     result = await db.execute(
         select(Attendance).where(
             Attendance.id == attendance_id,
-            Attendance.is_deleted == False,
+            Attendance.deleted_at.is_(None),
         )
     )
     attendance = result.scalar_one_or_none()
@@ -185,14 +185,13 @@ async def delete_attendance(
     result = await db.execute(
         select(Attendance).where(
             Attendance.id == attendance_id,
-            Attendance.is_deleted == False,
+            Attendance.deleted_at.is_(None),
         )
     )
     attendance = result.scalar_one_or_none()
     if not attendance:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attendance not found")
 
-    attendance.is_deleted = True
     attendance.deleted_at = datetime.now(timezone.utc)
     await db.commit()
 
@@ -208,21 +207,21 @@ async def get_session_attendance_summary(
         select(func.count(Attendance.id)).where(
             Attendance.session_id == session_id,
             Attendance.status == "present",
-            Attendance.is_deleted == False,
+            Attendance.deleted_at.is_(None),
         )
     )
     late = await db.execute(
         select(func.count(Attendance.id)).where(
             Attendance.session_id == session_id,
             Attendance.status == "late",
-            Attendance.is_deleted == False,
+            Attendance.deleted_at.is_(None),
         )
     )
     absent = await db.execute(
         select(func.count(Attendance.id)).where(
             Attendance.session_id == session_id,
             Attendance.status == "absent",
-            Attendance.is_deleted == False,
+            Attendance.deleted_at.is_(None),
         )
     )
 

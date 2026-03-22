@@ -123,3 +123,37 @@ class Session(Base):
             f"<Session id={self.id} course={self.course_id} "
             f"start={self.start_time} status={self.status}>"
         )
+
+    @property
+    def is_deleted(self) -> bool:
+        """Check if session is soft-deleted (compatibility accessor)."""
+        return self.deleted_at is not None
+
+    @property
+    def attendance_mode(self) -> str:
+        """Delegates to course's attendance_mode for session-level check."""
+        if self.course and hasattr(self.course, "attendance_mode"):
+            return getattr(self.course, "attendance_mode", "preset") or "preset"
+        return "preset"
+
+    @property
+    def effective_checkin_window_start(self) -> datetime | None:
+        """Return checkin_window_start, or None if flexible mode."""
+        if self.course and getattr(self.course, "attendance_mode", None) == "flexible":
+            return None
+        return self.checkin_window_start
+
+    @property
+    def effective_checkin_window_end(self) -> datetime | None:
+        """Return checkin_window_end, or None if flexible mode."""
+        if self.course and getattr(self.course, "attendance_mode", None) == "flexible":
+            return None
+        return self.checkin_window_end
+
+    @property
+    def attendance_mode(self) -> str:
+        """Delegates to course's attendance_mode for session-level check."""
+        if self.course and hasattr(self.course, "attendance_mode"):
+            return getattr(self.course, "attendance_mode", "preset") or "preset"
+        return "preset"
+

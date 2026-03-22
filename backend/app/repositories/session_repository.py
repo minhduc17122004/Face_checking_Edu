@@ -26,20 +26,20 @@ class SessionRepository(BaseRepository[Session]):
     async def get_by_id(self, session_id: uuid.UUID) -> Session | None:
         result = await self.db.execute(
             select(Session)
-            .options(joinedload(Session.classroom))
+            .options(joinedload(Session.course))
             .where(Session.id == session_id)
         )
         return result.scalar_one_or_none()
 
-    async def get_by_classroom(
+    async def get_by_course(
         self,
-        classroom_id: uuid.UUID,
+        course_id: uuid.UUID,
         session_date: date | None = None,
         status: str | None = None,
         skip: int = 0,
         limit: int = 100,
     ) -> Sequence[Session]:
-        conditions = [Session.classroom_id == classroom_id, Session.deleted_at.is_(None)]
+        conditions = [Session.course_id == course_id, Session.deleted_at.is_(None)]
         if session_date:
             from datetime import datetime
             start = datetime.combine(session_date, datetime.min.time())
@@ -57,11 +57,11 @@ class SessionRepository(BaseRepository[Session]):
         )
         return result.scalars().all()
 
-    async def get_active_by_classroom(self, classroom_id: uuid.UUID) -> Sequence[Session]:
+    async def get_active_by_course(self, course_id: uuid.UUID) -> Sequence[Session]:
         result = await self.db.execute(
             select(Session).where(
                 and_(
-                    Session.classroom_id == classroom_id,
+                    Session.course_id == course_id,
                     Session.status == "active",
                     Session.deleted_at.is_(None),
                 )
@@ -71,15 +71,15 @@ class SessionRepository(BaseRepository[Session]):
 
     async def list(
         self,
-        classroom_id: uuid.UUID | None = None,
+        course_id: uuid.UUID | None = None,
         session_date: date | None = None,
         status: str | None = None,
         skip: int = 0,
         limit: int = 100,
     ) -> tuple[Sequence[Session], int]:
         conditions = [Session.deleted_at.is_(None)]
-        if classroom_id:
-            conditions.append(Session.classroom_id == classroom_id)
+        if course_id:
+            conditions.append(Session.course_id == course_id)
         if session_date:
             from datetime import datetime
             start = datetime.combine(session_date, datetime.min.time())
@@ -94,21 +94,26 @@ class SessionRepository(BaseRepository[Session]):
         )
         total = count_result.scalar_one()
         result = await self.db.execute(
-            select(Session).where(where_clause).offset(skip).limit(limit).order_by(Session.start_time.desc())
+            select(Session)
+            .options(joinedload(Session.course))
+            .where(where_clause)
+            .offset(skip)
+            .limit(limit)
+            .order_by(Session.start_time.desc())
         )
-        return result.scalars().all(), total
+        return result.unique().scalars().all(), total
 
     async def update_status(
         self,
         session_id: uuid.UUID,
         status: str,
         end_time=None,
-        checkin_start_time=None,
-        checkin_end_time=None,
+        checkin_window_start=None,
+        checkin_window_end=None,
     ) -> Session | None:
         result = await self.db.execute(
             select(Session)
-            .options(joinedload(Session.classroom))
+            .options(joinedload(Session.course))
             .where(Session.id == session_id)
         )
         session = result.scalar_one_or_none()
@@ -117,10 +122,10 @@ class SessionRepository(BaseRepository[Session]):
         session.status = status
         if end_time is not None:
             session.end_time = end_time
-        if checkin_start_time is not None:
-            session.checkin_start_time = checkin_start_time
-        if checkin_end_time is not None:
-            session.checkin_end_time = checkin_end_time
+        if checkin_window_start is not None:
+            session.checkin_window_start = checkin_window_start
+        if checkin_window_end is not None:
+            session.checkin_window_end = checkin_window_end
         await self.db.flush()
         await self.db.refresh(session)
         return session
@@ -128,21 +133,21 @@ class SessionRepository(BaseRepository[Session]):
     async def create(
         self,
         *,
-        classroom_id: uuid.UUID,
+        course_id: uuid.UUID,
         schedule_id: uuid.UUID | None = None,
         start_time,
         end_time=None,
-        checkin_start_time=None,
-        checkin_end_time=None,
+        checkin_window_start=None,
+        checkin_window_end=None,
         status: str = "scheduled",
     ) -> Session:
         session = Session(
-            classroom_id=classroom_id,
+            course_id=course_id,
             schedule_id=schedule_id,
             start_time=start_time,
             end_time=end_time,
-            checkin_start_time=checkin_start_time,
-            checkin_end_time=checkin_end_time,
+            checkin_window_start=checkin_window_start,
+            checkin_window_end=checkin_window_end,
             status=status,
         )
         self.db.add(session)
@@ -201,3 +206,16 @@ class SessionRepository(BaseRepository[Session]):
             await self.db.flush()
 
         return activated, closed
+
+    # ── Metrics (Phase 9) ────────────────────────────────────────────────────
+    async def count_active(self) -> int:
+        """Return count of currently active sessions."""
+        result = await self.db.execute(
+            select(func.count()).select_from(Session).where(
+                and_(
+                    Session.status == "active",
+                    Session.deleted_at.is_(None),
+                )
+            )
+        )
+        return result.scalar_one()

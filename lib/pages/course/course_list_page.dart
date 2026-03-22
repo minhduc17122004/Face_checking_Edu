@@ -1,58 +1,47 @@
 import 'package:flutter/material.dart';
-import 'package:face_time_keeping/common/resources/index.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-class CourseMock {
-  final String id;
-  final String courseName;
-  final String? subject;
-  final String? courseCode;
+import 'package:face_time_keeping/common/enums/request_status.dart';
+import 'package:face_time_keeping/common/resources/app_colors.dart';
+import 'package:face_time_keeping/common/resources/styles/text_styles.dart';
+import 'package:face_time_keeping/di/injection.dart';
+import 'package:face_time_keeping/entities/course.dart';
+import 'package:face_time_keeping/pages/course/bloc/course_bloc.dart';
+import 'package:face_time_keeping/pages/course/bloc/course_state.dart';
+import 'package:face_time_keeping/pages/widgets/empty_state_widget.dart';
+import 'package:face_time_keeping/route/app_route.dart';
+import 'package:face_time_keeping/route/navigator.dart';
 
-  CourseMock({
-    required this.id,
-    required this.courseName,
-    this.subject,
-    this.courseCode,
-  });
-}
-
-class CourseListPage extends StatefulWidget {
+class CourseListPage extends StatelessWidget {
   const CourseListPage({super.key});
 
   @override
-  State<CourseListPage> createState() => _CourseListPageState();
+  Widget build(BuildContext context) {
+    final courseBloc = getIt<CourseBloc>()..loadCourses();
+    return BlocProvider.value(
+      value: courseBloc,
+      child: _CourseListView(courseBloc: courseBloc),
+    );
+  }
 }
 
-class _CourseListPageState extends State<CourseListPage> {
-  // Dump data theo cấu trúc của schema v1/course.py model từ backend
-  final List<CourseMock> _mockCourses = [
-    CourseMock(
-      id: '1',
-      courseCode: 'CS101',
-      courseName: 'Nhập môn Trí tuệ nhân tạo',
-      subject: 'Trí tuệ nhân tạo',
-    ),
-    CourseMock(
-      id: '2',
-      courseCode: 'SE102',
-      courseName: 'Công nghệ phần mềm',
-      subject: 'Kỹ thuật phần mềm',
-    ),
-    CourseMock(
-      id: '3',
-      courseCode: 'DB103',
-      courseName: 'Cơ sở dữ liệu phân tán',
-      subject: 'Hệ thống thông tin',
-    ),
-    CourseMock(
-      id: '4',
-      courseCode: 'NW104',
-      courseName: 'Mạng máy tính cơ bản',
-      subject: 'Mạng và truyền thông',
-    ),
-  ];
+class _CourseListView extends StatefulWidget {
+  final CourseBloc courseBloc;
+
+  const _CourseListView({required this.courseBloc});
+
+  @override
+  State<_CourseListView> createState() => _CourseListViewState();
+}
+
+class _CourseListViewState extends State<_CourseListView>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
@@ -66,101 +55,285 @@ class _CourseListPageState extends State<CourseListPage> {
         ),
         backgroundColor: Colors.white,
         elevation: 0.5,
-        automaticallyImplyLeading: false,
-        leading: Navigator.canPop(context)
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back, color: AppColors.slate900),
-                onPressed: () => Navigator.pop(context),
-              )
-            : null,
       ),
-      body: ListView.separated(
-        padding: const EdgeInsets.all(16.0),
-        itemCount: _mockCourses.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final course = _mockCourses[index];
-          return _buildCourseCard(course);
+      body: BlocConsumer<CourseBloc, CourseState>(
+        listener: (context, state) {
+          if (state.requestStatus == RequestStatus.failed &&
+              state.message != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: SelectableText(state.message!),
+                backgroundColor: AppColors.red600,
+              ),
+            );
+          } else if (state.requestStatus == RequestStatus.success &&
+              state.message != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: SelectableText(state.message!),
+                backgroundColor: AppColors.green600,
+              ),
+            );
+          }
         },
+        builder: (context, state) {
+          if (state.requestStatus == RequestStatus.requesting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (state.requestStatus == RequestStatus.failed &&
+              state.message != null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline,
+                      size: 48, color: AppColors.red600),
+                  const SizedBox(height: 16),
+                  Text(
+                    state.message!,
+                    style: TextStyles.blackNormalRegular,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      widget.courseBloc.loadCourses();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Thử lại'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          if (state.requestStatus == RequestStatus.success) {
+            if (state.courses.isEmpty) {
+              return EmptyStateWidget(
+                title: 'Chưa có học phần',
+                subtitle: 'Nhấn nút + để tạo học phần mới',
+              );
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: state.courses.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final course = state.courses[index];
+                return _CourseCard(
+                  courseBloc: widget.courseBloc,
+                  course: course,
+                  onTap: () {
+                    AppNavigator.pushNamed(RouterName.courseDetail,
+                        arguments: course);
+                  },
+                  onDelete: () => _showDeleteConfirmation(context, course),
+                );
+              },
+            );
+          }
+
+          return const SizedBox.shrink();
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          AppNavigator.pushNamed(RouterName.courseForm);
+        },
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
-  Widget _buildCourseCard(CourseMock course) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+  void _showDeleteConfirmation(BuildContext context, Course course) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xác nhận xóa'),
+        content: Text(
+          'Bạn có chắc chắn muốn xóa học phần "${course.courseName}"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              widget.courseBloc.deleteCourse(course.id);
+            },
+            style: TextButton.styleFrom(foregroundColor: AppColors.red600),
+            child: const Text('Xóa'),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                course.courseCode ?? 'Chưa có mã',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.green100.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'Học phần',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.green600,
+    );
+  }
+}
+
+class _CourseCard extends StatelessWidget {
+  final CourseBloc courseBloc;
+  final Course course;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  const _CourseCard({
+    required this.courseBloc,
+    required this.course,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  Color _getAttendanceModeColor() {
+    switch (course.attendanceMode) {
+      case AttendanceMode.preset:
+        return AppColors.blue600;
+      case AttendanceMode.flexible:
+        return AppColors.purple600;
+      case AttendanceMode.custom:
+        return AppColors.teal600;
+    }
+  }
+
+  Color _getAttendanceModeBackgroundColor() {
+    switch (course.attendanceMode) {
+      case AttendanceMode.preset:
+        return AppColors.blue50;
+      case AttendanceMode.flexible:
+        return AppColors.purple50;
+      case AttendanceMode.custom:
+        return AppColors.teal50;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.blue50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.school,
+                    color: AppColors.blue600,
+                    size: 24,
                   ),
                 ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        course.courseName,
+                        style: TextStyles.blackNormalBold.copyWith(
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        course.courseCode ?? 'Chưa có mã',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.slate500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: onDelete,
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: AppColors.slate500,
+                  ),
+                ),
+              ],
+            ),
+            if (course.subject != null) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Icon(Icons.menu_book,
+                      size: 16, color: AppColors.slate500),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      course.subject!,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.slate500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            course.courseName,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppColors.slate900,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(Icons.menu_book_rounded,
-                  size: 16, color: AppColors.slate500),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  course.subject ?? 'Không có thông tin môn học',
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getAttendanceModeBackgroundColor(),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    course.attendanceMode.shortLabel,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: _getAttendanceModeColor(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Icon(Icons.people, size: 16, color: AppColors.slate500),
+                const SizedBox(width: 4),
+                Text(
+                  '${course.enrolledCount} sinh viên',
                   style: const TextStyle(
                     fontSize: 13,
                     color: AppColors.slate500,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

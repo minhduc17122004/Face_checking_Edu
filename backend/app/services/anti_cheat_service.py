@@ -6,10 +6,12 @@ from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from app.models.device import Device
 from app.models.session import Session
 from app.models.attendance import Attendance
+from app.models.course_enrollment import CourseEnrollment
 
 
 class AntiCheatService:
@@ -41,12 +43,15 @@ class AntiCheatService:
     async def validate_device_for_session(
         self, device_id: uuid.UUID, session_id: uuid.UUID
     ) -> tuple[bool, str]:
-        """Verify device belongs to the same classroom as session.
+        """Verify device is installed in the same room as the course.
 
         Returns:
             tuple[bool, str]: (is_valid, message)
+
+        Phase 9: FK-based room matching — device.room_id == course.room_id
+        If either device.room_id or course.room_id is NULL, validation passes
+        (flexible mode — device not bound to a specific room).
         """
-        # Get device's classroom
         result = await self.db.execute(select(Device).where(Device.id == device_id))
         device = result.scalar_one_or_none()
 
@@ -59,9 +64,10 @@ class AntiCheatService:
         if not device.is_active:
             return False, "Device is not active"
 
-        # Get session's classroom
         result = await self.db.execute(
-            select(Session).where(Session.id == session_id)
+            select(Session)
+            .options(joinedload(Session.course))
+            .where(Session.id == session_id)
         )
         session = result.scalar_one_or_none()
 
@@ -71,16 +77,31 @@ class AntiCheatService:
         if session.is_deleted:
             return False, "Session has been cancelled"
 
-        # Verify device belongs to session's classroom
-        if device.classroom_id != session.classroom_id:
-            return False, "Device not registered for this classroom"
+        # FK-based room matching: device.room_id == course.room_id
+        if device.room_id is None:
+            return True, "OK"  # Device not assigned to any room, allow all
+
+        if session.course is None:
+            return True, "OK"  # Session has no course, allow all
+
+        if session.course.room_id is None:
+            return True, "OK"  # Course has no room assigned, allow all
+
+        if device.room_id != session.course.room_id:
+            return False, "Device room does not match course room"
 
         return True, "OK"
 
     async def validate_checkin_window(
-        self, session_id: uuid.UUID, checkin_time: datetime
+        self,
+        session_id: uuid.UUID,
+        checkin_time: datetime,
     ) -> tuple[bool, str]:
         """Check if checkin is within allowed window.
+
+        Respects course attendance_mode:
+        - flexible: always allow
+        - fixed/custom: use checkin_window_start/end
 
         Returns:
             tuple[bool, str]: (is_valid, message)
@@ -93,17 +114,82 @@ class AntiCheatService:
         if not session:
             return False, "Session not found"
 
-        # Session must be active to accept attendance
         if session.status != "active":
             return False, f"Session is not active (current status: {session.status})"
 
-        # Check checkin_start_time
-        if session.checkin_start_time and checkin_time < session.checkin_start_time:
-            return False, "Check-in not allowed yet"
+        # flexible mode: no window restriction
+        if session.attendance_mode == "flexible":
+            return True, "OK"
 
-        # Check checkin_end_time
-        if session.checkin_end_time and checkin_time > session.checkin_end_time:
+        # fixed/custom: use window
+        window_start = session.effective_checkin_window_start
+        window_end = session.effective_checkin_window_end
+
+        if window_start and checkin_time < window_start:
+            return False, "Check-in not allowed yet"
+        if window_end and checkin_time > window_end:
             return False, "Check-in window has closed"
+
+        return True, "OK"
+
+    async def validate_student_enrolled_in_course(
+        self,
+        session_id: uuid.UUID,
+        student_id: int,
+    ) -> tuple[bool, str]:
+        """Verify student is enrolled in the session's course."""
+        session_result = await self.db.execute(
+            select(Session).where(Session.id == session_id)
+        )
+        session = session_result.scalar_one_or_none()
+        if not session:
+            return False, "Session not found"
+
+        result = await self.db.execute(
+            select(CourseEnrollment).where(
+                CourseEnrollment.course_id == session.course_id,
+                CourseEnrollment.student_id == student_id,
+            )
+        )
+        enrollment = result.scalar_one_or_none()
+        if not enrollment:
+            return False, "Student is not enrolled in this course"
+        return True, "OK"
+
+    async def validate_teacher_belongs_to_department(
+        self,
+        course_id: uuid.UUID,
+        teacher_user_id: str,
+    ) -> tuple[bool, str]:
+        """Verify teacher teaching this course belongs to the course's department."""
+        from app.models.course import Course
+        from app.models.teacher import Teacher
+        from app.models.user import User
+
+        # Get course
+        course_result = await self.db.execute(
+            select(Course).where(Course.id == course_id)
+        )
+        course = course_result.scalar_one_or_none()
+        if not course:
+            return False, "Course not found"
+
+        if not course.department_id:
+            return True, "OK"  # No department required
+
+        # Get teacher
+        teacher_result = await self.db.execute(
+            select(Teacher).where(
+                Teacher.user_id == uuid.UUID(teacher_user_id),
+                Teacher.deleted_at.is_(None),
+            )
+        )
+        teacher = teacher_result.scalar_one_or_none()
+        if not teacher:
+            return False, "Teacher profile not found"
+
+        if teacher.department_id != course.department_id:
+            return False, "Teacher does not belong to the course's department"
 
         return True, "OK"
 
@@ -121,7 +207,7 @@ class AntiCheatService:
         query = select(Attendance).where(
             Attendance.session_id == session_id,
             Attendance.student_id == student_id,
-            Attendance.is_deleted == False,
+            Attendance.deleted_at.is_(None),
         )
 
         result = await self.db.execute(query)
@@ -141,4 +227,4 @@ class AntiCheatService:
 
         if device:
             device.last_active_at = datetime.now(timezone.utc)
-            await self.db.commit()
+            await self.db.flush()

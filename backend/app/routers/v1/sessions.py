@@ -8,9 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import get_current_user_id
 from app.core.database import get_db
 from app.repositories.session_repository import SessionRepository
-from app.repositories.course_repository import CourseRepository as ClassroomRepository
+from app.repositories.course_repository import CourseRepository
 from app.services.attendance_service import AttendanceService
-from app.services._authorization import check_course_owner as check_classroom_owner, check_session_owner
+from app.services.session_generator_service import SessionGeneratorService
+from app.services._authorization import check_course_owner, check_session_owner
 from app.schemas.v1.session import (
     SessionCreate,
     SessionUpdate,
@@ -25,17 +26,17 @@ router = APIRouter(prefix="/sessions", tags=["v1 — Sessions"])
 def _session_out(s: any) -> SessionOut:
     return SessionOut(
         id=s.id,
-        classroom_id=s.classroom_id,
+        course_id=s.course_id,
+        course_name=getattr(s.course, "course_name", None) if s.course_id else None,
         schedule_id=s.schedule_id,
         session_date=s.start_time.date() if s.start_time else None,
         start_time=s.start_time,
         end_time=s.end_time,
-        checkin_start_time=s.checkin_start_time,
-        checkin_end_time=s.checkin_end_time,
+        checkin_window_start=s.checkin_window_start,
+        checkin_window_end=s.checkin_window_end,
         status=s.status,
         created_at=s.created_at,
         updated_at=s.updated_at,
-        is_deleted=s.is_deleted,
     )
 
 
@@ -47,12 +48,13 @@ async def create_session(
 ):
     """Create a new attendance session."""
     repo = SessionRepository(db)
-    cls_repo = ClassroomRepository(db)
+    course_repo = CourseRepository(db)
 
-    classroom = await cls_repo.get_by_id(req.classroom_id)
-    check_classroom_owner(classroom, user_id)
+    course = await course_repo.get_by_id(req.course_id)
+    if not course or not course.is_active:
+        raise HTTPException(status_code=404, detail="Course not found.")
+    check_course_owner(course, user_id)
 
-    # Merge date + time
     from datetime import datetime, timezone
     start = datetime.combine(req.session_date, datetime.min.time())
     end = None
@@ -60,12 +62,12 @@ async def create_session(
         end = datetime.combine(req.session_date, req.end_time.time()) if hasattr(req, "end_time") else req.end_time
 
     session = await repo.create(
-        classroom_id=req.classroom_id,
+        course_id=req.course_id,
         schedule_id=req.schedule_id,
         start_time=start,
         end_time=end or req.end_time,
-        checkin_start_time=req.checkin_start_time,
-        checkin_end_time=req.checkin_end_time,
+        checkin_window_start=req.checkin_window_start,
+        checkin_window_end=req.checkin_window_end,
         status=req.status,
     )
     await db.commit()
@@ -74,7 +76,7 @@ async def create_session(
 
 @router.get("/", response_model=SessionList)
 async def list_sessions(
-    classroom_id: uuid.UUID | None = None,
+    course_id: uuid.UUID | None = None,
     session_date: date | None = None,
     status: str | None = None,
     skip: int = Query(0, ge=0),
@@ -85,7 +87,7 @@ async def list_sessions(
     """List sessions with optional filters."""
     repo = SessionRepository(db)
     items, total = await repo.list(
-        classroom_id=classroom_id,
+        course_id=course_id,
         session_date=session_date,
         status=status,
         skip=skip,
@@ -123,8 +125,8 @@ async def update_session(
         session_id,
         status=req.status,
         end_time=req.end_time,
-        checkin_start_time=req.checkin_start_time,
-        checkin_end_time=req.checkin_end_time,
+        checkin_window_start=req.checkin_window_start,
+        checkin_window_end=req.checkin_window_end,
     )
     if not updated:
         raise HTTPException(status_code=404, detail="Session not found.")
@@ -154,3 +156,23 @@ async def session_summary(
     """Get attendance summary for a session."""
     svc = AttendanceService(db)
     return await svc.get_session_summary(session_id)
+
+
+@router.post("/generate-daily", status_code=status.HTTP_200_OK)
+async def generate_daily_sessions(
+    target_date: date | None = Query(None),
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """POST /api/v1/sessions/generate-daily — auto-generate sessions from schedules.
+
+    Generates attendance sessions for all active schedules on the given date.
+    If no date is provided, generates for today.
+    External cron jobs or schedulers call this endpoint daily.
+    """
+    from datetime import date as dt_date, datetime, timezone
+    date_to_generate = target_date or datetime.now(timezone.utc).date()
+    svc = SessionGeneratorService(db)
+    sessions = await svc.generate_sessions_for_date(date_to_generate)
+    return {"generated": len(sessions), "date": str(date_to_generate)}
+

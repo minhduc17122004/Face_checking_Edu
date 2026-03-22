@@ -337,7 +337,7 @@ class Teacher(Base):
     )
 
     # 保留字段
-    employee_code: Mapped[Optional[str]] = mapped_column(String(50))
+    teacher_id: Mapped[Optional[str]] = mapped_column(String(50))
 
     # 关系
     user: Mapped["User"] = relationship(back_populates="teacher_profile")

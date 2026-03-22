@@ -3,16 +3,16 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import String, Boolean, DateTime, ForeignKey, func
+from sqlalchemy import String, Boolean, DateTime, func, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
 if TYPE_CHECKING:
-    from app.models.course import Course
     from app.models.attendance import Attendance
     from app.models.face_embedding import FaceEmbedding
+    from app.models.room import Room
 
 
 class Device(Base):
@@ -23,9 +23,9 @@ class Device(Base):
 
     Responsibilities:
     - Device identification (code, type)
-    - Location tracking (room)
+    - Location tracking (room_id FK) — used for anti-cheat room matching
     - Network info (IP, MAC)
-    - Soft binding to course (optional)
+    - No course binding — device-room matching replaces device-course binding
     """
 
     __tablename__ = "devices"
@@ -39,7 +39,14 @@ class Device(Base):
     device_name: Mapped[Optional[str]] = mapped_column(
         String(100), nullable=True
     )
-    room: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    # Room assignment — device is installed in this room (Phase 9)
+    # Anti-cheat uses: device.room_id == course.room_id
+    room_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("rooms.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     device_type: Mapped[str] = mapped_column(
         String(50), default="tablet", nullable=False
     )
@@ -48,15 +55,6 @@ class Device(Base):
     # Network information
     ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
     mac_address: Mapped[Optional[str]] = mapped_column(String(17), nullable=True)
-
-    # Renamed: classroom_id → course_id
-    # Optional soft binding to a specific course
-    course_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("courses.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
 
     last_active_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -88,9 +86,9 @@ class Device(Base):
     )
 
     # ── Relationships ──────────────────────────────────────────
-    # Renamed: classroom → course
-    course: Mapped[Optional["Course"]] = relationship(
-        "Course", back_populates="devices"
+    # Device-room coupling via FK (Phase 9): device matching uses room_id FK
+    room: Mapped[Optional["Room"]] = relationship(
+        "Room", back_populates="devices"
     )
     attendance_records: Mapped[List["Attendance"]] = relationship(
         "Attendance", back_populates="device"
@@ -108,4 +106,9 @@ class Device(Base):
         return datetime.now(timezone.utc) - self.last_active_at < timedelta(minutes=5)
 
     def __repr__(self) -> str:
-        return f"<Device id={self.id} code={self.device_code} room={self.room}>"
+        return f"<Device id={self.id} code={self.device_code} room_id={self.room_id}>"
+
+    @property
+    def is_deleted(self) -> bool:
+        """Check if device is soft-deleted (compatibility accessor)."""
+        return self.deleted_at is not None

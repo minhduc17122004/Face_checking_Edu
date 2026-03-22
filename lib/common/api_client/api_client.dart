@@ -84,6 +84,7 @@ class ApiClient {
   Future<ApiResponse> post(
       {required String path,
       dynamic data,
+      Map<String, dynamic>? queryParameters,
       Map<String, dynamic>? headers,
       ProgressCallback? onSendProgress,
       CancelToken? cancelToken}) async {
@@ -92,6 +93,7 @@ class ApiClient {
       path,
       () => responseWrapper(dio.post<dynamic>(path,
           data: data,
+          queryParameters: queryParameters,
           onSendProgress: onSendProgress,
           cancelToken: cancelToken)),
     );
@@ -165,6 +167,9 @@ class ApiClient {
   Future<ApiResponse> responseWrapper(Future<Response<dynamic>> func) async {
     try {
       final Response<dynamic> response = await func;
+      if (response.statusCode == 204 || response.data == null || response.data.toString().trim().isEmpty) {
+        return ApiResponse(success: true, data: {});
+      }
       Map<String?, dynamic>? decode;
 
       decode = (response.data is Map<String, dynamic>)
@@ -182,10 +187,24 @@ class ApiClient {
       debugPrint('API error: ${e.message}');
       final response = e.response?.data;
       if (response is Map<String, dynamic>) {
+        dynamic errObj = response['error'] ?? response['detail'];
+        String errStr = Strings.localized.somethingWentWrong;
+        if (errObj is String) {
+          errStr = errObj;
+        } else if (errObj is List && errObj.isNotEmpty) {
+          final firstErr = errObj[0];
+          if (firstErr is Map && firstErr['msg'] != null) {
+            errStr = firstErr['msg'].toString();
+          } else {
+            errStr = errObj.toString();
+          }
+        } else if (errObj != null) {
+          errStr = errObj.toString();
+        }
         return ApiResponse(
           success: false,
           status: 'error',
-          error: response['error'] ?? response['detail'] ?? Strings.localized.somethingWentWrong,
+          error: errStr,
         );
       }
       return await _handleRequestError(e);

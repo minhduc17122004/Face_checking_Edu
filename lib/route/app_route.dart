@@ -1,6 +1,17 @@
 import 'package:face_time_keeping/pages/checking/checking_page.dart';
+import 'package:face_time_keeping/pages/course/course_detail_page.dart';
+import 'package:face_time_keeping/pages/course/course_form_page.dart';
+import 'package:face_time_keeping/pages/course/course_list_page.dart';
+import 'package:face_time_keeping/pages/department/department_detail_page.dart';
+import 'package:face_time_keeping/pages/department/department_form_page.dart';
+import 'package:face_time_keeping/pages/department/department_list_page.dart';
 import 'package:face_time_keeping/pages/domain/choose_db.dart';
 import 'package:face_time_keeping/pages/domain/domain_page.dart';
+import 'package:face_time_keeping/pages/room/room_form_page.dart';
+import 'package:face_time_keeping/pages/room/room_list_page.dart';
+import 'package:face_time_keeping/pages/schedule/schedule_page.dart';
+import 'package:face_time_keeping/pages/session/session_detail_page.dart';
+import 'package:face_time_keeping/pages/session/session_list_page.dart';
 import 'package:face_time_keeping/pages/student/student_page.dart';
 import 'package:face_time_keeping/pages/login/login_confirm_widget.dart';
 import 'package:face_time_keeping/pages/login/login_page.dart';
@@ -9,9 +20,9 @@ import 'package:face_time_keeping/pages/setting/attendance_report.dart';
 import 'package:face_time_keeping/pages/setting/setting_page.dart';
 import 'package:face_time_keeping/pages/setting/server_setting_page.dart';
 import 'package:face_time_keeping/pages/student_group/student_group_list_page.dart';
-import 'package:face_time_keeping/pages/course/course_list_page.dart';
-
-
+import 'package:face_time_keeping/pages/account/profile_page.dart';
+import 'package:face_time_keeping/pages/setting/teacher_list_page.dart';
+import 'package:face_time_keeping/pages/teacher/teacher_assignment_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -24,7 +35,7 @@ class RouterName {
   static const String home = '/home';
   static const String login = '/login';
   static const String checking = '/checking';
-  static const String students = '/students';  // Education: Students
+  static const String students = '/students';
   static const String registerFace = '/registerFace';
   static const String adminConfirm = '/adminConfirm';
   static const String domain = '/domain';
@@ -34,7 +45,21 @@ class RouterName {
   static const String serverSettings = '/serverSettings';
   static const String studentGroupList = '/studentGroupList';
   static const String courseList = '/courseList';
+  static const String profile = '/profile';
+  static const String teacherList = '/teacherList';
 
+  // Phase 9/10 Routes
+  static const String departmentList = '/departments';
+  static const String departmentForm = '/departments/form';
+  static const String departmentDetail = '/departments/detail';
+  static const String roomList = '/rooms';
+  static const String roomForm = '/rooms/form';
+  static const String courseForm = '/courses/form';
+  static const String courseDetail = '/courses/detail';
+  static const String schedule = '/schedule';
+  static const String sessionList = '/sessions';
+  static const String sessionDetail = '/sessions/detail';
+  static const String teacherAssignment = '/teachers/assignment';
 }
 
 class AppRoutes {
@@ -72,6 +97,58 @@ class AppRoutes {
       case RouterName.chooseDb:
         return _materialRoute(
             settings, ChooseDb(dbList: settings.arguments as List<String>));
+      case RouterName.profile:
+        return _materialRoute(settings, const ProfilePage());
+      case RouterName.teacherList:
+        return _materialRoute(settings, const TeacherListPage());
+
+      // Phase 9/10 Routes
+      case RouterName.departmentList:
+        return _materialRoute(settings, const DepartmentListPage());
+      case RouterName.departmentForm:
+        return _materialRoute(
+          settings,
+          DepartmentFormPage(department: settings.arguments as dynamic),
+        );
+      case RouterName.departmentDetail:
+        return _materialRoute(
+          settings,
+          DepartmentDetailPage(department: settings.arguments as dynamic),
+        );
+      case RouterName.roomList:
+        return _materialRoute(settings, const RoomListPage());
+      case RouterName.roomForm:
+        return _materialRoute(
+          settings,
+          RoomFormPage(room: settings.arguments as dynamic),
+        );
+      case RouterName.courseForm:
+        return _materialRoute(
+          settings,
+          CourseFormPage(course: settings.arguments as dynamic),
+        );
+      case RouterName.courseDetail:
+        return _materialRoute(
+          settings,
+          CourseDetailPage(course: settings.arguments as dynamic),
+        );
+      case RouterName.schedule:
+        return _materialRoute(
+          settings,
+          SchedulePage(courseId: settings.arguments as String),
+        );
+      case RouterName.sessionList:
+        return _materialRoute(
+          settings,
+          SessionListPage(courseId: settings.arguments as String?),
+        );
+      case RouterName.sessionDetail:
+        return _materialRoute(
+          settings,
+          SessionDetailPage(session: settings.arguments as dynamic),
+        );
+      case RouterName.teacherAssignment:
+        return _materialRoute(settings, const TeacherAssignmentPage());
     }
     return null;
   }

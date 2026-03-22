@@ -1,13 +1,15 @@
 from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Literal, Optional
 
-from sqlalchemy import String, DateTime, ForeignKey, func
+from sqlalchemy import String, DateTime, ForeignKey, Integer, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+
+AttendanceMode = Literal["preset", "flexible", "custom"]
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -15,6 +17,8 @@ if TYPE_CHECKING:
     from app.models.schedule import Schedule
     from app.models.session import Session
     from app.models.device import Device
+    from app.models.department import Department
+    from app.models.room import Room
 
 
 class Course(Base):
@@ -22,9 +26,6 @@ class Course(Base):
 
     Represents a course section (lớp học phần) that students enroll in.
     Each course holds a set of sessions linked to it.
-
-    Renamed from: Classroom (but table name is "classes" → "courses")
-    Purpose: Clear domain naming - Course for teaching, Group for administrative
     """
 
     __tablename__ = "courses"
@@ -36,21 +37,46 @@ class Course(Base):
         index=True,
     )
 
-    # Renamed: class_name → course_name
     course_name: Mapped[str] = mapped_column(String(255), nullable=False)
     subject: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
-    # Course code for registration
     course_code: Mapped[Optional[str]] = mapped_column(
         String(50), nullable=True
     )
 
-    # Renamed: teacher_id → instructor_id
     instructor_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
+    )
+
+    # Optional department association
+    department_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("departments.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    # Room assignment — primary room for this course (Phase 9)
+    # Anti-cheat uses: device.room_id == course.room_id
+    room_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("rooms.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    # Attendance config — Literal types enforced at DB level via CHECK constraint
+    attendance_mode: Mapped[str] = mapped_column(
+        String(20), default="preset", nullable=False
+    )
+    attendance_before_minutes: Mapped[int] = mapped_column(
+        Integer, default=30
+    )
+    attendance_after_minutes: Mapped[int] = mapped_column(
+        Integer, default=30
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -65,12 +91,10 @@ class Course(Base):
         default=lambda: datetime.now(timezone.utc),
     )
 
-    # Soft delete - only deleted_at (removed is_deleted redundancy)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True
     )
 
-    # Audit fields
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
@@ -79,13 +103,21 @@ class Course(Base):
     )
 
     # ── Relationships ──────────────────────────────────────────
-    # Updated: teacher → instructor
     instructor: Mapped[Optional["User"]] = relationship(
         "User",
         back_populates="courses",
     )
 
-    # Updated: classroom_students → course_enrollments
+    department: Mapped[Optional["Department"]] = relationship(
+        "Department",
+        back_populates="courses",
+    )
+
+    room: Mapped[Optional["Room"]] = relationship(
+        "Room",
+        back_populates="courses",
+    )
+
     enrollments: Mapped[List["CourseEnrollment"]] = relationship(
         "CourseEnrollment",
         back_populates="course",
@@ -104,20 +136,45 @@ class Course(Base):
         cascade="all, delete-orphan",
     )
 
-    devices: Mapped[List["Device"]] = relationship(
-        "Device",
-        back_populates="course",
-    )
-
     @property
     def enrolled_student_count(self) -> int:
         """Get total enrolled students in this course."""
         return len([e for e in self.enrollments])
 
     @property
+    def instructor_name(self) -> Optional[str]:
+        """Full name of the instructor (from User relationship)."""
+        if self.instructor is None:
+            return None
+        return getattr(self.instructor, "full_name", None) or getattr(
+            self.instructor, "name", None
+        )
+
+    @property
+    def department_name(self) -> Optional[str]:
+        """Name of the department (from Department relationship)."""
+        if self.department is None:
+            return None
+        return self.department.name
+
+    @property
+    def room_name(self) -> Optional[str]:
+        """Display name of the room (from Room relationship)."""
+        if self.room is None:
+            return None
+        return getattr(self.room, "display_name", None) or getattr(
+            self.room, "name", None
+        )
+
+    @property
     def is_active(self) -> bool:
         """Check if course is active (not soft deleted)."""
         return self.deleted_at is None
+
+    @property
+    def is_deleted(self) -> bool:
+        """Check if course is soft-deleted (compatibility accessor)."""
+        return self.deleted_at is not None
 
     def __repr__(self) -> str:
         return f"<Course id={self.id} name={self.course_name}>"

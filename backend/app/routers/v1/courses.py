@@ -6,17 +6,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user_id
 from app.core.database import get_db
-from app.repositories.course_repository import CourseRepository
+from app.services.course_service import CourseService
 from app.repositories.course_enrollment_repository import CourseEnrollmentRepository
 from app.services._authorization import check_course_owner
 from app.schemas.v1.course import (
     CourseCreate,
+    CourseUpdate,
     CourseOut,
     CourseList,
     CourseStudentDetail,
     CourseStudentListResponse,
 )
-from app.schemas.v1.common import PaginationParams
+from app.schemas.v1.room import AssignRoomRequest
 
 router = APIRouter(prefix="/courses", tags=["v1 — Courses"])
 
@@ -28,34 +29,27 @@ async def create_course(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new course."""
-    repo = CourseRepository(db)
-    course = await repo.create(
-        course_name=req.course_name,
-        instructor_id=uuid.UUID(user_id) if user_id else None,
-        subject=req.subject,
-        course_code=req.course_code,
-    )
+    svc = CourseService(db)
+    course = await svc.create_course(req, uuid.UUID(user_id))
     await db.commit()
-    return CourseOut.model_validate(course)
+    return course
 
 
 @router.get("/", response_model=CourseList)
 async def list_courses(
     mine: bool = False,
-    skip: int = 0,
-    limit: int = 200,
+    department_id: uuid.UUID | None = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=500),
     user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all courses, optionally filtering by owner."""
-    repo = CourseRepository(db)
+    """List all courses, optionally filtering by owner or department."""
+    svc = CourseService(db)
     if mine:
-        items = await repo.get_by_instructor(uuid.UUID(user_id))
-        total = len(items)
-    else:
-        items = await repo.get_all(skip=skip, limit=limit)
-        total = await repo.count()
-    return CourseList(total=total, items=[CourseOut.model_validate(c) for c in items])
+        items = await svc.list_my_courses(uuid.UUID(user_id))
+        return items
+    return await svc.list_courses(skip=skip, limit=limit, department_id=department_id)
 
 
 @router.get("/{course_id}", response_model=CourseOut)
@@ -65,11 +59,8 @@ async def get_course(
     db: AsyncSession = Depends(get_db),
 ):
     """Get a single course."""
-    repo = CourseRepository(db)
-    course = await repo.get_by_id(course_id)
-    if not course or course.deleted_at is not None:
-        raise HTTPException(status_code=404, detail="Course not found.")
-    return CourseOut.model_validate(course)
+    svc = CourseService(db)
+    return await svc.get_course(course_id)
 
 
 @router.get("/{course_id}/students", response_model=CourseStudentListResponse)
@@ -78,15 +69,7 @@ async def list_course_students(
     _: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all students enrolled in a course, with face registration status.
-
-    Returns has_face (bool) and embedding_count (int) for each student.
-    """
-    repo = CourseRepository(db)
-    course = await repo.get_by_id(course_id)
-    if not course or course.deleted_at is not None:
-        raise HTTPException(status_code=404, detail="Course not found.")
-
+    """List all students enrolled in a course, with face registration status."""
     enrollment_repo = CourseEnrollmentRepository(db)
     rows = await enrollment_repo.get_students_with_face_status(course_id)
 
@@ -116,13 +99,11 @@ async def enroll_student(
     db: AsyncSession = Depends(get_db),
 ):
     """Enroll a student in a course (owner only)."""
-    repo = CourseRepository(db)
-    course = await repo.get_by_id(course_id)
+    svc = CourseService(db)
+    course = await svc.get_course(course_id)
     check_course_owner(course, user_id)
 
     enrollment_repo = CourseEnrollmentRepository(db)
-
-    # Duplicate check
     existing = await enrollment_repo.find_enrollment(course_id, student_id)
     if existing:
         raise HTTPException(
@@ -130,12 +111,46 @@ async def enroll_student(
             detail="Student is already enrolled in this course.",
         )
 
-    await enrollment_repo.create(
-        course_id=course_id,
-        student_id=student_id,
-    )
+    await enrollment_repo.create(course_id=course_id, student_id=student_id)
     await db.commit()
     return {"message": "Student enrolled."}
+
+
+@router.put("/{course_id}", response_model=CourseOut)
+async def update_course(
+    course_id: uuid.UUID,
+    req: CourseUpdate,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a course (owner only)."""
+    svc = CourseService(db)
+    return await svc.update_course(course_id, req, uuid.UUID(user_id))
+
+
+@router.put("/{course_id}/assign-room", response_model=CourseOut)
+async def assign_room_to_course(
+    course_id: uuid.UUID,
+    req: AssignRoomRequest,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Assign a room to a course (owner only)."""
+    svc = CourseService(db)
+    course = await svc.get_course(course_id)
+    check_course_owner(course, user_id)
+
+    # Validate room exists
+    from app.repositories.room_repository import RoomRepository
+    room_repo = RoomRepository(db)
+    room = await room_repo.get_by_id(req.room_id)
+    if not room or room.is_deleted:
+        raise HTTPException(status_code=404, detail="Room not found.")
+
+    # Update course room
+    updated = await svc.repo.update(course, room_id=req.room_id)
+    await db.commit()
+    return CourseOut.model_validate(updated)
 
 
 @router.delete("/{course_id}/students/{student_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -146,8 +161,8 @@ async def unenroll_student(
     db: AsyncSession = Depends(get_db),
 ):
     """Remove a student from a course (owner only)."""
-    repo = CourseRepository(db)
-    course = await repo.get_by_id(course_id)
+    svc = CourseService(db)
+    course = await svc.get_course(course_id)
     check_course_owner(course, user_id)
 
     enrollment_repo = CourseEnrollmentRepository(db)
@@ -166,8 +181,8 @@ async def delete_course(
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a course (owner only)."""
-    repo = CourseRepository(db)
-    course = await repo.get_by_id(course_id)
+    svc = CourseService(db)
+    course = await svc.get_course(course_id)
     check_course_owner(course, user_id)
-    await repo.soft_delete(course)
+    await svc.delete_course(course_id, uuid.UUID(user_id))
     await db.commit()

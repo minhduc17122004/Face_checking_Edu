@@ -33,7 +33,7 @@ class _LivenessDetectionTutorialScreenState
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-             
+
               const SizedBox(
                 height: 16,
               ),
@@ -57,7 +57,7 @@ class _LivenessDetectionTutorialScreenState
                   boxShadow: !widget.isDarkMode
                       ? [
                           BoxShadow(
-                            color: Colors.grey.withOpacity(0.2),
+                            color: Colors.grey.withValues(alpha: 0.2),
                             spreadRadius: 5,
                             blurRadius: 7,
                             offset: const Offset(0, 3),
@@ -164,7 +164,7 @@ class _LivenessDetectionTutorialScreenState
               const SizedBox(
                 height: 10,
               ),
-          
+
               const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

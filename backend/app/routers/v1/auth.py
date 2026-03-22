@@ -1,8 +1,8 @@
-from __future__ import annotations
+
 """v1 Auth router — /api/v1/auth endpoints."""
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request, status, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -16,6 +16,7 @@ from app.core.security import (
     decode_refresh_token,
 )
 from app.core.config import settings
+from app.core.rate_limit import limiter
 from app.repositories.user_repository import UserRepository
 from app.schemas.v1.auth import (
     LoginRequest,
@@ -62,8 +63,13 @@ async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
-    """Login and receive access + refresh tokens."""
+@limiter.limit("5/minute")
+async def login(
+    req: LoginRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Login and receive access + refresh tokens. Rate limited: 5 attempts/minute per IP."""
     repo = UserRepository(db)
     user = await repo.get_by_email(req.email)
 

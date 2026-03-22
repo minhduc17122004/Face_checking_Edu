@@ -1207,6 +1207,30 @@ class _SettingPageState extends State<SettingPage> {
                     ),
                     if (_isAdmin) ...[
                       _buildSettingItem(
+                        icon: Icons.business,
+                        title: "Quản lý phòng ban",
+                        subtitle: "Thêm, sửa, xóa phòng ban",
+                        onTap: () {
+                          AppNavigator.pushNamed(RouterName.departmentList);
+                        },
+                      ),
+                      _buildSettingItem(
+                        icon: Icons.meeting_room,
+                        title: "Quản lý phòng học",
+                        subtitle: "Thêm, sửa, xóa phòng học",
+                        onTap: () {
+                          AppNavigator.pushNamed(RouterName.roomList);
+                        },
+                      ),
+                      _buildSettingItem(
+                        icon: Icons.assignment_ind,
+                        title: "Gán giáo viên",
+                        subtitle: "Gán giáo viên vào phòng ban",
+                        onTap: () {
+                          AppNavigator.pushNamed(RouterName.teacherAssignment);
+                        },
+                      ),
+                      _buildSettingItem(
                         icon: Icons.person_add,
                         title: "Quản lý người dùng",
                         subtitle: "Đăng ký student và teacher",
@@ -1274,7 +1298,7 @@ class _SettingPageState extends State<SettingPage> {
       ),
       subtitle: Text(
         subtitle,
-        style: TextStyle(
+        style: const TextStyle(
           color: AppColors.slate500,
           fontSize: 14,
         ),
@@ -1326,16 +1350,8 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
     return _selectedRole == 'student' ? 'Mã sinh viên' : 'Mã giáo viên';
   }
 
-  String _getPinHint() {
-    return _selectedRole == 'student' ? 'VD: 001' : 'VD: GV001';
-  }
-
   String _getJobTitleLabel() {
-    return _selectedRole == 'student' ? 'Lớp' : 'Môn dạy';
-  }
-
-  String _getJobTitleHint() {
-    return _selectedRole == 'student' ? 'VD: 10A1' : 'VD: Toán';
+    return _selectedRole == 'student' ? 'Lớp' : 'Phòng ban';
   }
 
   Future<void> _submitForm() async {
@@ -1558,7 +1574,6 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                       _buildTextField(
                         controller: _emailController,
                         label: 'Email',
-                        hint: 'VD: student@school.edu.vn',
                         icon: Icons.email_outlined,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
@@ -1578,7 +1593,6 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                       _buildTextField(
                         controller: _passwordController,
                         label: 'Mật khẩu',
-                        hint: 'Nhập mật khẩu',
                         icon: Icons.lock_outline,
                         isPassword: true,
                         validator: (value) {
@@ -1598,7 +1612,6 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                       _buildTextField(
                         controller: _confirmPasswordController,
                         label: 'Nhập lại mật khẩu',
-                        hint: 'Nhập lại mật khẩu',
                         icon: Icons.lock_outline,
                         isPassword: true,
                         validator: (value) {
@@ -1618,7 +1631,6 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                       _buildTextField(
                         controller: _fullNameController,
                         label: 'Họ và tên',
-                        hint: 'VD: Nguyễn Văn A',
                         icon: Icons.badge_outlined,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
@@ -1637,7 +1649,6 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                       _buildTextField(
                         controller: _pinController,
                         label: _getPinLabel(),
-                        hint: _getPinHint(),
                         icon: Icons.pin_outlined,
                         isNumber: true,
                         validator: (value) {
@@ -1657,7 +1668,6 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
                       _buildTextField(
                         controller: _jobTitleController,
                         label: _getJobTitleLabel(),
-                        hint: _getJobTitleHint(),
                         icon: _selectedRole == 'student'
                             ? Icons.class_outlined
                             : Icons.book_outlined,
@@ -1755,7 +1765,6 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
-    required String hint,
     required IconData icon,
     required String? Function(String?) validator,
     bool isPassword = false,
@@ -1780,7 +1789,6 @@ class _RegisterUserDialogState extends State<RegisterUserDialog> {
           inputFormatters:
               isNumber ? [FilteringTextInputFormatter.digitsOnly] : null,
           decoration: InputDecoration(
-            hintText: hint,
             prefixIcon: Icon(icon, color: AppColors.purple),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),

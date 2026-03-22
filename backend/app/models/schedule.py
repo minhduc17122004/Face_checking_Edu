@@ -21,8 +21,7 @@ class Schedule(Base):
     Links a course to a specific day_of_week and time_slot.
     Multiple courses can share the same time_slot (same period).
 
-    Renamed: classroom_id → course_id
-    Renamed: subject_name → room (location)
+    Room is accessed via course.room_id (Phase 9), not stored on schedule.
     """
 
     __tablename__ = "schedules"
@@ -51,8 +50,9 @@ class Schedule(Base):
         Integer, ForeignKey("time_slots.id"), nullable=False
     )
 
-    # Room/location for this schedule
-    room: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    # Room is no longer stored on Schedule (Phase 9)
+    # Schedule inherits room from course via course.room_id
+    # Anti-cheat: device.room_id == session.course.room_id
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -96,3 +96,8 @@ class Schedule(Base):
             f"<Schedule id={self.id} course={self.course_id} "
             f"day={self.day_of_week} slot={self.time_slot_id}>"
         )
+
+    @property
+    def is_deleted(self) -> bool:
+        """Check if schedule is soft-deleted (compatibility accessor)."""
+        return self.deleted_at is not None

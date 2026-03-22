@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.security import get_current_user_id
 from app.models.session import Session
-from app.models.course import Course as Classroom
+from app.models.course import Course
 from app.models.schedule import Schedule
 from app.models.attendance import Attendance
 from app.schemas.session_schema import (
@@ -40,35 +40,32 @@ async def create_session(
     db: AsyncSession = Depends(get_db),
 ) -> SessionOut:
     """Create a new attendance session."""
-    # Verify classroom exists
     result = await db.execute(
-        select(Classroom).where(
-            Classroom.id == body.classroom_id,
-            Classroom.is_deleted == False,
+        select(Course).where(
+            Course.id == body.course_id,
+            Course.deleted_at.is_(None),
         )
     )
     if not result.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
 
-    # Verify schedule if provided
     if body.schedule_id:
         result = await db.execute(select(Schedule).where(Schedule.id == body.schedule_id))
         if not result.scalar_one_or_none():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Schedule not found")
 
-    # Combine session_date with start_time (TIMESTAMP now)
     start_time = _combine_datetime(body.session_date, body.start_time)
     end_time = None
     if body.end_time:
         end_time = _combine_datetime(body.session_date, body.end_time)
 
     session = Session(
-        classroom_id=body.classroom_id,
+        course_id=body.course_id,
         schedule_id=body.schedule_id,
         start_time=start_time,
         end_time=end_time,
-        checkin_start_time=body.checkin_start_time,
-        checkin_end_time=body.checkin_end_time,
+        checkin_window_start=body.checkin_window_start,
+        checkin_window_end=body.checkin_window_end,
         status=body.status,
     )
     db.add(session)
@@ -79,21 +76,20 @@ async def create_session(
 
 @router.get("/", response_model=SessionList)
 async def list_sessions(
-    classroom_id: uuid.UUID | None = Query(None),
+    course_id: uuid.UUID | None = Query(None),
     session_date: date | None = Query(None),
     status_filter: str | None = Query(None, alias="status"),
     _: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ) -> SessionList:
     """List sessions with optional filters."""
-    query = select(Session).where(Session.is_deleted == False)
-    count_query = select(func.count(Session.id)).where(Session.is_deleted == False)
+    query = select(Session).where(Session.deleted_at.is_(None))
+    count_query = select(func.count(Session.id)).where(Session.deleted_at.is_(None))
 
-    if classroom_id:
-        query = query.where(Session.classroom_id == classroom_id)
-        count_query = count_query.where(Session.classroom_id == classroom_id)
+    if course_id:
+        query = query.where(Session.course_id == course_id)
+        count_query = count_query.where(Session.course_id == course_id)
     if session_date:
-        # Filter by date portion of start_time
         query = query.where(cast(Session.start_time, Date) == session_date)
         count_query = count_query.where(cast(Session.start_time, Date) == session_date)
     if status_filter:
@@ -124,7 +120,7 @@ async def get_session(
     result = await db.execute(
         select(Session)
         .options(selectinload(Session.schedule))
-        .where(Session.id == session_id, Session.is_deleted == False)
+        .where(Session.id == session_id, Session.deleted_at.is_(None))
     )
     session = result.scalar_one_or_none()
     if not session:
@@ -141,7 +137,7 @@ async def update_session(
 ) -> SessionOut:
     """Update session status (e.g., close attendance)."""
     result = await db.execute(
-        select(Session).where(Session.id == session_id, Session.is_deleted == False)
+        select(Session).where(Session.id == session_id, Session.deleted_at.is_(None))
     )
     session = result.scalar_one_or_none()
     if not session:
@@ -150,10 +146,10 @@ async def update_session(
     session.status = body.status
     if body.end_time:
         session.end_time = body.end_time
-    if body.checkin_start_time is not None:
-        session.checkin_start_time = body.checkin_start_time
-    if body.checkin_end_time is not None:
-        session.checkin_end_time = body.checkin_end_time
+    if body.checkin_window_start is not None:
+        session.checkin_window_start = body.checkin_window_start
+    if body.checkin_window_end is not None:
+        session.checkin_window_end = body.checkin_window_end
 
     await db.commit()
     await db.refresh(session)
@@ -168,13 +164,12 @@ async def delete_session(
 ) -> Response:
     """Soft delete a session."""
     result = await db.execute(
-        select(Session).where(Session.id == session_id, Session.is_deleted == False)
+        select(Session).where(Session.id == session_id, Session.deleted_at.is_(None))
     )
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
-    session.is_deleted = True
     session.deleted_at = datetime.now(timezone.utc)
     await db.commit()
 
@@ -187,32 +182,31 @@ async def get_session_summary(
 ) -> SessionSummary:
     """Get attendance summary for a session."""
     result = await db.execute(
-        select(Session).where(Session.id == session_id, Session.is_deleted == False)
+        select(Session).where(Session.id == session_id, Session.deleted_at.is_(None))
     )
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
-    # Count attendance by status (only non-deleted)
     present_count = await db.execute(
         select(func.count(Attendance.id)).where(
             Attendance.session_id == session_id,
             Attendance.status == "present",
-            Attendance.is_deleted == False,
+            Attendance.deleted_at.is_(None),
         )
     )
     late_count = await db.execute(
         select(func.count(Attendance.id)).where(
             Attendance.session_id == session_id,
             Attendance.status == "late",
-            Attendance.is_deleted == False,
+            Attendance.deleted_at.is_(None),
         )
     )
     absent_count = await db.execute(
         select(func.count(Attendance.id)).where(
             Attendance.session_id == session_id,
             Attendance.status == "absent",
-            Attendance.is_deleted == False,
+            Attendance.deleted_at.is_(None),
         )
     )
 

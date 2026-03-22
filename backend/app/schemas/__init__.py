@@ -75,3 +75,19 @@ from app.schemas.student_group_schema import (  # noqa: F401
     StudentGroupOut,
     StudentGroupList,
 )
+from app.schemas.v1.department import (  # noqa: F401
+    DepartmentCreate,
+    DepartmentUpdate,
+    DepartmentOut,
+    DepartmentWithStats,
+    DepartmentList,
+)
+from app.schemas.v1.teacher import (  # noqa: F401
+    TeacherOut,
+    TeacherAssignDepartment,
+    TeacherList,
+)
+from app.schemas.v1.attendance import (  # noqa: F401
+    CheckinRequest,
+    CheckinResponse,
+)

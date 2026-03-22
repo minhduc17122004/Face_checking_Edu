@@ -22,7 +22,7 @@ class StudentRepository:
         result = await self.db.execute(
             select(Student).where(
                 Student.id == student_id,
-                Student.is_deleted == False,  # noqa: E712
+                Student.deleted_at.is_(None),
             )
         )
         return result.scalar_one_or_none()
@@ -31,7 +31,7 @@ class StudentRepository:
         """Return all students ordered by ID ascending (Flutter sync order)."""
         result = await self.db.execute(
             select(Student)
-            .where(Student.is_deleted == False)  # noqa: E712
+            .where(Student.deleted_at.is_(None))
             .offset(skip)
             .limit(limit)
             .order_by(Student.id)

@@ -170,6 +170,40 @@ class FaceService:
             exported_at=datetime.now(timezone.utc),
         )
 
+    async def export_for_student_ids(
+        self, student_ids: list[int]
+    ) -> FaceBulkExport:
+        """Export face embeddings for a specific list of student IDs."""
+        embeddings = await self.repo.get_by_student_ids(student_ids)
+
+        grouped: dict = defaultdict(list)
+        for emb in embeddings:
+            grouped[emb.student_id].append(emb)
+
+        students: list[FaceExportItem] = []
+        for sid, embs in grouped.items():
+            all_vectors: list[list[float]] = []
+            for e in embs:
+                data = e.embedding
+                if data and isinstance(data, list) and isinstance(data[0], list):
+                    all_vectors.extend(data)
+                elif data and isinstance(data, list):
+                    all_vectors.append(data)
+            latest = max(e.updated_at for e in embs)
+            students.append(
+                FaceExportItem(
+                    student_id=sid,
+                    embeddings=all_vectors,
+                    updated_at=latest,
+                )
+            )
+
+        return FaceBulkExport(
+            course_id=None,
+            students=students,
+            exported_at=datetime.now(timezone.utc),
+        )
+
     # ── REST operations ────────────────────────────────────────
     async def register(self, req: FaceRegisterRequest) -> FaceEmbeddingList:
         """POST /face/register — store one or more embedding vectors."""

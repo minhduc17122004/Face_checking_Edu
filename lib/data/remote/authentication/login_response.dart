@@ -4,8 +4,18 @@ class UserInfo {
   String? role;
   String? fullName;
   String? avatarUrl;
+  String? studentCode;
+  String? className;
 
-  UserInfo({this.id, this.email, this.role, this.fullName, this.avatarUrl});
+  UserInfo({
+    this.id,
+    this.email,
+    this.role,
+    this.fullName,
+    this.avatarUrl,
+    this.studentCode,
+    this.className,
+  });
 
   factory UserInfo.fromJson(Map<String, dynamic> json) {
     return UserInfo(
@@ -14,6 +24,8 @@ class UserInfo {
       role: json['role'],
       fullName: json['full_name'],
       avatarUrl: json['avatar_url'],
+      studentCode: json['student_code'],
+      className: json['class_name'],
     );
   }
 }

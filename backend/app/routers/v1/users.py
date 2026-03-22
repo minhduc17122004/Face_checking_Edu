@@ -29,8 +29,8 @@ async def list_users(
         out = UserOut.model_validate(u)
         if u.role == 'student' and getattr(u, 'student_profile', None):
             out.student_code = u.student_profile.student_code
-        elif u.role == 'teacher' and getattr(u, 'teacher_profile', None):
-            out.student_code = u.teacher_profile.employee_code
+        if u.role == "teacher" and hasattr(u, 'teacher_profile') and u.teacher_profile:
+            out.student_code = u.teacher_profile.teacher_id
         items.append(out)
     return UserList(total=total, items=items)
 

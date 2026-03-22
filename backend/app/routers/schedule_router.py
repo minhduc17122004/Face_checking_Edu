@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.security import get_current_user_id
 from app.models.schedule import Schedule
-from app.models.course import Course as Classroom
+from app.models.course import Course
 from app.models.time_slot import TimeSlot
 from app.schemas.schedule_schema import (
     ScheduleCreate,
@@ -28,20 +28,24 @@ async def create_schedule(
     db: AsyncSession = Depends(get_db),
 ) -> ScheduleOut:
     """Create a new weekly schedule entry."""
-    # Verify classroom exists
-    result = await db.execute(select(Classroom).where(Classroom.id == body.classroom_id))
+    result = await db.execute(
+        select(Course).where(
+            Course.id == body.course_id,
+            Course.deleted_at.is_(None),
+        )
+    )
     if not result.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
 
-    # Verify time slot exists
-    result = await db.execute(select(TimeSlot).where(TimeSlot.id == body.time_slot_id))
+    result = await db.execute(
+        select(TimeSlot).where(TimeSlot.id == body.time_slot_id)
+    )
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Time slot not found")
 
-    # Check for duplicate schedule
     result = await db.execute(
         select(Schedule).where(
-            Schedule.classroom_id == body.classroom_id,
+            Schedule.course_id == body.course_id,
             Schedule.day_of_week == body.day_of_week,
             Schedule.time_slot_id == body.time_slot_id,
         )
@@ -49,14 +53,14 @@ async def create_schedule(
     if result.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Schedule already exists for this classroom, day, and time slot",
+            detail="Schedule already exists for this course, day, and time slot",
         )
 
     schedule = Schedule(
-        classroom_id=body.classroom_id,
+        course_id=body.course_id,
         day_of_week=body.day_of_week,
         time_slot_id=body.time_slot_id,
-        subject_name=body.subject_name,
+        room=body.room,
     )
     db.add(schedule)
     await db.commit()
@@ -66,18 +70,18 @@ async def create_schedule(
 
 @router.get("/", response_model=ScheduleList)
 async def list_schedules(
-    classroom_id: uuid.UUID | None = Query(None),
+    course_id: uuid.UUID | None = Query(None),
     day_of_week: int | None = Query(None, ge=1, le=7),
     _: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ) -> ScheduleList:
     """List schedules with optional filters."""
-    query = select(Schedule)
-    count_query = select(func.count(Schedule.id))
+    query = select(Schedule).where(Schedule.deleted_at.is_(None))
+    count_query = select(func.count(Schedule.id)).where(Schedule.deleted_at.is_(None))
 
-    if classroom_id:
-        query = query.where(Schedule.classroom_id == classroom_id)
-        count_query = count_query.where(Schedule.classroom_id == classroom_id)
+    if course_id:
+        query = query.where(Schedule.course_id == course_id)
+        count_query = count_query.where(Schedule.course_id == course_id)
     if day_of_week is not None:
         query = query.where(Schedule.day_of_week == day_of_week)
         count_query = count_query.where(Schedule.day_of_week == day_of_week)
@@ -107,7 +111,7 @@ async def get_schedule(
     result = await db.execute(
         select(Schedule)
         .options(selectinload(Schedule.time_slot))
-        .where(Schedule.id == schedule_id)
+        .where(Schedule.id == schedule_id, Schedule.deleted_at.is_(None))
     )
     schedule = result.scalar_one_or_none()
     if not schedule:
@@ -121,11 +125,15 @@ async def delete_schedule(
     _: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
-    """Delete a schedule entry."""
-    result = await db.execute(select(Schedule).where(Schedule.id == schedule_id))
+    """Soft delete a schedule."""
+    result = await db.execute(
+        select(Schedule).where(
+            Schedule.id == schedule_id, Schedule.deleted_at.is_(None)
+        )
+    )
     schedule = result.scalar_one_or_none()
     if not schedule:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Schedule not found")
 
-    await db.delete(schedule)
+    schedule.deleted_at = func.now()
     await db.commit()

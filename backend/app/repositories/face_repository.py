@@ -51,6 +51,25 @@ class FaceRepository:
         )
         return result.scalars().all()
 
+    async def get_by_student_ids(
+        self, student_ids: list[int]
+    ) -> Sequence[FaceEmbedding]:
+        """Return all active embeddings for a list of student IDs."""
+        if not student_ids:
+            return []
+        result = await self.db.execute(
+            select(FaceEmbedding)
+            .where(
+                and_(
+                    FaceEmbedding.student_id.in_(student_ids),
+                    FaceEmbedding.is_active == True,  # noqa: E712
+                    FaceEmbedding.deleted_at.is_(None),
+                )
+            )
+            .order_by(FaceEmbedding.student_id, FaceEmbedding.created_at)
+        )
+        return result.scalars().all()
+
     async def get_active_count(self, student_id: int) -> int:
         """Return count of active embeddings for a student."""
         from sqlalchemy import func

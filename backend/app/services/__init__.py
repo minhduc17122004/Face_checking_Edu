@@ -12,18 +12,28 @@ from app.services.face_service import FaceService  # noqa: F401
 from app.services.anti_cheat_service import AntiCheatService  # noqa: F401
 from app.services.device_service import DeviceService  # noqa: F401
 from app.services.audit_service import AuditService  # noqa: F401
+from app.services.department_service import DepartmentService  # noqa: F401
+from app.services.teacher_service import TeacherService  # noqa: F401
+from app.services.session_generator_service import SessionGeneratorService  # noqa: F401
+from app.services.attendance_validator import AttendanceValidator  # noqa: F401
+from app.services.room_service import RoomService  # noqa: F401
 
 __all__ = [
     "AntiCheatService",
     "AttendanceService",
+    "AttendanceValidator",
     "AuditService",
     "AuthService",
     "BaseService",
     "CourseService",
+    "DepartmentService",
     "DeviceService",
     "FaceService",
+    "SessionGeneratorService",
     "StudentService",
+    "TeacherService",
     "UserService",
+    "RoomService",
 ]
 
 # Aliases for backward compatibility

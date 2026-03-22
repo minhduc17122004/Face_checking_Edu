@@ -1,7 +1,7 @@
 from __future__ import annotations
 """Attendance repository — async DB queries for the `attendance` table (session-based)."""
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from typing import Sequence, Optional
 
 from sqlalchemy import select, func, and_
@@ -40,7 +40,7 @@ class AttendanceRepository(BaseRepository[Attendance]):
                 and_(
                     Attendance.session_id == session_id,
                     Attendance.student_id == student_id,
-                    Attendance.is_deleted == False,
+                    Attendance.deleted_at.is_(None),
                 )
             )
         )
@@ -54,7 +54,7 @@ class AttendanceRepository(BaseRepository[Attendance]):
             .where(
                 and_(
                     Attendance.student_id == student_id,
-                    Attendance.is_deleted == False,
+                    Attendance.deleted_at.is_(None),
                 )
             )
             .offset(skip)
@@ -71,7 +71,7 @@ class AttendanceRepository(BaseRepository[Attendance]):
             .where(
                 and_(
                     Attendance.session_id == session_id,
-                    Attendance.is_deleted == False,
+                    Attendance.deleted_at.is_(None),
                 )
             )
             .offset(skip)
@@ -83,7 +83,7 @@ class AttendanceRepository(BaseRepository[Attendance]):
     async def get_all(self, skip: int = 0, limit: int = 200) -> Sequence[Attendance]:
         result = await self.db.execute(
             select(Attendance)
-            .where(Attendance.is_deleted == False)
+            .where(Attendance.deleted_at.is_(None))
             .offset(skip)
             .limit(limit)
             .order_by(Attendance.sync_time.desc())
@@ -92,7 +92,7 @@ class AttendanceRepository(BaseRepository[Attendance]):
 
     async def count(self) -> int:
         result = await self.db.execute(
-            select(func.count()).select_from(Attendance).where(Attendance.is_deleted == False)
+            select(func.count()).select_from(Attendance).where(Attendance.deleted_at.is_(None))
         )
         return result.scalar_one()
 
@@ -101,7 +101,7 @@ class AttendanceRepository(BaseRepository[Attendance]):
             select(func.count()).select_from(Attendance).where(
                 and_(
                     Attendance.session_id == session_id,
-                    Attendance.is_deleted == False,
+                    Attendance.deleted_at.is_(None),
                 )
             )
         )
@@ -115,7 +115,42 @@ class AttendanceRepository(BaseRepository[Attendance]):
                 and_(
                     Attendance.session_id == session_id,
                     Attendance.status == status,
-                    Attendance.is_deleted == False,
+                    Attendance.deleted_at.is_(None),
+                )
+            )
+        )
+        return result.scalar_one()
+
+    # ── Metrics (Phase 9) ────────────────────────────────────────────────────
+    async def count_total_checkins(self) -> int:
+        result = await self.db.execute(
+            select(func.count()).select_from(Attendance).where(
+                Attendance.deleted_at.is_(None)
+            )
+        )
+        return result.scalar_one()
+
+    async def count_today_checkins(self) -> int:
+        today_start = datetime.combine(date.today(), datetime.min.time())
+        today_end = datetime.combine(date.today(), datetime.max.time())
+        result = await self.db.execute(
+            select(func.count()).select_from(Attendance).where(
+                and_(
+                    Attendance.checkin_time >= today_start,
+                    Attendance.checkin_time <= today_end,
+                    Attendance.deleted_at.is_(None),
+                )
+            )
+        )
+        return result.scalar_one()
+
+    async def count_active_sessions(self) -> int:
+        from app.models.session import Session
+        result = await self.db.execute(
+            select(func.count()).select_from(Session).where(
+                and_(
+                    Session.status == "active",
+                    Session.deleted_at.is_(None),
                 )
             )
         )
@@ -148,7 +183,7 @@ class AttendanceRepository(BaseRepository[Attendance]):
         return record
 
     async def soft_delete(self, record: Attendance) -> None:
-        """Soft delete: sets is_deleted=True."""
+        """Soft delete: sets deleted_at."""
         await super().soft_delete(record)
 
     async def delete(self, record: Attendance) -> None:

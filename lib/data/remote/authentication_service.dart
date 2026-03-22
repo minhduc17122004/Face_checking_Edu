@@ -13,6 +13,7 @@ import 'authentication/login_response.dart';
 abstract class AuthenticationService {
   Future<DataState<LoginResponse>> login(LoginRequest data);
   Future<DataState<String>> logout();
+  Future<DataState<UserInfo>> getMe();
 }
 
 @LazySingleton(as: AuthenticationService)
@@ -56,6 +57,24 @@ class AuthenticationServiceImplement extends AuthenticationService {
     } on Exception catch (e) {
       await pushLog('Error in logout: $e');
       return DataFailed<String>(e.toString());
+    }
+  }
+
+  @override
+  Future<DataState<UserInfo>> getMe() async {
+    try {
+      final ApiResponse response = await _apiClient.get(path: ApiEndpoint.me);
+      if (response.isSuccess()) {
+        return DataSuccess<UserInfo>(
+            UserInfo.fromJson(response.data as Map<String, dynamic>));
+      }
+      return DataFailed<UserInfo>(response.error ?? 'Failed to get profile');
+    } on DioError catch (e) {
+      await pushLog('Error in getMe: $e');
+      return DataFailed<UserInfo>(e.message);
+    } on Exception catch (e) {
+      await pushLog('Error in getMe: $e');
+      return DataFailed<UserInfo>(e.toString());
     }
   }
 }

@@ -11,6 +11,7 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.user import User
+    from app.models.department import Department
 
 
 class Teacher(Base):
@@ -22,7 +23,6 @@ class Teacher(Base):
     __tablename__ = "teachers"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    # Strict 1:1 relationship with User
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -30,11 +30,18 @@ class Teacher(Base):
         nullable=False,
         index=True,
     )
-    employee_code: Mapped[Optional[str]] = mapped_column(
+    teacher_id: Mapped[Optional[str]] = mapped_column(
         String(50), unique=True, nullable=True
     )
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    department: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    # Refactored: department (string) → department_id (UUID FK)
+    department_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("departments.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -48,7 +55,6 @@ class Teacher(Base):
         default=lambda: datetime.now(timezone.utc),
     )
 
-    # Soft delete - only deleted_at (removed is_deleted redundancy)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True
     )
@@ -58,6 +64,11 @@ class Teacher(Base):
         "User",
         back_populates="teacher_profile",
     )
+    department_rel: Mapped[Optional["Department"]] = relationship(
+        "Department",
+        back_populates="teachers",
+    )
 
     def __repr__(self) -> str:
-        return f"<Teacher id={self.id} employee_code={self.employee_code}>"
+        return f"<Teacher id={self.id} teacher_id={self.teacher_id}>"
+

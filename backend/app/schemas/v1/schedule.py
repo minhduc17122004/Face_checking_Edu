@@ -1,24 +1,29 @@
 from __future__ import annotations
 from datetime import datetime
 import uuid
+from typing import Optional
 from pydantic import BaseModel, Field
 
 
 class ScheduleCreate(BaseModel):
-    classroom_id: uuid.UUID
+    course_id: uuid.UUID
     day_of_week: int = Field(ge=1, le=7)
     time_slot_id: int
-    subject_name: str | None = None
+
+
+class ScheduleUpdate(BaseModel):
+    """PUT /api/v1/schedules/{id} — update an existing schedule."""
+
+    day_of_week: Optional[int] = Field(None, ge=1, le=7)
+    time_slot_id: Optional[int] = None
 
 
 class ScheduleOut(BaseModel):
     id: uuid.UUID
-    classroom_id: uuid.UUID
+    course_id: uuid.UUID
     day_of_week: int
     time_slot_id: int
-    subject_name: str | None = None
     created_at: datetime
-    is_deleted: bool
 
     model_config = {"from_attributes": True}
 

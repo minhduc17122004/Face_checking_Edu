@@ -14,6 +14,10 @@ from app.routers.v1.time_slots import router as time_slots_router
 from app.routers.v1.course_enrollments import router as course_enrollments_router
 from app.routers.v1.student_groups import router as student_groups_router
 from app.routers.v1.faces import router as faces_router
+from app.routers.v1.departments import router as departments_router
+from app.routers.v1.teachers import router as teachers_router
+from app.routers.v1.rooms import router as rooms_router
+from app.routers.v1.metrics import router as metrics_router
 
 api_v1_router = APIRouter(prefix="/api/v1")
 api_v1_router.include_router(auth_router)
@@ -28,6 +32,10 @@ api_v1_router.include_router(time_slots_router)
 api_v1_router.include_router(course_enrollments_router)
 api_v1_router.include_router(student_groups_router)
 api_v1_router.include_router(faces_router)
+api_v1_router.include_router(departments_router)
+api_v1_router.include_router(teachers_router)
+api_v1_router.include_router(rooms_router)
+api_v1_router.include_router(metrics_router)
 
 __all__ = [
     "api_v1_router",
@@ -43,4 +51,8 @@ __all__ = [
     "course_enrollments_router",
     "student_groups_router",
     "faces_router",
+    "departments_router",
+    "teachers_router",
+    "rooms_router",
+    "metrics_router",
 ]

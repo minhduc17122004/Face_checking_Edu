@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import datetime
 import uuid
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 
@@ -19,6 +19,31 @@ class AttendanceCreate(BaseModel):
     status: str = Field(default="present", pattern="^(present|late|absent)$")
     confidence: float | None = Field(None, ge=0.0, le=1.0)
     device_id: uuid.UUID | None = None
+
+
+class CheckinRequest(BaseModel):
+    """POST /api/v1/attendance/checkin — real-time device check-in.
+
+    Streamlined schema for device-initiated real-time check-in.
+    """
+    student_id: int = Field(..., description="Student database ID")
+    session_id: uuid.UUID = Field(..., description="Attendance session UUID")
+    device_id: uuid.UUID = Field(..., description="Device UUID doing the recognition")
+    confidence: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="Face recognition confidence score"
+    )
+
+
+class CheckinResponse(BaseModel):
+    """Response for real-time check-in."""
+    attendance_id: uuid.UUID
+    student_id: int
+    status: Literal["present", "late"]
+    checkin_time: datetime
+    message: str
 
 
 class AttendanceOut(BaseModel):

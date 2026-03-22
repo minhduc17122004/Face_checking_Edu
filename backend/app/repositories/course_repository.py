@@ -1,10 +1,11 @@
 from __future__ import annotations
 """Course repository — async DB queries for the `courses` table."""
 import uuid
-from typing import Sequence
+from typing import Literal, Sequence
 
 from sqlalchemy import select, func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.models.course import Course
 
@@ -18,35 +19,39 @@ class CourseRepository:
     # ── Read ──────────────────────────────────────────────────
     async def get_by_id(self, course_id: uuid.UUID) -> Course | None:
         result = await self.db.execute(
-            select(Course).where(
+            select(Course)
+            .options(joinedload(Course.instructor), joinedload(Course.department), joinedload(Course.room))
+            .where(
                 Course.id == course_id,
                 Course.deleted_at.is_(None),
             )
         )
-        return result.scalar_one_or_none()
+        return result.unique().scalar_one_or_none()
 
     async def get_all(self, skip: int = 0, limit: int = 200) -> Sequence[Course]:
         result = await self.db.execute(
             select(Course)
+            .options(joinedload(Course.instructor), joinedload(Course.department), joinedload(Course.room))
             .where(Course.deleted_at.is_(None))
             .offset(skip)
             .limit(limit)
             .order_by(Course.created_at.desc())
         )
-        return result.scalars().all()
+        return result.unique().scalars().all()
 
     async def get_by_instructor(
         self, instructor_id: uuid.UUID
     ) -> Sequence[Course]:
         result = await self.db.execute(
             select(Course)
+            .options(joinedload(Course.instructor), joinedload(Course.department), joinedload(Course.room))
             .where(
                 Course.instructor_id == instructor_id,
                 Course.deleted_at.is_(None),
             )
             .order_by(Course.created_at.desc())
         )
-        return result.scalars().all()
+        return result.unique().scalars().all()
 
     async def count(self) -> int:
         result = await self.db.execute(
@@ -59,6 +64,7 @@ class CourseRepository:
     async def search_by_name(self, name: str) -> Sequence[Course]:
         result = await self.db.execute(
             select(Course)
+            .options(joinedload(Course.instructor), joinedload(Course.department), joinedload(Course.room))
             .where(
                 Course.course_name.ilike(f"%{name}%"),
                 Course.deleted_at.is_(None),
@@ -66,7 +72,21 @@ class CourseRepository:
             .order_by(Course.course_name)
             .limit(50)
         )
-        return result.scalars().all()
+        return result.unique().scalars().all()
+
+    async def get_by_department(
+        self, department_id: uuid.UUID
+    ) -> Sequence[Course]:
+        result = await self.db.execute(
+            select(Course)
+            .options(joinedload(Course.instructor), joinedload(Course.department), joinedload(Course.room))
+            .where(
+                Course.department_id == department_id,
+                Course.deleted_at.is_(None),
+            )
+            .order_by(Course.course_name)
+        )
+        return result.unique().scalars().all()
 
     # ── Write ─────────────────────────────────────────────────
     async def create(
@@ -76,12 +96,22 @@ class CourseRepository:
         instructor_id: uuid.UUID | None = None,
         subject: str | None = None,
         course_code: str | None = None,
+        department_id: uuid.UUID | None = None,
+        room_id: uuid.UUID | None = None,
+        attendance_mode: Literal["preset", "flexible", "custom"] = "preset",
+        attendance_before_minutes: int = 30,
+        attendance_after_minutes: int = 30,
     ) -> Course:
         course = Course(
             course_name=course_name,
             instructor_id=instructor_id,
             subject=subject,
             course_code=course_code,
+            department_id=department_id,
+            room_id=room_id,
+            attendance_mode=attendance_mode,
+            attendance_before_minutes=attendance_before_minutes,
+            attendance_after_minutes=attendance_after_minutes,
         )
         self.db.add(course)
         await self.db.flush()
@@ -95,6 +125,11 @@ class CourseRepository:
         course_name: str | None = None,
         subject: str | None = None,
         course_code: str | None = None,
+        department_id: uuid.UUID | None = None,
+        room_id: uuid.UUID | None = None,
+        attendance_mode: str | None = None,
+        attendance_before_minutes: int | None = None,
+        attendance_after_minutes: int | None = None,
     ) -> Course:
         if course_name is not None:
             course.course_name = course_name
@@ -102,6 +137,16 @@ class CourseRepository:
             course.subject = subject
         if course_code is not None:
             course.course_code = course_code
+        if department_id is not None:
+            course.department_id = department_id
+        if room_id is not None:
+            course.room_id = room_id
+        if attendance_mode is not None:
+            course.attendance_mode = attendance_mode
+        if attendance_before_minutes is not None:
+            course.attendance_before_minutes = attendance_before_minutes
+        if attendance_after_minutes is not None:
+            course.attendance_after_minutes = attendance_after_minutes
         await self.db.flush()
         await self.db.refresh(course)
         return course

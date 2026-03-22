@@ -14,20 +14,26 @@ from app.repositories.course_repository import CourseRepository  # noqa: F401
 from app.repositories.course_enrollment_repository import CourseEnrollmentRepository  # noqa: F401
 from app.repositories.student_group_repository import StudentGroupRepository  # noqa: F401
 from app.repositories.device_repository import DeviceRepository  # noqa: F401
+from app.repositories.department_repository import DepartmentRepository  # noqa: F401
+from app.repositories.teacher_repository import TeacherRepository  # noqa: F401
+from app.repositories.room_repository import RoomRepository  # noqa: F401
 
 __all__ = [
     "AttendanceRepository",
     "BaseRepository",
     "CourseEnrollmentRepository",
     "CourseRepository",
+    "DepartmentRepository",
     "DeviceRepository",
     "FaceRepository",
     "ScheduleRepository",
     "SessionRepository",
     "StudentGroupRepository",
     "StudentRepository",
+    "TeacherRepository",
     "TimeSlotRepository",
     "UserRepository",
+    "RoomRepository",
 ]
 
 # Aliases for backward compatibility

@@ -1,5 +1,5 @@
 from __future__ import annotations
-"""v1 Face router — /api/v1/students/{id}/face and /api/v1/classrooms/{id}/face-embeddings."""
+"""v1 Face router — /api/v1/students/{id}/face and /api/v1/courses/{id}/face-embeddings."""
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,16 +48,16 @@ async def get_face_status(
     return await svc.get_face_status(student_id)
 
 
-@router.get("/classrooms/{classroom_id}/face-embeddings", response_model=FaceBulkExport)
-async def export_classroom_faces(
-    classroom_id: uuid.UUID,
+@router.get("/courses/{course_id}/face-embeddings", response_model=FaceBulkExport)
+async def export_course_faces(
+    course_id: uuid.UUID,
     user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """Export all active face embeddings for students enrolled in a classroom.
+    """Export all active face embeddings for students enrolled in a course.
 
     Used by devices to sync face data for offline recognition.
     Only returns data for students who have is_active embeddings.
     """
     svc = FaceService(db)
-    return await svc.export_for_classroom(classroom_id)
+    return await svc.export_for_course(course_id)

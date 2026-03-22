@@ -27,16 +27,21 @@ class DeviceRepository(BaseRepository[Device]):
 
     async def get_by_code(self, device_code: str) -> Device | None:
         result = await self.db.execute(
-            select(Device).where(Device.device_code == device_code)
+            select(Device).where(
+                and_(
+                    Device.device_code == device_code,
+                    Device.deleted_at.is_(None),
+                )
+            )
         )
         return result.scalar_one_or_none()
 
-    async def get_by_classroom(self, classroom_id: uuid.UUID) -> Sequence[Device]:
+    async def get_by_room(self, room_id: uuid.UUID) -> Sequence[Device]:
         result = await self.db.execute(
             select(Device).where(
                 and_(
-                    Device.classroom_id == classroom_id,
-                    Device.is_deleted == False,
+                    Device.room_id == room_id,
+                    Device.deleted_at.is_(None),
                 )
             )
         )
@@ -44,7 +49,12 @@ class DeviceRepository(BaseRepository[Device]):
 
     async def get_active(self) -> Sequence[Device]:
         result = await self.db.execute(
-            select(Device).where(Device.is_active == True, Device.is_deleted == False)  # noqa: E712
+            select(Device).where(
+                and_(
+                    Device.is_active == True,
+                    Device.deleted_at.is_(None),
+                )
+            )
         )
         return result.scalars().all()
 

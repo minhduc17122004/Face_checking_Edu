@@ -31,8 +31,12 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────────────────────────────
 # Lifespan (startup / shutdown)
 # ──────────────────────────────────────────────────────────────
+_background_tasks: list = []
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global _background_tasks
     # Startup
     try:
         import multipart  # type: ignore # noqa: F401
@@ -49,12 +53,10 @@ async def lifespan(app: FastAPI):
     # ── Phase 6: Auto-update session statuses on startup ──────────────────────
     try:
         from app.core.database import AsyncSessionLocal
-        from app.repositories.session_repository import SessionRepository
+        from app.services.session_auto_close import run_session_maintenance
         async with AsyncSessionLocal() as db:
-            repo = SessionRepository(db)
-            activated, closed = await repo.auto_update_status()
+            activated, closed = await run_session_maintenance(db)
             if activated or closed:
-                await db.commit()
                 logger.info(
                     "Session auto-update on startup: %d activated, %d closed",
                     activated, closed,
@@ -62,8 +64,37 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.warning("Session auto-update on startup failed — non-critical", exc_info=True)
 
+    # ── Phase 9: Start background session auto-close scheduler ───────────────
+    import asyncio
+
+    async def _session_scheduler() -> None:
+        """Run session auto-close every hour."""
+        while True:
+            await asyncio.sleep(3600)  # 1 hour
+            try:
+                from app.core.database import AsyncSessionLocal
+                from app.services.session_auto_close import run_session_maintenance
+                async with AsyncSessionLocal() as db:
+                    activated, closed = await run_session_maintenance(db)
+                    if activated or closed:
+                        logger.info(
+                            "Background session maintenance: %d activated, %d closed",
+                            activated, closed,
+                        )
+            except Exception:
+                logger.warning("Background session maintenance failed", exc_info=True)
+
+    _background_tasks.append(asyncio.create_task(_session_scheduler()))
+
     yield
-    # Shutdown (nothing to clean up for now)
+    # Shutdown: cancel all background tasks
+    for task in _background_tasks:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+    _background_tasks.clear()
 
 
 # ──────────────────────────────────────────────────────────────
@@ -161,7 +192,17 @@ async def data_error_handler(request: Request, exc: DataError) -> JSONResponse:
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    logger.exception("Unhandled server error on %s", request.url.path)
+    import traceback
+    from app.core.logger import app_logger
+    app_logger.error(
+        "Unhandled server error",
+        exc_info=exc,
+        extra={
+            "path": request.url.path,
+            "method": request.method,
+            "error": str(exc),
+        },
+    )
     return JSONResponse(
         status_code=500,
         content={
@@ -195,14 +236,8 @@ app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads"
 # ──────────────────────────────────────────────────────────────
 from fastapi import APIRouter
 
-# Health check
-health_router = APIRouter(tags=["Health"])
-
-
-@health_router.get("/health", summary="Service health check")
-async def health_check():
-    return {"status": "ok", "app": settings.APP_NAME, "version": "1.0.0"}
-
+# Health check (Phase 8: enhanced with DB connectivity check)
+from app.routers.v1.health import router as health_router
 
 # ── v1 API (clean production-ready endpoints) ────────────────
 # These replace the old /auth, /attendance, /attendance/new, etc.
@@ -210,36 +245,10 @@ from app.routers.v1 import api_v1_router
 
 # ── Legacy routers (kept during Flutter migration) ────────────
 # These will be removed once Flutter app is updated to v1 endpoints.
-from app.routers.auth_router import router as auth_router
-from app.routers.user_router import router as user_router
-from app.routers.student_router import router as student_router
-from app.routers.course_router import router as course_router
-from app.routers.attendance_router import router as attendance_router
-from app.routers.face_router import router as face_router
-from app.routers.device_router import router as device_router
 from app.routers.legacy_router import router as legacy_router
-from app.routers.time_slot_router import router as time_slot_router
-from app.routers.course_enrollment_router import router as course_enrollment_router
-from app.routers.schedule_router import router as schedule_router
-from app.routers.session_router import router as session_router
-from app.routers.attendance_new_router import router as attendance_new_router
-from app.routers.student_group_router import router as student_group_router
 
 # Register all routers
-app.include_router(health_router)
+app.include_router(health_router)               # /health, /health/ready, /health/live
 app.include_router(api_v1_router)  # v1 endpoints at /api/v1/*
 # Legacy routers (deprecated — will be removed after Flutter migration)
-app.include_router(auth_router)             # /auth/*
-app.include_router(user_router)             # /users/*
-app.include_router(student_router)          # /students/*
-app.include_router(course_router)            # /courses/*
-app.include_router(attendance_router)        # /attendance/*
-app.include_router(face_router)             # /face/*
-app.include_router(device_router)           # /devices/*
 app.include_router(legacy_router)           # /api/* (Flutter legacy)
-app.include_router(time_slot_router)        # /time-slots/*
-app.include_router(course_enrollment_router)  # /course-enrollments/*
-app.include_router(schedule_router)         # /schedules/*
-app.include_router(session_router)          # /sessions/*
-app.include_router(attendance_new_router)   # /attendance/new/*
-app.include_router(student_group_router)     # /student-groups/*

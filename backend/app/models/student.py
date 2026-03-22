@@ -139,6 +139,11 @@ class Student(Base):
         """Check if student is active (not soft deleted)."""
         return self.deleted_at is None
 
+    @property
+    def is_deleted(self) -> bool:
+        """Check if student is soft-deleted (compatibility accessor)."""
+        return self.deleted_at is not None
+
     def __repr__(self) -> str:
         name = self.name or "Unknown"
         return f"<Student id={self.id} name={name}>"

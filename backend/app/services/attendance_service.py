@@ -1,15 +1,19 @@
 from __future__ import annotations
 """Attendance service — unified session-based check-in with anti-cheat."""
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import overload
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.attendance import Attendance
+from app.models.session import Session
+from app.models.student import Student
 from app.repositories.attendance_repository import AttendanceRepository
 from app.repositories.student_repository import StudentRepository
 from app.repositories.session_repository import SessionRepository
+from app.schemas.v1.attendance import CheckinRequest, CheckinResponse
 from app.schemas.attendance_new_schema import (
     AttendanceCreate,
     AttendanceOut,
@@ -19,6 +23,8 @@ from app.schemas.attendance_new_schema import (
 )
 from app.services.anti_cheat_service import AntiCheatService
 from app.services.audit_service import AuditService
+from app.services.attendance_validator import AttendanceValidator
+from app.core.distributed_lock import checkin_lock, LockAcquisitionError
 
 
 class AttendanceService:
@@ -35,6 +41,7 @@ class AttendanceService:
         self.student_repo = StudentRepository(db)
         self.session_repo = SessionRepository(db)
         self.anti_cheat = AntiCheatService(db)
+        self.validator = AttendanceValidator(db)
         self.audit = AuditService()
 
     # ── Session lifecycle ─────────────────────────────────────────────────────
@@ -92,9 +99,10 @@ class AttendanceService:
         1. Session auto-transition (scheduled→active, active→closed)
         2. Session exists and is active
         3. Student exists
-        4. Device belongs to session's classroom
-        5. Check-in is within allowed time window
-        6. No duplicate attendance for this session + student
+        4. Student enrolled in course
+        5. Device belongs to session's course
+        6. Check-in is within allowed time window (respects attendance_mode)
+        7. No duplicate attendance — idempotent: returns existing record
         """
         # Normalize arguments
         if req is not None:
@@ -117,7 +125,7 @@ class AttendanceService:
         # 0. Auto-transition session status
         await self._ensure_session_active(session_id)
 
-        # 1. Validate session is active
+        # 1. Validate session exists
         ok, msg = await self.anti_cheat.validate_session_exists(session_id)
         if not ok:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
@@ -133,9 +141,21 @@ class AttendanceService:
                 detail=f"Student {student_id} not found.",
             )
 
-        # 3. Validate device (if provided)
+        # 3. Validate student enrolled in course
+        ok, msg = await self.anti_cheat.validate_student_enrolled_in_course(
+            session_id, student_id
+        )
+        if not ok:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Enrollment validation failed: {msg}",
+            )
+
+        # 4. Validate device (if provided)
         if device_id:
-            ok, msg = await self.anti_cheat.validate_device_for_session(device_id, session_id)
+            ok, msg = await self.anti_cheat.validate_device_for_session(
+                device_id, session_id
+            )
             if not ok:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -143,26 +163,27 @@ class AttendanceService:
                 )
             await self.anti_cheat.update_device_last_active(device_id)
 
-        # 4. Validate check-in window
-        ok, msg = await self.anti_cheat.validate_checkin_window(session_id, checkin_time)
+        # 5. Validate check-in window (respects attendance_mode)
+        ok, msg = await self.anti_cheat.validate_checkin_window(
+            session_id, checkin_time
+        )
         if not ok:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Check-in window validation failed: {msg}",
             )
 
-        # 5. Detect duplicate
-        ok, msg = await self.anti_cheat.detect_duplicate_attendance(session_id, student_id)
-        if not ok:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Duplicate attendance: {msg}",
-            )
+        # 6. Detect duplicate — idempotent: return existing record instead of raising 409
+        existing = await self.repo.get_by_session_student(session_id, student_id)
+        if existing:
+            return AttendanceOut.model_validate(existing)
 
         # Auto-detect late status
         auto_status = attendance_status
-        if session and session.checkin_end_time and checkin_time > session.checkin_end_time:
-            auto_status = "late"
+        if session and session.effective_checkin_window_end:
+            late_threshold = session.start_time + timedelta(minutes=15)
+            if checkin_time > late_threshold:
+                auto_status = "late"
 
         # Create record
         record = await self.repo.create(
@@ -181,7 +202,47 @@ class AttendanceService:
             device_id=device_id,
             status=auto_status,
         )
+        await self.db.commit()
         return AttendanceOut.model_validate(record)
+
+    # ── Real-time check-in (device-initiated) ─────────────────────────────────
+    async def realtime_checkin(self, req: CheckinRequest) -> CheckinResponse:
+        """Device-initiated real-time check-in.
+
+        Uses server time for all decisions (anti-cheat). Auto-detects
+        present vs late based on the session's checkin window.
+        All validation is delegated to create_attendance.
+
+        Phase 9: Wrapped with distributed lock to prevent race conditions
+        when multiple requests for the same session/student arrive simultaneously.
+        """
+        # Server-side timestamp used for all anti-cheat checks
+        now = datetime.now(timezone.utc)
+
+        try:
+            async with checkin_lock(req.session_id, req.student_id):
+                # Delegate to create_attendance for full validation pipeline
+                record = await self.create_attendance(
+                    session_id=req.session_id,
+                    student_id=req.student_id,
+                    checkin_time=now,
+                    status="present",
+                    confidence=req.confidence,
+                    device_id=req.device_id,
+                )
+        except LockAcquisitionError:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many requests for this student. Please try again.",
+            )
+
+        return CheckinResponse(
+            attendance_id=record.id,
+            student_id=record.student_id,
+            status=record.status,
+            checkin_time=record.checkin_time,
+            message=f"Check-in recorded as '{record.status}'.",
+        )
 
     # ── Query ─────────────────────────────────────────────────────────────────
     async def get_attendance(self, attendance_id: uuid.UUID) -> AttendanceOut:
@@ -206,38 +267,42 @@ class AttendanceService:
     async def get_by_session_with_details(
         self, session_id: uuid.UUID, skip: int = 0, limit: int = 1000
     ) -> list[AttendanceWithDetails]:
-        records = await self.repo.get_by_session(session_id, skip=skip, limit=limit)
-        result: list[AttendanceWithDetails] = []
-        for r in records:
-            student = await self.student_repo.get_by_id(r.student_id)
-            session_obj = await self.session_repo.get_by_id(session_id)
-            from app.models.course import Course as Classroom
-            from sqlalchemy import select
-            classroom_name = None
-            if session_obj and session_obj.classroom_id:
-                cr = await self.db.execute(
-                    select(Classroom).where(Classroom.id == session_obj.classroom_id)
-                )
-                c = cr.scalar_one_or_none()
-                if c:
-                    classroom_name = c.class_name
-            item = AttendanceWithDetails(
-                id=r.id,
-                session_id=r.session_id,
-                student_id=r.student_id,
-                checkin_time=r.checkin_time,
-                sync_time=r.sync_time,
-                status=r.status,
-                confidence=r.confidence,
-                device_id=r.device_id,
-                created_at=r.created_at,
-                is_deleted=r.is_deleted,
-                student_name=student.name if student else None,
-                session_date=session_obj.start_time.date() if session_obj else None,
-                classroom_name=classroom_name,
+        # Fixed N+1: use single JOIN query to fetch all data at once
+        from sqlalchemy import select
+        from app.models.course import Course as CourseModel
+        stmt = (
+            select(Attendance, Student, Session, CourseModel)
+            .join(Student, Attendance.student_id == Student.id)
+            .outerjoin(Session, Attendance.session_id == Session.id)
+            .outerjoin(CourseModel, Session.course_id == CourseModel.id)
+            .where(
+                Attendance.session_id == session_id,
+                Attendance.deleted_at.is_(None),
             )
-            result.append(item)
-        return result
+            .offset(skip)
+            .limit(limit)
+            .order_by(Attendance.checkin_time.asc())
+        )
+        result = await self.db.execute(stmt)
+        rows = result.all()
+        return [
+            AttendanceWithDetails(
+                id=att.id,
+                session_id=att.session_id,
+                student_id=att.student_id,
+                checkin_time=att.checkin_time,
+                sync_time=att.sync_time,
+                status=att.status,
+                confidence=att.confidence,
+                device_id=att.device_id,
+                created_at=att.created_at,
+                is_deleted=att.is_deleted,
+                student_name=student.name if student else None,
+                session_date=sess.start_time.date() if sess else None,
+                classroom_name=crs.course_name if crs else None,
+            )
+            for att, student, sess, crs in rows
+        ]
 
     async def get_by_student(
         self, student_id: int, skip: int = 0, limit: int = 200

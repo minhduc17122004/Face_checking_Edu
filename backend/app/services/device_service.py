@@ -71,9 +71,9 @@ class DeviceService:
         """GET /api/v1/devices/{id}/sync — pull all offline data for a device.
 
         Returns:
-        - students: enrolled in device's course
+        - students: enrolled in courses that have schedules matching device's room
         - embeddings: active face embeddings for those students
-        - sessions: today's sessions for device's course
+        - sessions: today's sessions whose schedule matches device's room
         """
         device = await self.device_repo.get_by_id(device_id)
         if not device or device.deleted_at is not None or not device.is_active:
@@ -82,32 +82,65 @@ class DeviceService:
                 detail="Device is not valid or not active.",
             )
 
-        if not device.course_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Device is not assigned to a course.",
-            )
-
-        course = await self.course_repo.get_by_id(device.course_id)
-        if not course or course.deleted_at is not None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Device's course not found.",
-            )
-
-        # 1. Enrolled students
-        enrollments = await self.enrollment_repo.get_by_course(device.course_id)
-        student_ids = [e.student_id for e in enrollments]
-
-        # 2. Today's sessions
+        # Find today's sessions whose course has the same room as the device
+        # Phase 9: FK-based matching — course.room_id == device.room_id
+        from app.models.course import Course
+        from sqlalchemy import select, and_
         today = datetime.now(timezone.utc).date()
-        sessions = await self.session_repo.get_by_course(
-            device.course_id,
-            session_date=today,
+
+        if device.room_id is None:
+            # Device not assigned to any room — no data to sync
+            return DeviceSyncResponse(
+                students=[],
+                embeddings=[],
+                sessions=[],
+                last_sync_at=datetime.now(timezone.utc),
+            )
+
+        # Find courses whose room matches the device's room
+        course_result = await self.db.execute(
+            select(Course).where(
+                and_(
+                    Course.room_id == device.room_id,
+                    Course.deleted_at.is_(None),
+                )
+            )
         )
+        courses = course_result.scalars().all()
+
+        if not courses:
+            return DeviceSyncResponse(
+                students=[],
+                embeddings=[],
+                sessions=[],
+                last_sync_at=datetime.now(timezone.utc),
+            )
+
+        course_ids = [c.id for c in courses]
+
+        # 1. Enrolled students (across all matching courses)
+        all_student_ids: list[int] = []
+        for course_id in course_ids:
+            enrollments = await self.enrollment_repo.get_by_course(course_id)
+            all_student_ids.extend(e.student_id for e in enrollments)
+
+        # 2. Today's sessions for courses in this room
+        from app.models.session import Session
+        session_result = await self.db.execute(
+            select(Session).where(
+                and_(
+                    Session.course_id.in_(course_ids),
+                    Session.session_date == today,
+                    Session.deleted_at.is_(None),
+                )
+            )
+        )
+        sessions = session_result.scalars().all()
 
         # 3. Face embeddings for enrolled students
-        face_export = await self.face_svc.export_for_course(device.course_id)
+        from app.services.face_service import FaceService
+        face_svc = FaceService(self.db)
+        face_export = await face_svc.export_for_student_ids(list(set(all_student_ids)))
 
         # Update device last sync
         device.last_active_at = datetime.now(timezone.utc)
@@ -115,14 +148,14 @@ class DeviceService:
 
         self.audit.log_device_sync(
             device_id=device_id,
-            student_count=len(student_ids),
+            student_count=len(set(all_student_ids)),
             embedding_count=len(face_export.students),
             session_count=len(sessions),
             direction="pull",
         )
 
         return DeviceSyncResponse(
-            students=[{"id": sid} for sid in student_ids],
+            students=[{"id": sid} for sid in set(all_student_ids)],
             embeddings=face_export.model_dump()["students"],
             sessions=[{"id": str(s.id), "status": s.status} for s in sessions],
             last_sync_at=datetime.now(timezone.utc),

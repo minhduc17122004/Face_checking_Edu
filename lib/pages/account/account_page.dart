@@ -78,7 +78,7 @@ class _AccountPageState extends State<AccountPage> {
               ),
             ),
             const SizedBox(height: 6),
-            Text(
+            const Text(
               'Chọn nguồn ảnh để cập nhật avatar',
               style: TextStyle(
                 fontSize: 13,
@@ -562,7 +562,9 @@ class _AccountPageState extends State<AccountPage> {
                 title: 'Thông tin cá nhân',
                 iconBg: AppColors.blue50,
                 iconColor: AppColors.blue600,
-                onTap: () {},
+                onTap: () {
+                  AppNavigator.pushNamed(RouterName.profile);
+                },
               ),
               const Divider(height: 1, color: AppColors.slate200),
               _SettingItem(

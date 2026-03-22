@@ -487,16 +487,7 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
                 AppNavigator.pushNamed(RouterName.studentGroupList);
               },
             ),
-            _QuickAccessCard(
-              icon: Icons.school,
-              title: 'Học phần',
-              subtitle: 'Danh sách học phần',
-              iconBg: AppColors.green100,
-              iconColor: AppColors.green600,
-              onTap: () {
-                AppNavigator.pushNamed(RouterName.courseList);
-              },
-            ),
+
             _QuickAccessCard(
               icon: Icons.history,
               title: 'Lịch sử',

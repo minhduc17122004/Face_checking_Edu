@@ -4,7 +4,10 @@ import uuid
 from typing import Sequence
 
 from sqlalchemy import select, and_, func
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.user import User
 
 from app.models.teacher import Teacher
 
@@ -17,7 +20,9 @@ class TeacherRepository:
 
     async def get_by_id(self, teacher_id: int) -> Teacher | None:
         result = await self.db.execute(
-            select(Teacher).where(
+            select(Teacher)
+            .options(selectinload(Teacher.department_rel))
+            .where(
                 and_(
                     Teacher.id == teacher_id,
                     Teacher.deleted_at.is_(None),
@@ -28,7 +33,9 @@ class TeacherRepository:
 
     async def get_by_user_id(self, user_id: uuid.UUID) -> Teacher | None:
         result = await self.db.execute(
-            select(Teacher).where(
+            select(Teacher)
+            .options(selectinload(Teacher.department_rel))
+            .where(
                 and_(
                     Teacher.user_id == user_id,
                     Teacher.deleted_at.is_(None),
@@ -46,6 +53,7 @@ class TeacherRepository:
         total = count_result.scalar_one()
         result = await self.db.execute(
             select(Teacher)
+            .options(selectinload(Teacher.department_rel), selectinload(Teacher.user))
             .where(where_clause)
             .offset(skip)
             .limit(limit)
@@ -70,6 +78,10 @@ class TeacherRepository:
         total = count_result.scalar_one()
         result = await self.db.execute(
             select(Teacher)
+            .options(
+                selectinload(Teacher.department_rel),
+                selectinload(Teacher.user),
+            )
             .where(where_clause)
             .offset(skip)
             .limit(limit)

@@ -13,6 +13,7 @@ class TeacherOut(BaseModel):
     phone: Optional[str] = None
     department_id: Optional[uuid.UUID] = None
     department_name: Optional[str] = None
+    user_full_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

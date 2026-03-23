@@ -18,7 +18,7 @@ from app.schemas.v1.student_group import (
 router = APIRouter(prefix="/student-groups", tags=["v1 — StudentGroups"])
 
 
-@router.post("", response_model=StudentGroupOut, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=StudentGroupOut, status_code=status.HTTP_201_CREATED)
 async def create_student_group(
     req: StudentGroupCreate,
     user_id: str = Depends(get_current_user_id),
@@ -26,23 +26,18 @@ async def create_student_group(
 ):
     """Create a new student group."""
     repo = StudentGroupRepository(db)
-    
-    code = req.code
-    if not code:
-        max_seq = await repo.get_max_sequential_code()
-        code = f"{max_seq + 1:04d}"
-    else:
-        existing = await repo.get_by_code(code)
-        if existing and existing.deleted_at is None:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Student group with code '{code}' already exists.",
-            )
+    existing = await repo.get_by_code(req.code)
+    if existing and existing.deleted_at is None:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Student group with code '{req.code}' already exists.",
+        )
 
     group = StudentGroup(
-        code=code,
+        code=req.code,
         name=req.name,
-        department_id=req.department_id,
+        faculty=req.faculty,
+        course_year=req.course_year,
         advisor_id=req.advisor_id,
     )
     db.add(group)
@@ -51,10 +46,11 @@ async def create_student_group(
     return StudentGroupOut.model_validate(group)
 
 
-@router.get("", response_model=StudentGroupList)
+@router.get("/", response_model=StudentGroupList)
 async def list_student_groups(
     code: str | None = None,
-    department_id: uuid.UUID | None = None,
+    faculty: str | None = None,
+    course_year: str | None = None,
     skip: int = 0,
     limit: int = 200,
     user_id: str = Depends(get_current_user_id),
@@ -64,42 +60,14 @@ async def list_student_groups(
     repo = StudentGroupRepository(db)
     items, total = await repo.list(
         code=code,
-        department_id=department_id,
+        faculty=faculty,
+        course_year=course_year,
         skip=skip,
         limit=limit,
     )
-    
-    # Build response with advisor and department info
-    result_items = []
-    for group in items:
-        advisor_name = None
-        department_name = None
-        
-        # Get advisor name if exists
-        if group.advisor and group.advisor.deleted_at is None:
-            advisor_name = group.advisor.full_name
-        
-        # Get department name if exists
-        if group.department and group.department.deleted_at is None:
-            department_name = group.department.name
-        
-        # Create response with included info
-        result_items.append(StudentGroupOut(
-            id=group.id,
-            code=group.code,
-            name=group.name,
-            department_id=group.department_id,
-            department_name=department_name,
-            advisor_id=group.advisor_id,
-            advisor_name=advisor_name,
-            created_at=group.created_at,
-            updated_at=group.updated_at,
-            deleted_at=group.deleted_at,
-        ))
-    
     return StudentGroupList(
         total=total,
-        items=result_items,
+        items=[StudentGroupOut.model_validate(c) for c in items],
     )
 
 
@@ -137,8 +105,10 @@ async def update_student_group(
         group.code = req.code
     if req.name is not None:
         group.name = req.name
-    if req.department_id is not None:
-        group.department_id = req.department_id
+    if req.faculty is not None:
+        group.faculty = req.faculty
+    if req.course_year is not None:
+        group.course_year = req.course_year
     if req.advisor_id is not None:
         group.advisor_id = req.advisor_id
 

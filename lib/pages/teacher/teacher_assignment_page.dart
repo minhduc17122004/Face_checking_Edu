@@ -35,6 +35,9 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      setState(() {});
+    });
     _teacherBloc = getIt<TeacherBloc>();
     _departmentBloc = getIt<DepartmentBloc>();
     _courseBloc = getIt<CourseBloc>();
@@ -65,6 +68,17 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
+      floatingActionButton:
+          _tabController.index == 0 && _selectedDepartment != null
+              ? FloatingActionButton.extended(
+                  onPressed: _showAddTeacherBottomSheet,
+                  backgroundColor: AppColors.primary,
+                  icon: const Icon(Icons.person_add, color: Colors.white),
+                  label: const Text('Gán GV',
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
+                )
+              : null,
       appBar: AppBar(
         centerTitle: true,
         backgroundColor: Colors.white,
@@ -96,7 +110,7 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
             fontSize: 13,
           ),
           tabs: const [
-            Tab(text: 'Phân công'),
+            Tab(text: 'Phòng ban'),
             Tab(text: 'Học phần'),
           ],
         ),
@@ -172,7 +186,9 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<Department>(
-                      value: _selectedDepartment,
+                      value: _selectedDepartment != null && state.departments.any((d) => d.id == _selectedDepartment!.id)
+                          ? state.departments.firstWhere((d) => d.id == _selectedDepartment!.id)
+                          : null,
                       isExpanded: true,
                       hint: const Text(
                         'Chọn phòng ban',
@@ -313,7 +329,8 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
         if (state.requestStatus == RequestStatus.failed) {
           return _buildRetryWidget(
             state.message ?? 'Có lỗi xảy ra',
-            () => _teacherBloc.loadTeachers(departmentId: _selectedDepartment?.id),
+            () => _teacherBloc.loadTeachers(
+                departmentId: _selectedDepartment?.id),
           );
         }
         return const SizedBox.shrink();
@@ -321,7 +338,7 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
     );
   }
 
-  Widget _buildTeacherCard(Teacher teacher) {
+  Widget _buildTeacherCard(Teacher teacher, {TeacherBloc? bloc}) {
     final isAssigned = teacher.departmentId != null;
     final departmentName = teacher.departmentName;
     final isInCurrentDepartment =
@@ -347,9 +364,9 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
             radius: 24,
             backgroundColor: AppColors.blue50,
             child: Text(
-              teacher.userId.isNotEmpty
-                  ? teacher.userId[0].toUpperCase()
-                  : 'G',
+              (teacher.userFullName?.isNotEmpty ?? false)
+                  ? teacher.userFullName![0].toUpperCase()
+                  : (teacher.userId.isNotEmpty ? teacher.userId[0].toUpperCase() : 'G'),
               style: const TextStyle(
                 color: AppColors.blue600,
                 fontWeight: FontWeight.bold,
@@ -363,7 +380,7 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  teacher.userId,
+                  teacher.userFullName ?? teacher.userId,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -412,7 +429,8 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
             ),
           ),
           const SizedBox(width: 8),
-          _buildActionButton(teacher, isAssigned, isInCurrentDepartment),
+          _buildActionButton(teacher, isAssigned, isInCurrentDepartment,
+              bloc: bloc),
         ],
       ),
     );
@@ -445,10 +463,8 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
   }
 
   Widget _buildActionButton(
-    Teacher teacher,
-    bool isAssigned,
-    bool isInCurrentDepartment,
-  ) {
+      Teacher teacher, bool isAssigned, bool isInCurrentDepartment,
+      {TeacherBloc? bloc}) {
     if (isInCurrentDepartment) {
       return ElevatedButton(
         onPressed: () => _confirmRemoveAssignment(teacher),
@@ -487,7 +503,7 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
     } else {
       return ElevatedButton(
         onPressed: _selectedDepartment != null
-            ? () => _assignTeacher(teacher)
+            ? () => _assignTeacher(teacher, bloc: bloc)
             : null,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
@@ -509,9 +525,9 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
     }
   }
 
-  void _assignTeacher(Teacher teacher) {
+  void _assignTeacher(Teacher teacher, {TeacherBloc? bloc}) {
     if (_selectedDepartment == null) return;
-    _teacherBloc.assignTeacherToDepartment(
+    (bloc ?? _teacherBloc).assignTeacherToDepartment(
       teacherId: teacher.id,
       departmentId: _selectedDepartment!.id,
     );
@@ -523,7 +539,7 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
       builder: (ctx) => AlertDialog(
         title: const Text('Xác nhận bỏ gán'),
         content: Text(
-          'Bạn có chắc muốn bỏ gán giáo viên "${teacher.userId}" khỏi phòng ban "${_selectedDepartment?.name}"?',
+          'Bạn có chắc muốn bỏ gán giáo viên "${teacher.userFullName ?? teacher.userId}" khỏi phòng ban "${_selectedDepartment?.name}"?',
         ),
         actions: [
           TextButton(
@@ -543,6 +559,100 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
         ],
       ),
     );
+  }
+
+  void _showAddTeacherBottomSheet() async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.backgroundLight,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return BlocProvider<TeacherBloc>(
+          create: (_) => getIt<TeacherBloc>()..loadTeachers(),
+          child: Container(
+            height: MediaQuery.of(context).size.height * 0.85,
+            padding: const EdgeInsets.only(top: 16),
+            child: Column(
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.slate300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'CHỌN GIÁO VIÊN ĐỂ GÁN',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.slate900,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: BlocConsumer<TeacherBloc, TeacherState>(
+                    listener: (context, state) {
+                      if (state.requestStatus == RequestStatus.failed &&
+                          state.message != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(state.message!),
+                              backgroundColor: AppColors.red),
+                        );
+                      }
+                    },
+                    builder: (context, state) {
+                      if (state.requestStatus == RequestStatus.requesting &&
+                          state.teachers.isEmpty) {
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primary,
+                          ),
+                        );
+                      }
+                      final availableTeachers = state.teachers
+                          .where(
+                              (t) => t.departmentId != _selectedDepartment!.id)
+                          .toList();
+                      if (availableTeachers.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            'Không có giáo viên nào có thể gán',
+                            style: TextStyle(color: AppColors.slate500),
+                          ),
+                        );
+                      }
+                      return ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: availableTeachers.length,
+                        itemBuilder: (context, index) {
+                          return _buildTeacherCard(
+                            availableTeachers[index],
+                            bloc: context.read<TeacherBloc>(),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (_selectedDepartment != null && mounted) {
+      _teacherBloc.loadTeachers(departmentId: _selectedDepartment!.id);
+      _departmentBloc.loadDepartments();
+    }
   }
 
   Widget _buildCoursesTab() {
@@ -617,7 +727,8 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.green100,
                   borderRadius: BorderRadius.circular(12),

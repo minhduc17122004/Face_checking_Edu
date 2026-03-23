@@ -109,6 +109,42 @@ docker restart backend-api-1
 ping -n 5 127.0.0.1 >nul && docker logs backend-api-1 --tail 50
 ```
 
+### 4. 500 Internal Server Error khi load danh sách lớp học
+
+**Triệu chứng:**
+- API `/api/v1/student-groups` trả về HTTP 500
+- Backend log có thể hiển thị lỗi lazy loading
+
+**Root cause:** Khi lấy danh sách lớp học, Backend cố gắng truy cập thông tin của Giáo viên chủ nhiệm (`advisor`) và Khoa (`department`) để lấy tên hiển thị. Trong môi trường async, lazy loading không hoạt động.
+
+**Fix:**
+Sử dụng `selectinload` để eager load các relationships:
+
+```python
+# Trong student_group_repository.py
+from sqlalchemy.orm import selectinload
+
+query = (
+    select(StudentGroup)
+    .options(
+        selectinload(StudentGroup.advisor),
+        selectinload(StudentGroup.department)
+    )
+    .where(...)
+)
+```
+
+**Tại sao cần selectinload:**
+- Lazy loading không tương thích với async session
+- `selectinload` tạo thêm 2 queries cho tất cả records (tốt hơn N+1)
+- Đảm bảo dữ liệu luôn sẵn sàng khi truy xuất
+
+**Verify sau fix:**
+```bash
+curl http://localhost:8000/api/v1/student-groups
+# → HTTP 200 với danh sách đầy đủ
+```
+
 ## Thứ tự ưu tiên sửa lỗi
 
 1. **Backend crash (500)** → fix backend trước

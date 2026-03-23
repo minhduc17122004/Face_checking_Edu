@@ -183,20 +183,28 @@ class _ProfilePageState extends State<ProfilePage> {
                     _InfoItem(
                       icon: Icons.badge_outlined,
                       label: profile.role?.toLowerCase() == 'teacher'
-                          ? 'Mã cán bộ'
+                          ? 'Mã giáo viên'
                           : 'Mã sinh viên',
                       value: profile.studentCode!,
                     ),
                   ],
                   if (profile.className != null &&
-                      profile.className!.isNotEmpty) ...[
+                      profile.className!.isNotEmpty &&
+                      profile.role?.toLowerCase() == 'student') ...[
                     const Divider(height: 1, color: AppColors.slate200),
                     _InfoItem(
                       icon: Icons.class_outlined,
-                      label: profile.role?.toLowerCase() == 'teacher'
-                          ? 'Phòng ban'
-                          : 'Lớp',
+                      label: 'Lớp',
                       value: profile.className!,
+                    ),
+                  ],
+                  if (profile.departmentName != null &&
+                      profile.departmentName!.isNotEmpty) ...[
+                    const Divider(height: 1, color: AppColors.slate200),
+                    _InfoItem(
+                      icon: Icons.domain_outlined,
+                      label: 'Phòng ban',
+                      value: profile.departmentName!,
                     ),
                   ],
                 ],

@@ -8,9 +8,10 @@ from pydantic import BaseModel, Field
 class StudentGroupCreate(BaseModel):
     """POST /api/v1/student-groups — create a new student group."""
 
-    code: Optional[str] = Field(None, max_length=50)
+    code: str = Field(min_length=1, max_length=50)
     name: Optional[str] = None
-    department_id: Optional[uuid.UUID] = None
+    faculty: Optional[str] = None
+    course_year: Optional[str] = None
     advisor_id: Optional[uuid.UUID] = None
 
 
@@ -19,7 +20,8 @@ class StudentGroupUpdate(BaseModel):
 
     code: Optional[str] = Field(None, min_length=1, max_length=50)
     name: Optional[str] = None
-    department_id: Optional[uuid.UUID] = None
+    faculty: Optional[str] = None
+    course_year: Optional[str] = None
     advisor_id: Optional[uuid.UUID] = None
 
 
@@ -29,10 +31,9 @@ class StudentGroupOut(BaseModel):
     id: uuid.UUID
     code: str
     name: Optional[str] = None
-    department_id: Optional[uuid.UUID] = None
-    department_name: Optional[str] = None
+    faculty: Optional[str] = None
+    course_year: Optional[str] = None
     advisor_id: Optional[uuid.UUID] = None
-    advisor_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime] = None

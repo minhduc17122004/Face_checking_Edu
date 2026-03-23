@@ -15,8 +15,11 @@ class TeacherService:
 
     async def _to_out(self, teacher) -> TeacherOut:
         department_name = None
+        user_full_name = None
         if teacher.department_rel:
             department_name = teacher.department_rel.name
+        if teacher.user:
+            user_full_name = teacher.user.full_name
         return TeacherOut(
             id=teacher.id,
             user_id=teacher.user_id,
@@ -24,6 +27,7 @@ class TeacherService:
             phone=teacher.phone,
             department_id=teacher.department_id,
             department_name=department_name,
+            user_full_name=user_full_name,
             created_at=teacher.created_at,
             updated_at=teacher.updated_at,
         )
@@ -59,6 +63,7 @@ class TeacherService:
             from fastapi import HTTPException
             raise HTTPException(status_code=404, detail="Department not found.")
         updated = await self.repo.assign_department(teacher, department_id)
+        updated.department_rel = dept
         return await self._to_out(updated)
 
     async def remove_department(self, teacher_id: int) -> TeacherOut:

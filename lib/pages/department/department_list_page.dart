@@ -135,7 +135,8 @@ class _DepartmentCard extends StatelessWidget {
         );
         if (context.mounted) {
           if (result == 'deleted') {
-            showTopAlert(context, title: 'Xoá phòng ban thành công!', type: AlertType.success);
+            showTopAlert(context,
+                title: 'Xoá phòng ban thành công!', type: AlertType.success);
             departmentBloc.loadDepartments();
           } else if (result == true) {
             departmentBloc.loadDepartments();
@@ -181,29 +182,6 @@ class _DepartmentCard extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 13,
                       color: AppColors.slate500,
-                    ),
-                  ),
-
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.blue50,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.people, size: 14, color: AppColors.blue600),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${department.teacherCount}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.blue600,
                     ),
                   ),
                 ],

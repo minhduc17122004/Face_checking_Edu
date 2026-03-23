@@ -469,7 +469,7 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
           ),
         ),
         const SizedBox(height: 14),
-        GridView.count(
+          GridView.count(
           crossAxisCount: 2,
           crossAxisSpacing: 14,
           mainAxisSpacing: 14,
@@ -477,17 +477,6 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           children: [
-            _QuickAccessCard(
-              icon: Icons.class_,
-              title: 'Lớp học',
-              subtitle: 'Danh sách lớp chủ quản',
-              iconBg: AppColors.blue50,
-              iconColor: AppColors.blue600,
-              onTap: () {
-                AppNavigator.pushNamed(RouterName.studentGroupList);
-              },
-            ),
-
             _QuickAccessCard(
               icon: Icons.history,
               title: 'Lịch sử',

@@ -28,6 +28,9 @@ class ApiEndpoint {
   static const String rooms = "/api/v1/rooms";
   static const String roomCourses = "/api/v1/rooms/{id}/courses";
 
+  // Student Groups
+  static const String studentGroups = "/api/v1/student-groups";
+
   // Courses
   static const String courses = "/api/v1/courses";
   static const String courseStudents = "/api/v1/courses/{id}/students";

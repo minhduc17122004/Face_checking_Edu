@@ -12,7 +12,6 @@ from app.core.database import Base
 if TYPE_CHECKING:
     from app.models.user import User
     from app.models.student import Student
-    from app.models.department import Department
 
 
 class StudentGroup(Base):
@@ -26,7 +25,8 @@ class StudentGroup(Base):
 
     Examples:
     - Code: "48K21.1" (K21 = cohort year, 48 = faculty code)
-    - Department: references Department model (Khoa Công Nghệ Thông Tin)
+    - Faculty: "Khoa Công Nghệ Thông Tin"
+    - Course Year: "K21"
     """
 
     __tablename__ = "student_groups"
@@ -38,14 +38,8 @@ class StudentGroup(Base):
         String(50), unique=True, nullable=False, index=True
     )
     name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-
-    # Refactored: faculty (string) -> department_id (UUID FK)
-    department_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("departments.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
+    faculty: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    course_year: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
 
     # Renamed: advisor_id (same as before)
     advisor_id: Mapped[Optional[uuid.UUID]] = mapped_column(
@@ -85,11 +79,6 @@ class StudentGroup(Base):
     advisor: Mapped[Optional["User"]] = relationship(
         "User",
         back_populates="advised_groups",
-    )
-
-    department: Mapped[Optional["Department"]] = relationship(
-        "Department",
-        back_populates="student_groups",
     )
 
     # Updated: academic_class → student_group

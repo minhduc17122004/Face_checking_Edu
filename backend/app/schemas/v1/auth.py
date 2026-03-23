@@ -31,6 +31,7 @@ class UserInfo(BaseModel):
     created_at: datetime
     student_code: str | None = None
     class_name: str | None = None
+    department_name: str | None = None
 
     model_config = {"from_attributes": True}
 

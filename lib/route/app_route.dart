@@ -19,10 +19,12 @@ import 'package:face_time_keeping/pages/register_face/register_face_page.dart';
 import 'package:face_time_keeping/pages/setting/attendance_report.dart';
 import 'package:face_time_keeping/pages/setting/setting_page.dart';
 import 'package:face_time_keeping/pages/setting/server_setting_page.dart';
+import 'package:face_time_keeping/pages/student_group/student_group_form_page.dart';
 import 'package:face_time_keeping/pages/student_group/student_group_list_page.dart';
 import 'package:face_time_keeping/pages/account/profile_page.dart';
 import 'package:face_time_keeping/pages/setting/teacher_list_page.dart';
 import 'package:face_time_keeping/pages/teacher/teacher_assignment_page.dart';
+import 'package:face_time_keeping/pages/setting/user_register_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -44,9 +46,11 @@ class RouterName {
   static const String chooseDb = '/chooseDb';
   static const String serverSettings = '/serverSettings';
   static const String studentGroupList = '/studentGroupList';
+  static const String studentGroupForm = '/studentGroupForm';
   static const String courseList = '/courseList';
   static const String profile = '/profile';
   static const String teacherList = '/teacherList';
+  static const String userRegister = '/userRegister';
 
   // Phase 9/10 Routes
   static const String departmentList = '/departments';
@@ -92,6 +96,11 @@ class AppRoutes {
         return _materialRoute(settings, const AttendanceReport());
       case RouterName.studentGroupList:
         return _materialRoute(settings, const StudentGroupListPage());
+      case RouterName.studentGroupForm:
+        return _materialRoute(
+          settings,
+          StudentGroupFormPage(studentGroup: settings.arguments as dynamic),
+        );
       case RouterName.courseList:
         return _materialRoute(settings, const CourseListPage());
       case RouterName.chooseDb:
@@ -101,6 +110,8 @@ class AppRoutes {
         return _materialRoute(settings, const ProfilePage());
       case RouterName.teacherList:
         return _materialRoute(settings, const TeacherListPage());
+      case RouterName.userRegister:
+        return _materialRoute(settings, const UserRegisterPage());
 
       // Phase 9/10 Routes
       case RouterName.departmentList:

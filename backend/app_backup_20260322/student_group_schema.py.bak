@@ -11,8 +11,9 @@ class StudentGroupCreate(BaseModel):
 
     code: str = Field(..., min_length=1, max_length=50, examples=["48K21.1"])
     name: Optional[str] = Field(None, max_length=255, examples=["Lớp CNTT K21.1"])
-    department_id: Optional[uuid.UUID] = Field(None, examples=["550e8400-e29b-41d4-a716-446655440000"])
-    advisor_id: Optional[uuid.UUID] = Field(None, examples=["550e8400-e29b-41d4-a716-446655440001"])
+    faculty: Optional[str] = Field(None, max_length=255, examples=["Khoa Công Nghệ Thông Tin"])
+    course_year: Optional[str] = Field(None, max_length=10, examples=["K21"])
+    advisor_id: Optional[uuid.UUID] = Field(None, examples=["550e8400-e29b-41d4-a716-446655440000"])
 
 
 class StudentGroupUpdate(BaseModel):
@@ -20,7 +21,8 @@ class StudentGroupUpdate(BaseModel):
 
     code: Optional[str] = Field(None, min_length=1, max_length=50)
     name: Optional[str] = Field(None, max_length=255)
-    department_id: Optional[uuid.UUID] = None
+    faculty: Optional[str] = Field(None, max_length=255)
+    course_year: Optional[str] = Field(None, max_length=10)
     advisor_id: Optional[uuid.UUID] = None
 
 
@@ -30,10 +32,9 @@ class StudentGroupOut(BaseModel):
     id: uuid.UUID
     code: str
     name: Optional[str]
-    department_id: Optional[uuid.UUID]
-    department_name: Optional[str] = None
+    faculty: Optional[str]
+    course_year: Optional[str]
     advisor_id: Optional[uuid.UUID]
-    advisor_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime] = None

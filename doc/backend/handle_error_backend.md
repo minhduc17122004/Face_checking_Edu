@@ -237,6 +237,45 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 # )
 ```
 
+### 3. 500 Internal Server Error khi load danh sách lớp học (Student Groups)
+
+**Nguyên nhân:** Khi lấy danh sách lớp học, Backend cố gắng truy cập thông tin của Giáo viên chủ nhiệm (`advisor`) và Khoa (`department`) để lấy tên hiển thị. Tuy nhiên, trong môi trường xử lý bất đồng bộ (Async), các mối quan hệ này không được tự động tải (lazy loading), dẫn đến lỗi khi code cố gắng truy xuất chúng.
+
+**Triệu chứng:**
+- API trả về HTTP 500 Internal Server Error
+- Backend log có thể hiển thị lỗi lazy loading hoặc relationship không được tải
+
+**Fix:**
+Sử dụng `selectinload` trong SQLAlchemy để "nạp sẵn" dữ liệu quan hệ ngay trong một câu lệnh truy vấn duy nhất:
+
+```python
+# Trong backend/app/repositories/student_group_repository.py
+
+# Thêm selectinload cho các relationship cần thiết
+from sqlalchemy.orm import selectinload
+
+# Khi query lấy danh sách student groups:
+query = (
+    select(StudentGroup)
+    .options(
+        selectinload(StudentGroup.advisor),      # Load teacher relationship
+        selectinload(StudentGroup.department)    # Load department relationship
+    )
+    .where(...)
+)
+```
+
+**Tại sao cần selectinload:**
+- **Lazy loading không hoạt động trong async:** SQLAlchemy lazy loading không tương thích với async session
+- **Eager loading:** `selectinload` tạo ra một câu query riêng để load tất cả related objects, đảm bảo dữ liệu luôn sẵn sàng
+- **Hiệu suất:** Tốt hơn N+1 queries vì chỉ tạo thêm 2 queries cho tất cả records thay vì 1 query cho mỗi record
+
+**Kiểm tra sau khi fix:**
+```bash
+curl http://localhost:8000/api/v1/student-groups
+# → HTTP 200 với danh sách đầy đủ
+```
+
 ### 3. Backend crash ngay khi startup
 
 **Nguyên nhân:** Lỗi import do đổi tên bảng/cột sau migration.

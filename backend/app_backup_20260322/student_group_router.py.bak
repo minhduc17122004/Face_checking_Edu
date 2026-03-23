@@ -44,7 +44,8 @@ async def create_student_group(
     student_group = StudentGroup(
         code=body.code,
         name=body.name,
-        department_id=body.department_id,
+        faculty=body.faculty,
+        course_year=body.course_year,
         advisor_id=body.advisor_id,
     )
     db.add(student_group)
@@ -56,7 +57,8 @@ async def create_student_group(
 @router.get("/", response_model=StudentGroupList)
 async def list_student_groups(
     code: Optional[str] = Query(None, description="Filter by code"),
-    department_id: Optional[uuid.UUID] = Query(None, description="Filter by department"),
+    faculty: Optional[str] = Query(None, description="Filter by faculty"),
+    course_year: Optional[str] = Query(None, description="Filter by course year"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     _: str = Depends(get_current_user_id),
@@ -69,9 +71,12 @@ async def list_student_groups(
     if code:
         query = query.where(StudentGroup.code.ilike(f"%{code}%"))
         count_query = count_query.where(StudentGroup.code.ilike(f"%{code}%"))
-    if department_id:
-        query = query.where(StudentGroup.department_id == department_id)
-        count_query = count_query.where(StudentGroup.department_id == department_id)
+    if faculty:
+        query = query.where(StudentGroup.faculty.ilike(f"%{faculty}%"))
+        count_query = count_query.where(StudentGroup.faculty.ilike(f"%{faculty}%"))
+    if course_year:
+        query = query.where(StudentGroup.course_year == course_year)
+        count_query = count_query.where(StudentGroup.course_year == course_year)
 
     query = query.order_by(StudentGroup.code).offset(skip).limit(limit)
 
@@ -80,35 +85,8 @@ async def list_student_groups(
 
     items = result.scalars().all()
     total = count_result.scalar_one()
-    
-    # Build response with advisor and department info
-    result_items = []
-    for group in items:
-        advisor_name = None
-        department_name = None
-        
-        # Get advisor name if exists
-        if group.advisor and group.advisor.deleted_at is None:
-            advisor_name = group.advisor.full_name
-        
-        # Get department name if exists
-        if group.department and group.department.deleted_at is None:
-            department_name = group.department.name
-        
-        result_items.append(StudentGroupOut(
-            id=group.id,
-            code=group.code,
-            name=group.name,
-            department_id=group.department_id,
-            department_name=department_name,
-            advisor_id=group.advisor_id,
-            advisor_name=advisor_name,
-            created_at=group.created_at,
-            updated_at=group.updated_at,
-            deleted_at=group.deleted_at,
-        ))
 
-    return StudentGroupList(total=total, items=result_items)
+    return StudentGroupList(total=total, items=[StudentGroupOut.model_validate(i) for i in items])
 
 
 @router.get("/{group_id}", response_model=StudentGroupOut)

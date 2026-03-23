@@ -135,11 +135,22 @@ class User(Base):
 
     @property
     def class_name(self) -> str | None:
+        """Return class/group name for students only. Teachers have no class."""
         try:
-            if self.role == "teacher" and self.teacher_profile and self.teacher_profile.department:
-                return self.teacher_profile.department
             if self.role == "student" and self.student_profile and self.student_profile.student_group:
                 return self.student_profile.student_group.name
+        except Exception:
+            pass
+        return None
+
+    @property
+    def department_name(self) -> str | None:
+        """Return department name for teacher or student's group department."""
+        try:
+            if self.role == "teacher" and self.teacher_profile and self.teacher_profile.department_rel:
+                return self.teacher_profile.department_rel.name
+            if self.role == "student" and self.student_profile and self.student_profile.student_group and self.student_profile.student_group.department:
+                return self.student_profile.student_group.department.name
         except Exception:
             pass
         return None

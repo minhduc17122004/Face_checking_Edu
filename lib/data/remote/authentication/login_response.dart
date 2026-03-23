@@ -6,6 +6,7 @@ class UserInfo {
   String? avatarUrl;
   String? studentCode;
   String? className;
+  String? departmentName;
 
   UserInfo({
     this.id,
@@ -15,6 +16,7 @@ class UserInfo {
     this.avatarUrl,
     this.studentCode,
     this.className,
+    this.departmentName,
   });
 
   factory UserInfo.fromJson(Map<String, dynamic> json) {
@@ -26,6 +28,7 @@ class UserInfo {
       avatarUrl: json['avatar_url'],
       studentCode: json['student_code'],
       className: json['class_name'],
+      departmentName: json['department_name'],
     );
   }
 }

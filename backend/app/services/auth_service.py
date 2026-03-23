@@ -48,9 +48,10 @@ class AuthService:
         # 2. Hash password and persist
         user = await self.repo.create(
             email=req.email,
-            password_hash=hash_password(req.password),
             full_name=req.full_name,
             role=req.role,
+            pin=req.pin,
+            job_title=req.job_title,
         )
         await self.db.commit()
 

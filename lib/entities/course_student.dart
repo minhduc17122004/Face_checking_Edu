@@ -41,6 +41,7 @@ class Teacher {
   final String? phone;
   final String? departmentId;
   final String? departmentName;
+  final String? userFullName;
   final DateTime createdAt;
 
   const Teacher({
@@ -50,6 +51,7 @@ class Teacher {
     this.phone,
     this.departmentId,
     this.departmentName,
+    this.userFullName,
     required this.createdAt,
   });
 
@@ -61,6 +63,7 @@ class Teacher {
       phone: json['phone'] as String?,
       departmentId: json['department_id'] as String?,
       departmentName: json['department_name'] as String?,
+      userFullName: json['user_full_name'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }

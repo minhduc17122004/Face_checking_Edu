@@ -24,11 +24,16 @@ class UserRepository:
     async def get_by_id(self, user_id: str | uuid.UUID) -> User | None:
         uid = uuid.UUID(str(user_id)) if not isinstance(user_id, uuid.UUID) else user_id
         from app.models.student import Student
+        from app.models.student_group import StudentGroup
+        from app.models.teacher import Teacher
         result = await self.db.execute(
             select(User)
             .options(
-                selectinload(User.student_profile).selectinload(Student.student_group),
+                selectinload(User.student_profile)
+                .selectinload(Student.student_group)
+                .selectinload(StudentGroup.department),
                 selectinload(User.teacher_profile)
+                .selectinload(Teacher.department_rel),
             )
             .where(
                 and_(User.id == uid, User.deleted_at.is_(None))
@@ -38,11 +43,16 @@ class UserRepository:
 
     async def get_by_email(self, email: str) -> User | None:
         from app.models.student import Student
+        from app.models.student_group import StudentGroup
+        from app.models.teacher import Teacher
         result = await self.db.execute(
             select(User)
             .options(
-                selectinload(User.student_profile).selectinload(Student.student_group),
+                selectinload(User.student_profile)
+                .selectinload(Student.student_group)
+                .selectinload(StudentGroup.department),
                 selectinload(User.teacher_profile)
+                .selectinload(Teacher.department_rel),
             )
             .where(
                 and_(User.email == email.lower(), User.deleted_at.is_(None))
@@ -135,9 +145,19 @@ class UserRepository:
             user.student_profile = student_profile
         elif role == "teacher":
             from app.models.teacher import Teacher
+            
+            department_id = None
+            if job_title:
+                try:
+                    import uuid
+                    department_id = uuid.UUID(job_title)
+                except ValueError:
+                    pass
+
             teacher_profile = Teacher(
                 user_id=user.id,
                 teacher_id=pin,
+                department_id=department_id,
             )
             self.db.add(teacher_profile)
             user.teacher_profile = teacher_profile

@@ -31,6 +31,22 @@ from app.schemas.v1.auth import (
 router = APIRouter(prefix="/auth", tags=["v1 — Auth"])
 
 
+def _build_user_info(user) -> dict:
+    """Build UserInfo response dict with computed department_name."""
+    data = {
+        "id": str(user.id),
+        "email": user.email,
+        "full_name": user.full_name,
+        "role": user.role,
+        "avatar_url": user.avatar_url,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "student_code": user.student_code,
+        "class_name": user.class_name,
+        "department_name": user.department_name,
+    }
+    return data
+
+
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
     """Register a new user account."""
@@ -58,7 +74,7 @@ async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
         access_token=access_token,
         refresh_token=refresh_token,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        user=UserInfo.model_validate(user),
+        user=UserInfo.model_validate(_build_user_info(user)),
     )
 
 
@@ -89,7 +105,7 @@ async def login(
         access_token=access_token,
         refresh_token=refresh_token,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        user=UserInfo.model_validate(user),
+        user=UserInfo.model_validate(_build_user_info(user)),
     )
 
 
@@ -114,7 +130,7 @@ async def refresh(req: RefreshRequest, db: AsyncSession = Depends(get_db)):
         access_token=access_token,
         refresh_token=new_refresh,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        user=UserInfo.model_validate(user),
+        user=UserInfo.model_validate(_build_user_info(user)),
     )
 
 
@@ -125,7 +141,7 @@ async def me(user_id: str = Depends(get_current_user_id), db: AsyncSession = Dep
     user = await repo.get_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
-    return UserInfo.model_validate(user)
+    return UserInfo.model_validate(_build_user_info(user))
 
 
 @router.post("/avatar", response_model=AvatarUploadResponse)

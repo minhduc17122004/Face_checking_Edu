@@ -1,19 +1,48 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:face_time_keeping/common/api_client/data_state.dart';
 import 'package:face_time_keeping/common/resources/app_colors.dart';
 import 'package:face_time_keeping/common/resources/styles/text_styles.dart';
 import 'package:face_time_keeping/di/injection.dart';
 import 'package:face_time_keeping/entities/department.dart';
+import 'package:face_time_keeping/data/remote/department_service.dart';
 import 'package:face_time_keeping/pages/department/bloc/department_bloc.dart';
-import 'package:face_time_keeping/pages/department/department_form_page.dart';
-import 'package:face_time_keeping/pages/widgets/empty_state_widget.dart';
 import 'package:face_time_keeping/route/app_route.dart';
 import 'package:face_time_keeping/route/navigator.dart';
 
-class DepartmentDetailPage extends StatelessWidget {
+class DepartmentDetailPage extends StatefulWidget {
   final Department department;
 
   const DepartmentDetailPage({super.key, required this.department});
+
+  @override
+  State<DepartmentDetailPage> createState() => _DepartmentDetailPageState();
+}
+
+class _DepartmentDetailPageState extends State<DepartmentDetailPage> {
+  late Department _department;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _department = widget.department;
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    setState(() => _isLoading = true);
+    try {
+      final service = getIt<DepartmentService>();
+      final result = await service.getDepartmentWithStats(_department.id);
+      if (result.isSuccess && result.data != null) {
+        setState(() => _department = result.data!);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +69,7 @@ class DepartmentDetailPage extends StatelessWidget {
             onPressed: () async {
               final result = await AppNavigator.pushNamed(
                 RouterName.departmentForm,
-                arguments: department,
+                arguments: _department,
               );
               if (result == true && context.mounted) {
                 AppNavigator.pop(true);
@@ -89,7 +118,7 @@ class DepartmentDetailPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            department.name,
+                            _department.name,
                             style: TextStyles.blackNormalBold.copyWith(
                               fontSize: 18,
                             ),
@@ -105,7 +134,7 @@ class DepartmentDetailPage extends StatelessWidget {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              department.code,
+                              _department.code,
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
@@ -136,23 +165,41 @@ class DepartmentDetailPage extends StatelessWidget {
               ],
             ),
             padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                _InfoTile(
-                  icon: Icons.people,
-                  label: 'Số giáo viên',
-                  value: '${department.teacherCount}',
-                  color: AppColors.primary,
-                ),
-                const SizedBox(width: 24),
-                _InfoTile(
-                  icon: Icons.calendar_today,
-                  label: 'Ngày tạo',
-                  value: _formatDate(department.createdAt),
-                  color: AppColors.green,
-                ),
-              ],
-            ),
+            child: _isLoading
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  )
+                : Row(
+                    children: [
+                      _InfoTile(
+                        icon: Icons.person,
+                        label: 'Số giáo viên',
+                        value: '${_department.teacherCount}',
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 16),
+                      _InfoTile(
+                        icon: Icons.school,
+                        label: 'Số lớp sinh viên',
+                        value: '${_department.studentCount}',
+                        color: AppColors.green,
+                      ),
+                      const SizedBox(width: 16),
+                      _InfoTile(
+                        icon: Icons.calendar_today,
+                        label: 'Ngày tạo',
+                        value: _formatDate(_department.createdAt),
+                        color: AppColors.blue,
+                      ),
+                    ],
+                  ),
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -187,7 +234,7 @@ class DepartmentDetailPage extends StatelessWidget {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Xác nhận xóa'),
         content: Text(
-          'Bạn có chắc chắn muốn xóa phòng ban "${department.name}" không?',
+          'Bạn có chắc chắn muốn xóa phòng ban "${_department.name}" không?',
         ),
         actions: [
           TextButton(
@@ -208,7 +255,7 @@ class DepartmentDetailPage extends StatelessWidget {
 
     if (confirmed == true && context.mounted) {
       final bloc = getIt<DepartmentBloc>();
-      final success = await bloc.deleteDepartment(department.id);
+      final success = await bloc.deleteDepartment(_department.id);
       if (success) {
         await Future.delayed(const Duration(milliseconds: 300));
         if (context.mounted) {

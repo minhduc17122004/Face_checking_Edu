@@ -22,6 +22,6 @@ extension ExtendedList<DataState> on List<DataState> {
   }
 }
 
-extension ExtendedDataState<DataState> on DataState {
+extension ExtendedDataState on DataState {
   bool get isSuccess => this is DataSuccess;
 }

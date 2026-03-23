@@ -28,6 +28,7 @@ class DepartmentOut(BaseModel):
 
 class DepartmentWithStats(DepartmentOut):
     teacher_count: int = 0
+    student_count: int = 0
 
 
 class DepartmentList(BaseModel):

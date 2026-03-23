@@ -25,6 +25,8 @@ import 'package:face_time_keeping/data/remote/logging_service.dart' as _i513;
 import 'package:face_time_keeping/data/remote/room_service.dart' as _i492;
 import 'package:face_time_keeping/data/remote/schedule_service.dart' as _i566;
 import 'package:face_time_keeping/data/remote/session_service.dart' as _i440;
+import 'package:face_time_keeping/data/remote/student_group_service.dart'
+    as _i691;
 import 'package:face_time_keeping/data/remote/teacher_service.dart' as _i169;
 import 'package:face_time_keeping/data/remote/user_service.dart' as _i687;
 import 'package:face_time_keeping/di/modules.dart' as _i754;
@@ -54,6 +56,8 @@ import 'package:face_time_keeping/pages/setting/cubit/setting/setting_cubit.dart
     as _i775;
 import 'package:face_time_keeping/pages/student/blocs/student_bloc.dart'
     as _i1029;
+import 'package:face_time_keeping/pages/student_group/bloc/student_group_cubit.dart'
+    as _i850;
 import 'package:face_time_keeping/pages/teacher/bloc/teacher_bloc.dart'
     as _i371;
 import 'package:face_time_keeping/utils/csv_util.dart' as _i1018;
@@ -137,6 +141,8 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i644.ApiClient>(),
           gh<_i840.LocalService>(),
         ));
+    gh.lazySingleton<_i691.StudentGroupService>(
+        () => _i691.StudentGroupServiceImplement(gh<_i644.ApiClient>()));
     gh.lazySingleton<_i513.LoggingService>(() => _i513.LoggingServiceImplement(
           gh<_i644.ApiClient>(),
           gh<_i840.LocalService>(),
@@ -163,6 +169,11 @@ extension GetItInjectableX on _i174.GetIt {
         ));
     gh.factory<_i179.SessionBloc>(
         () => _i179.SessionBloc(gh<_i440.SessionService>()));
+    gh.factory<_i850.StudentGroupCubit>(() => _i850.StudentGroupCubit(
+          gh<_i691.StudentGroupService>(),
+          gh<_i276.DepartmentService>(),
+          gh<_i169.TeacherService>(),
+        ));
     gh.factory<_i257.RoomBloc>(() => _i257.RoomBloc(gh<_i492.RoomService>()));
     gh.factory<_i128.LoginBloc>(() => _i128.LoginBloc(
           gh<_i368.AuthenticationService>(),

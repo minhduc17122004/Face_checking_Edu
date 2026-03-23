@@ -13,6 +13,7 @@ from app.schemas.v1.department import (
     DepartmentUpdate,
     DepartmentOut,
     DepartmentList,
+    DepartmentWithStats,
 )
 
 router = APIRouter(prefix="/departments", tags=["v1 — Departments"])
@@ -50,6 +51,17 @@ async def get_department(
     """Get a department by ID."""
     svc = DepartmentService(db)
     return await svc.get_department(department_id)
+
+
+@router.get("/{department_id}/stats", response_model=DepartmentWithStats)
+async def get_department_stats(
+    department_id: uuid.UUID,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get department with teacher and student group counts."""
+    svc = DepartmentService(db)
+    return await svc.get_department_with_stats(department_id)
 
 
 @router.put("/{department_id}", response_model=DepartmentOut)

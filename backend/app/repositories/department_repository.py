@@ -87,6 +87,20 @@ class DepartmentRepository:
         )
         return result.scalar_one()
 
+    async def count_student_groups(self, department_id: uuid.UUID) -> int:
+        from app.models.student_group import StudentGroup
+        result = await self.db.execute(
+            select(func.count())
+            .select_from(StudentGroup)
+            .where(
+                and_(
+                    StudentGroup.department_id == department_id,
+                    StudentGroup.deleted_at.is_(None),
+                )
+            )
+        )
+        return result.scalar_one()
+
     async def create(
         self,
         *,

@@ -111,5 +111,10 @@ class DepartmentService:
             from fastapi import HTTPException
             raise HTTPException(status_code=404, detail="Department not found.")
         teacher_count = await self.repo.count_teachers(department_id)
+        student_count = await self.repo.count_student_groups(department_id)
         out = DepartmentOut.model_validate(dept)
-        return DepartmentWithStats(**out.model_dump(), teacher_count=teacher_count)
+        return DepartmentWithStats(
+            **out.model_dump(),
+            teacher_count=teacher_count,
+            student_count=student_count,
+        )

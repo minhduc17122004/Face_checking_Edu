@@ -11,6 +11,7 @@ import 'api_endpoint.dart';
 abstract class DepartmentService {
   Future<DataState<List<Department>>> getDepartments();
   Future<DataState<Department>> getDepartment(String id);
+  Future<DataState<Department>> getDepartmentWithStats(String id);
   Future<DataState<Department>> createDepartment({
     required String code,
     required String name,
@@ -67,6 +68,26 @@ class DepartmentServiceImplement implements DepartmentService {
       return DataFailed<Department>(e.message);
     } on Exception catch (e) {
       await pushLog('Error in getDepartment: $e');
+      return DataFailed<Department>(e.toString());
+    }
+  }
+
+  @override
+  Future<DataState<Department>> getDepartmentWithStats(String id) async {
+    try {
+      final response =
+          await _apiClient.get(path: '${ApiEndpoint.departments}/$id/stats');
+      if (response.isSuccess()) {
+        return DataSuccess<Department>(
+          Department.fromJson(response.data as Map<String, dynamic>),
+        );
+      }
+      return DataFailed<Department>(response.error);
+    } on DioError catch (e) {
+      await pushLog('Error in getDepartmentWithStats: $e');
+      return DataFailed<Department>(e.message);
+    } on Exception catch (e) {
+      await pushLog('Error in getDepartmentWithStats: $e');
       return DataFailed<Department>(e.toString());
     }
   }

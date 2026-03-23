@@ -7,7 +7,7 @@ from app.core.security import get_current_user_id
 from app.core.database import get_db
 from app.repositories.time_slot_repository import TimeSlotRepository
 from app.models.time_slot import TimeSlot
-from app.schemas.v1.time_slot import TimeSlotCreate, TimeSlotOut, TimeSlotList
+from app.schemas.v1.time_slot import TimeSlotCreate, TimeSlotOut, TimeSlotList, TimeSlotUpdate
 
 router = APIRouter(prefix="/time-slots", tags=["v1 — TimeSlots"])
 
@@ -55,3 +55,43 @@ async def get_time_slot(
     if not slot:
         raise HTTPException(status_code=404, detail="Time slot not found.")
     return TimeSlotOut.model_validate(slot)
+
+
+@router.put("/{slot_id}", response_model=TimeSlotOut)
+async def update_time_slot(
+    slot_id: int,
+    req: TimeSlotUpdate,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a time slot."""
+    repo = TimeSlotRepository(db)
+    slot = await repo.get_by_id(slot_id)
+    if not slot:
+        raise HTTPException(status_code=404, detail="Time slot not found.")
+
+    if req.period_number is not None:
+        slot.period_number = req.period_number
+    if req.start_time is not None:
+        slot.start_time = req.start_time
+    if req.end_time is not None:
+        slot.end_time = req.end_time
+
+    await db.flush()
+    await db.refresh(slot)
+    return TimeSlotOut.model_validate(slot)
+
+
+@router.delete("/{slot_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_time_slot(
+    slot_id: int,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a time slot."""
+    repo = TimeSlotRepository(db)
+    slot = await repo.get_by_id(slot_id)
+    if not slot:
+        raise HTTPException(status_code=404, detail="Time slot not found.")
+    await db.delete(slot)
+    await db.flush()

@@ -39,10 +39,25 @@ docker compose down
 Khi có thay đổi cấu trúc bảng (thêm/sửa/xóa cột) trong file models, bạn cần chạy 2 lệnh sau để cập nhật PostgreSQL Database:
 
 ```bash
-# 1. Tự động mổ xẻ thay đổi và tạo file migration
+# 1. Tu dong mo xẻ thay đổi và tạo file migration
 docker compose exec api alembic revision --autogenerate -m "Mô tả thay đổi"
 
 # 2. Thực thi file migration vào Database
+docker compose exec api alembic upgrade head
+```
+
+**Lưu ý quan trọng - Nếu có nhiều head:**
+
+Nếu gặp lỗi `Multiple head revisions are present`, cần merge branches trước:
+
+```bash
+# Kiểm tra các head hiện tại
+docker compose exec api alembic heads
+
+# Merge các heads lại (nếu có nhiều head)
+docker compose exec api alembic merge -m "merge description" <rev1> <rev2>
+
+# Sau đó mới chạy upgrade
 docker compose exec api alembic upgrade head
 ```
 

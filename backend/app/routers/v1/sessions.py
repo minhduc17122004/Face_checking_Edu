@@ -1,7 +1,8 @@
 from __future__ import annotations
-"""v1 Sessions router — /api/v1/sessions endpoints."""
+"""v1 Sessions router — thin layer, no business logic."""
 import uuid
 from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +10,7 @@ from app.core.security import get_current_user_id
 from app.core.database import get_db
 from app.repositories.session_repository import SessionRepository
 from app.repositories.course_repository import CourseRepository
+from app.services.course_service import CourseService
 from app.services.attendance_service import AttendanceService
 from app.services.session_generator_service import SessionGeneratorService
 from app.services._authorization import check_course_owner, check_session_owner
@@ -40,6 +42,17 @@ def _session_out(s: any) -> SessionOut:
     )
 
 
+# ── Thin helpers ────────────────────────────────────────────────────────────
+
+
+def _get_current_teacher_id(db: AsyncSession, user_id: str) -> tuple[int | None, str]:
+    """Return (teacher_id, user_id) tuple for service resolution."""
+    return None, user_id
+
+
+# ── Endpoints ───────────────────────────────────────────────────────────────
+
+
 @router.post("/", response_model=SessionOut, status_code=status.HTTP_201_CREATED)
 async def create_session(
     req: SessionCreate,
@@ -53,7 +66,10 @@ async def create_session(
     course = await course_repo.get_by_id(req.course_id)
     if not course or not course.is_active:
         raise HTTPException(status_code=404, detail="Course not found.")
-    check_course_owner(course, user_id)
+
+    # Service resolves ownership from user_id
+    teacher_id = await CourseService.resolve_teacher_id_from_user(db, None, user_id)
+    check_course_owner(course, teacher_id)
 
     from datetime import datetime, timezone
     start = datetime.combine(req.session_date, datetime.min.time())
@@ -120,7 +136,11 @@ async def update_session(
     """Update session status (close attendance, etc.)."""
     repo = SessionRepository(db)
     session = await repo.get_by_id(session_id)
-    check_session_owner(session, user_id)
+
+    # Service resolves ownership from user_id
+    teacher_id = await CourseService.resolve_teacher_id_from_user(db, None, user_id)
+    check_session_owner(session, teacher_id)
+
     updated = await repo.update_status(
         session_id,
         status=req.status,
@@ -143,7 +163,11 @@ async def delete_session(
     """Soft-delete a session (owner only)."""
     repo = SessionRepository(db)
     session = await repo.get_by_id(session_id)
-    check_session_owner(session, user_id)
+
+    # Service resolves ownership from user_id
+    teacher_id = await CourseService.resolve_teacher_id_from_user(db, None, user_id)
+    check_session_owner(session, teacher_id)
+
     await repo.soft_delete(session)
 
 
@@ -170,9 +194,8 @@ async def generate_daily_sessions(
     If no date is provided, generates for today.
     External cron jobs or schedulers call this endpoint daily.
     """
-    from datetime import date as dt_date, datetime, timezone
+    from datetime import datetime, timezone
     date_to_generate = target_date or datetime.now(timezone.utc).date()
     svc = SessionGeneratorService(db)
     sessions = await svc.generate_sessions_for_date(date_to_generate)
     return {"generated": len(sessions), "date": str(date_to_generate)}
-

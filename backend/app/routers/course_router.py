@@ -1,5 +1,5 @@
 from __future__ import annotations
-"""Course router — POST /courses, GET /courses, GET /courses/{course_id}."""
+"""Course router — legacy thin layer, delegates all logic to services."""
 import uuid
 
 from fastapi import APIRouter, Depends, Query, Response, status
@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.security import get_current_user_id
 from app.schemas.course_schema import CourseCreate, CourseOut, CourseList
+from app.schemas.v1.course import CourseUpdate
 from app.services.course_service import CourseService
 
 router = APIRouter(prefix="/courses", tags=["Courses"])
@@ -25,7 +26,8 @@ async def create_course(
     db: AsyncSession = Depends(get_db),
 ) -> CourseOut:
     """Create a course owned by the authenticated teacher."""
-    return await CourseService(db).create_course(body, instructor_id=uuid.UUID(user_id))
+    svc = CourseService(db)
+    return await svc.create_course(body, teacher_id=None, user_id=user_id)
 
 
 @router.get(
@@ -43,7 +45,7 @@ async def list_courses(
     """Return a paginated list of courses. Use ?mine=true to filter to your own."""
     svc = CourseService(db)
     if mine:
-        return await svc.list_my_courses(uuid.UUID(user_id))
+        return await svc.list_my_courses(teacher_id=None, user_id=user_id)
     return await svc.list_courses(skip=skip, limit=limit)
 
 
@@ -68,12 +70,13 @@ async def get_course(
 )
 async def update_course(
     course_id: uuid.UUID,
-    body: CourseCreate,
+    body: CourseUpdate,
     user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ) -> CourseOut:
     """Update a course. Only the owning teacher may update it."""
-    return await CourseService(db).update_course(course_id, body, instructor_id=uuid.UUID(user_id))
+    svc = CourseService(db)
+    return await svc.update_course(course_id, body, teacher_id=None, user_id=user_id)
 
 
 @router.delete(
@@ -88,5 +91,6 @@ async def delete_course(
     db: AsyncSession = Depends(get_db),
 ) -> Response:
     """Delete a course. Only the owning teacher may delete it (403 otherwise)."""
-    await CourseService(db).delete_course(course_id, instructor_id=uuid.UUID(user_id))
+    svc = CourseService(db)
+    await svc.delete_course(course_id, teacher_id=None, user_id=user_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

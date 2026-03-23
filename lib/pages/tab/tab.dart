@@ -35,7 +35,7 @@ class _TabPageState extends State<TabPage> {
     const items = [
       {'icon': Icons.home, 'label': 'Trang chủ'},
       {'icon': Icons.school, 'label': 'Học phần'},
-      {'icon': Icons.notifications_none, 'label': 'Thông báo'},
+      {'icon': Icons.history, 'label': 'Lịch sử'},
       {'icon': Icons.person_outline, 'label': 'Tài khoản'},
     ];
 

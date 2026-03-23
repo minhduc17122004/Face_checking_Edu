@@ -89,12 +89,8 @@ class User(Base):
         uselist=False,
         lazy="select",
     )
-    # Renamed: classes → courses
-    courses: Mapped[List["Course"]] = relationship(
-        "Course",
-        back_populates="instructor",
-        lazy="select",
-    )
+    # Courses are now owned by Teacher, not directly by User
+    # Course → Teacher → User (access via course.teacher.user)
     # Renamed: advised_classes → advised_groups
     advised_groups: Mapped[List["StudentGroup"]] = relationship(
         "StudentGroup",

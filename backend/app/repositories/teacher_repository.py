@@ -21,7 +21,7 @@ class TeacherRepository:
     async def get_by_id(self, teacher_id: int) -> Teacher | None:
         result = await self.db.execute(
             select(Teacher)
-            .options(selectinload(Teacher.department_rel))
+            .options(selectinload(Teacher.user), selectinload(Teacher.department_rel))
             .where(
                 and_(
                     Teacher.id == teacher_id,
@@ -34,7 +34,7 @@ class TeacherRepository:
     async def get_by_user_id(self, user_id: uuid.UUID) -> Teacher | None:
         result = await self.db.execute(
             select(Teacher)
-            .options(selectinload(Teacher.department_rel))
+            .options(selectinload(Teacher.user), selectinload(Teacher.department_rel))
             .where(
                 and_(
                     Teacher.user_id == user_id,

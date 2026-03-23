@@ -2,13 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:face_time_keeping/common/utils/alerts.dart';
 import 'package:face_time_keeping/common/enums/request_status.dart';
 import 'package:face_time_keeping/common/resources/app_colors.dart';
 import 'package:face_time_keeping/common/resources/styles/text_styles.dart';
+import 'package:face_time_keeping/data/remote/department_service.dart';
+import 'package:face_time_keeping/data/remote/room_service.dart';
+import 'package:face_time_keeping/data/remote/teacher_service.dart';
 import 'package:face_time_keeping/di/injection.dart';
 import 'package:face_time_keeping/entities/course.dart';
+import 'package:face_time_keeping/entities/department.dart';
+import 'package:face_time_keeping/entities/room.dart';
+import 'package:face_time_keeping/entities/teacher.dart';
 import 'package:face_time_keeping/pages/course/bloc/course_bloc.dart';
-import 'package:face_time_keeping/pages/course/bloc/course_state.dart';
+import 'package:face_time_keeping/data/remote/time_slot_service.dart';
+import 'package:face_time_keeping/entities/time_slot.dart';
 import 'package:face_time_keeping/route/navigator.dart';
 
 class CourseFormPage extends StatelessWidget {
@@ -40,12 +48,29 @@ class _CourseFormViewState extends State<_CourseFormView> {
   final _formKey = GlobalKey<FormState>();
   final _courseNameController = TextEditingController();
   final _courseCodeController = TextEditingController();
-  final _subjectController = TextEditingController();
   final _beforeMinutesController = TextEditingController();
   final _afterMinutesController = TextEditingController();
 
   AttendanceMode _selectedMode = AttendanceMode.preset;
   bool _isLoading = false;
+
+  // Dropdown data
+  List<Department> _departments = [];
+  List<Teacher> _teachers = [];
+  List<Teacher> _filteredTeachers = [];
+  List<Room> _rooms = [];
+  List<TimeSlot> _timeSlots = [];
+
+  String? _selectedDepartmentId;
+  int? _selectedTeacherId;
+  String? _selectedRoomId;
+  int? _selectedDayOfWeek;
+  int? _selectedTimeSlotId;
+
+  bool _loadingDepartments = false;
+  bool _loadingTeachers = false;
+  bool _loadingRooms = false;
+  bool _loadingTimeSlots = false;
 
   bool get _isEditing => widget.course != null;
 
@@ -55,15 +80,73 @@ class _CourseFormViewState extends State<_CourseFormView> {
     if (widget.course != null) {
       _courseNameController.text = widget.course!.courseName;
       _courseCodeController.text = widget.course!.courseCode ?? '';
-      _subjectController.text = widget.course!.subject ?? '';
       _selectedMode = widget.course!.attendanceMode;
       _beforeMinutesController.text =
           widget.course!.attendanceBeforeMinutes.toString();
       _afterMinutesController.text =
           widget.course!.attendanceAfterMinutes.toString();
+      _selectedDepartmentId = widget.course!.departmentId;
+      _selectedRoomId = widget.course!.roomId;
+      _selectedDayOfWeek = widget.course!.dayOfWeek;
+      _selectedTimeSlotId = widget.course!.timeSlotId;
     } else {
       _beforeMinutesController.text = '30';
       _afterMinutesController.text = '30';
+    }
+    _loadDepartments();
+    _loadTeachers();
+    _loadRooms();
+    _loadTimeSlots();
+  }
+
+  Future<void> _loadDepartments() async {
+    setState(() => _loadingDepartments = true);
+    final result = await getIt<DepartmentService>().getDepartments();
+    if (mounted) {
+      setState(() {
+        _departments = result.data ?? [];
+        _loadingDepartments = false;
+      });
+    }
+  }
+
+  Future<void> _loadTeachers() async {
+    setState(() => _loadingTeachers = true);
+    final result = await getIt<TeacherService>().getTeachers(limit: 200);
+    if (mounted) {
+      setState(() {
+        _teachers = result.data ?? [];
+        _loadingTeachers = false;
+        // Apply filter
+        _updateFilteredTeachers();
+
+        // Find matching teacher for edit mode
+        if (widget.course?.teacherId != null) {
+          _selectedTeacherId = widget.course!.teacherId;
+        }
+      });
+    }
+  }
+
+  Future<void> _loadRooms() async {
+    setState(() => _loadingRooms = true);
+    final result = await getIt<RoomService>().getRooms(limit: 200);
+    if (mounted) {
+      setState(() {
+        _rooms = result.data ?? [];
+        _loadingRooms = false;
+      });
+    }
+  }
+
+  Future<void> _loadTimeSlots() async {
+    setState(() => _loadingTimeSlots = true);
+    final result = await getIt<TimeSlotService>().getTimeSlots();
+    if (mounted) {
+      setState(() {
+        _timeSlots = result.data ?? [];
+        _loadingTimeSlots = false;
+      });
     }
   }
 
@@ -71,33 +154,102 @@ class _CourseFormViewState extends State<_CourseFormView> {
   void dispose() {
     _courseNameController.dispose();
     _courseCodeController.dispose();
-    _subjectController.dispose();
     _beforeMinutesController.dispose();
     _afterMinutesController.dispose();
     super.dispose();
   }
 
-  void _submit() {
+  void _onDepartmentChanged(String? deptId) {
+    setState(() {
+      _selectedDepartmentId = deptId;
+      _selectedTeacherId = null; // Reset teacher when dept changes
+      _updateFilteredTeachers();
+    });
+  }
+
+  void _onTeacherChanged(int? id) {
+    setState(() => _selectedTeacherId = id);
+  }
+
+  void _onRoomChanged(String? id) {
+    setState(() => _selectedRoomId = id);
+  }
+
+  void _updateFilteredTeachers() {
+    if (_selectedDepartmentId == null) {
+      _filteredTeachers = [];
+    } else {
+      _filteredTeachers = _teachers
+          .where((t) => t.departmentId == _selectedDepartmentId)
+          .toList();
+    }
+  }
+
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
-    final beforeMinutes =
-        int.tryParse(_beforeMinutesController.text) ?? 30;
+    final beforeMinutes = int.tryParse(_beforeMinutesController.text) ?? 30;
     final afterMinutes = int.tryParse(_afterMinutesController.text) ?? 30;
 
-    widget.courseBloc.createCourse(
-          courseName: _courseNameController.text.trim(),
-          courseCode: _courseCodeController.text.trim().isNotEmpty
-              ? _courseCodeController.text.trim()
-              : null,
-          subject: _subjectController.text.trim().isNotEmpty
-              ? _subjectController.text.trim()
-              : null,
-          attendanceMode: _selectedMode,
-          attendanceBeforeMinutes: beforeMinutes,
-          attendanceAfterMinutes: afterMinutes,
+    if (_isEditing) {
+      await widget.courseBloc.updateCourse(
+        id: widget.course!.id,
+        courseName: _courseNameController.text.trim(),
+        courseCode: _courseCodeController.text.trim().isNotEmpty
+            ? _courseCodeController.text.trim()
+            : null,
+        departmentId: _selectedDepartmentId,
+        teacherId: _selectedTeacherId,
+        roomId: _selectedRoomId,
+        attendanceMode: _selectedMode,
+        attendanceBeforeMinutes: beforeMinutes,
+        attendanceAfterMinutes: afterMinutes,
+        dayOfWeek: _selectedDayOfWeek,
+        timeSlotId: _selectedTimeSlotId,
+      );
+    } else {
+      await widget.courseBloc.createCourse(
+        courseName: _courseNameController.text.trim(),
+        courseCode: _courseCodeController.text.trim().isNotEmpty
+            ? _courseCodeController.text.trim()
+            : null,
+        departmentId: _selectedDepartmentId,
+        teacherId: _selectedTeacherId,
+        roomId: _selectedRoomId,
+        attendanceMode: _selectedMode,
+        attendanceBeforeMinutes: beforeMinutes,
+        attendanceAfterMinutes: afterMinutes,
+        dayOfWeek: _selectedDayOfWeek,
+        timeSlotId: _selectedTimeSlotId,
+      );
+    }
+
+    if (mounted) {
+      if (widget.courseBloc.state.requestStatus == RequestStatus.success) {
+        showTopAlert(
+          context,
+          title: _isEditing
+              ? 'Cập nhật học phần thành công!'
+              : 'Tạo học phần thành công!',
+          type: AlertType.success,
         );
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (mounted) {
+          setState(() => _isLoading = false);
+          AppNavigator.pop(true);
+        }
+      } else {
+        setState(() => _isLoading = false);
+        showTopAlert(
+          context,
+          title: widget.courseBloc.state.message ??
+              'Có lỗi xảy ra, vui lòng thử lại!',
+          type: AlertType.error,
+        );
+      }
+    }
   }
 
   @override
@@ -121,34 +273,7 @@ class _CourseFormViewState extends State<_CourseFormView> {
           onPressed: () => AppNavigator.pop(),
         ),
       ),
-      body: BlocListener<CourseBloc, CourseState>(
-        listener: (context, state) {
-          if (state.requestStatus == RequestStatus.requesting) {
-            setState(() => _isLoading = true);
-          } else if (state.requestStatus == RequestStatus.success &&
-              state.message != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  _isEditing
-                      ? 'Đã cập nhật học phần'
-                      : 'Đã tạo học phần mới',
-                ),
-                backgroundColor: AppColors.green600,
-              ),
-            );
-            AppNavigator.pop();
-          } else if (state.requestStatus == RequestStatus.failed) {
-            setState(() => _isLoading = false);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: SelectableText(state.message ?? 'Có lỗi xảy ra'),
-                backgroundColor: AppColors.red600,
-              ),
-            );
-          }
-        },
-        child: SingleChildScrollView(
+      body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Form(
             key: _formKey,
@@ -157,6 +282,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
               children: [
                 _buildBasicInfoCard(),
                 const SizedBox(height: 16),
+                _buildAssignmentCard(),
+                const SizedBox(height: 16),
                 _buildAttendanceModeCard(),
                 const SizedBox(height: 24),
                 _buildSubmitButton(),
@@ -164,7 +291,6 @@ class _CourseFormViewState extends State<_CourseFormView> {
             ),
           ),
         ),
-      ),
     );
   }
 
@@ -211,15 +337,214 @@ class _CourseFormViewState extends State<_CourseFormView> {
             hint: 'Nhập mã học phần (tùy chọn)',
             icon: Icons.qr_code,
           ),
-          const SizedBox(height: 16),
-          _buildTextField(
-            controller: _subjectController,
-            label: 'Môn học',
-            hint: 'Nhập tên môn học (tùy chọn)',
-            icon: Icons.menu_book,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAssignmentCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.assignment_ind,
+                  color: AppColors.blue600, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Phân công',
+                style: TextStyles.blackSmallBold.copyWith(fontSize: 16),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _buildDropdownField(
+            label: 'Phòng ban',
+            icon: Icons.business,
+            hint: 'Chọn phòng ban',
+            value: _selectedDepartmentId,
+            items: _departments
+                .map((d) => DropdownMenuItem<String>(
+                      value: d.id,
+                      child: Text(d.name, overflow: TextOverflow.ellipsis),
+                    ))
+                .toList(),
+            onChanged: _loadingDepartments ? null : _onDepartmentChanged,
+            isLoading: _loadingDepartments,
+          ),
+          if (_selectedDepartmentId != null) ...[
+            const SizedBox(height: 16),
+            _buildDropdownField<int>(
+              label: 'Giảng viên',
+              icon: Icons.person,
+              hint: 'Chọn giảng viên',
+              value: _selectedTeacherId,
+              items: _filteredTeachers
+                  .map((t) => DropdownMenuItem<int>(
+                        value: t.id,
+                        child: Text(
+                          '${t.teacherId ?? ''} - ${t.userFullName ?? 'GV #${t.id}'}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ))
+                  .toList(),
+              onChanged: _loadingTeachers ? null : _onTeacherChanged,
+              isLoading: _loadingTeachers,
+            ),
+          ],
+          const SizedBox(height: 16),
+          _buildDropdownField<String>(
+            label: 'Phòng học',
+            icon: Icons.meeting_room,
+            hint: 'Chọn phòng học',
+            value: _selectedRoomId,
+            items: _rooms
+                .map((r) => DropdownMenuItem<String>(
+                      value: r.id,
+                      child:
+                          Text(r.displayName, overflow: TextOverflow.ellipsis),
+                    ))
+                .toList(),
+            onChanged: _loadingRooms ? null : _onRoomChanged,
+            isLoading: _loadingRooms,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildDropdownField<int>(
+                  label: 'Thứ',
+                  icon: Icons.calendar_today,
+                  hint: 'Chọn thứ',
+                  value: _selectedDayOfWeek,
+                  items: _daysOfWeek
+                      .map((d) => DropdownMenuItem<int>(
+                            value: d['value'] as int,
+                            child: Text(d['label'] as String,
+                                overflow: TextOverflow.ellipsis),
+                          ))
+                      .toList(),
+                  onChanged: (val) => setState(() => _selectedDayOfWeek = val),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildDropdownField<int>(
+                  label: 'Tiết học',
+                  icon: Icons.access_time,
+                  hint: 'Chọn tiết',
+                  value: _selectedTimeSlotId,
+                  items: _timeSlots
+                      .map((s) => DropdownMenuItem<int>(
+                            value: s.id,
+                            child: Text('Tiết ${s.periodNumber}',
+                                overflow: TextOverflow.ellipsis),
+                          ))
+                      .toList(),
+                  onChanged: (val) => setState(() => _selectedTimeSlotId = val),
+                  isLoading: _loadingTimeSlots,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  static const _daysOfWeek = [
+    {'value': 1, 'label': 'Thứ Hai'},
+    {'value': 2, 'label': 'Thứ Ba'},
+    {'value': 3, 'label': 'Thứ Tư'},
+    {'value': 4, 'label': 'Thứ Năm'},
+    {'value': 5, 'label': 'Thứ Sáu'},
+    {'value': 6, 'label': 'Thứ Bảy'},
+    {'value': 7, 'label': 'Chủ Nhật'},
+  ];
+
+  Widget _buildDropdownField<T>({
+    required String label,
+    required IconData icon,
+    required String hint,
+    required T? value,
+    required List<DropdownMenuItem<T>> items,
+    required void Function(T?)? onChanged,
+    bool isLoading = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.slate900,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.backgroundLight,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.slate300),
+          ),
+          child: InputDecorator(
+            decoration: InputDecoration(
+              prefixIcon: Icon(icon, color: AppColors.slate500, size: 20),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+            ),
+            child: isLoading
+                ? const Row(
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 8),
+                      Text('Đang tải...',
+                          style: TextStyle(color: AppColors.slate500)),
+                    ],
+                  )
+                : DropdownButtonHideUnderline(
+                    child: DropdownButton<T>(
+                      isExpanded: true,
+                      value: value,
+                      hint: Text(hint,
+                          style: const TextStyle(color: AppColors.slate400)),
+                      items: items,
+                      onChanged: onChanged,
+                      dropdownColor: Colors.white,
+                    ),
+                  ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -297,7 +622,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.1) : AppColors.backgroundLight,
+          color:
+              isSelected ? color.withOpacity(0.1) : AppColors.backgroundLight,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? color : AppColors.slate300,
@@ -313,7 +639,9 @@ class _CourseFormViewState extends State<_CourseFormView> {
                 color: isSelected ? color : AppColors.slate200,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: isSelected ? Colors.white : AppColors.slate500, size: 20),
+              child: Icon(icon,
+                  color: isSelected ? Colors.white : AppColors.slate500,
+                  size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(

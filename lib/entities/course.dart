@@ -51,10 +51,9 @@ enum AttendanceMode {
 class Course {
   final String id;
   final String courseName;
-  final String? subject;
   final String? courseCode;
-  final String? instructorId;
-  final String? instructorName;
+  final int? teacherId;
+  final String? teacherName;
   final String? departmentId;
   final String? departmentName;
   final String? roomId;
@@ -63,16 +62,18 @@ class Course {
   final int attendanceBeforeMinutes;
   final int attendanceAfterMinutes;
   final int enrolledCount;
+  final int? dayOfWeek;
+  final int? timeSlotId;
+  final String? timeSlotName;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
   const Course({
     required this.id,
     required this.courseName,
-    this.subject,
     this.courseCode,
-    this.instructorId,
-    this.instructorName,
+    this.teacherId,
+    this.teacherName,
     this.departmentId,
     this.departmentName,
     this.roomId,
@@ -81,6 +82,9 @@ class Course {
     this.attendanceBeforeMinutes = 30,
     this.attendanceAfterMinutes = 30,
     this.enrolledCount = 0,
+    this.dayOfWeek,
+    this.timeSlotId,
+    this.timeSlotName,
     required this.createdAt,
     this.updatedAt,
   });
@@ -89,9 +93,9 @@ class Course {
     return Course(
       id: json['id'] as String,
       courseName: json['course_name'] as String,
-      subject: json['subject'] as String?,
       courseCode: json['course_code'] as String?,
-      instructorId: json['instructor_id'] as String?,
+      teacherId: json['teacher_id'] as int?,
+      teacherName: json['teacher_name'] as String?,
       departmentId: json['department_id'] as String?,
       departmentName: json['department_name'] as String?,
       roomId: json['room_id'] as String?,
@@ -103,6 +107,9 @@ class Course {
       attendanceAfterMinutes:
           json['attendance_after_minutes'] as int? ?? 30,
       enrolledCount: json['enrolled_count'] as int? ?? 0,
+      dayOfWeek: json['day_of_week'] as int?,
+      timeSlotId: json['time_slot_id'] as int?,
+      timeSlotName: json['time_slot_name'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String)
@@ -114,24 +121,24 @@ class Course {
     return {
       'id': id,
       'course_name': courseName,
-      'subject': subject,
       'course_code': courseCode,
-      'instructor_id': instructorId,
+      'teacher_id': teacherId,
       'department_id': departmentId,
       'room_id': roomId,
       'attendance_mode': attendanceMode.value,
       'attendance_before_minutes': attendanceBeforeMinutes,
       'attendance_after_minutes': attendanceAfterMinutes,
+      'day_of_week': dayOfWeek,
+      'time_slot_id': timeSlotId,
     };
   }
 
   Course copyWith({
     String? id,
     String? courseName,
-    String? subject,
     String? courseCode,
-    String? instructorId,
-    String? instructorName,
+    int? teacherId,
+    String? teacherName,
     String? departmentId,
     String? departmentName,
     String? roomId,
@@ -140,16 +147,18 @@ class Course {
     int? attendanceBeforeMinutes,
     int? attendanceAfterMinutes,
     int? enrolledCount,
+    int? dayOfWeek,
+    int? timeSlotId,
+    String? timeSlotName,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
     return Course(
       id: id ?? this.id,
       courseName: courseName ?? this.courseName,
-      subject: subject ?? this.subject,
       courseCode: courseCode ?? this.courseCode,
-      instructorId: instructorId ?? this.instructorId,
-      instructorName: instructorName ?? this.instructorName,
+      teacherId: teacherId ?? this.teacherId,
+      teacherName: teacherName ?? this.teacherName,
       departmentId: departmentId ?? this.departmentId,
       departmentName: departmentName ?? this.departmentName,
       roomId: roomId ?? this.roomId,
@@ -160,6 +169,9 @@ class Course {
       attendanceAfterMinutes:
           attendanceAfterMinutes ?? this.attendanceAfterMinutes,
       enrolledCount: enrolledCount ?? this.enrolledCount,
+      dayOfWeek: dayOfWeek ?? this.dayOfWeek,
+      timeSlotId: timeSlotId ?? this.timeSlotId,
+      timeSlotName: timeSlotName ?? this.timeSlotName,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

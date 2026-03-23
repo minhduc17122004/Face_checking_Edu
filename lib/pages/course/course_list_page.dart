@@ -1,6 +1,3 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-
 import 'package:face_time_keeping/common/enums/request_status.dart';
 import 'package:face_time_keeping/common/resources/app_colors.dart';
 import 'package:face_time_keeping/common/resources/styles/text_styles.dart';
@@ -11,13 +8,16 @@ import 'package:face_time_keeping/pages/course/bloc/course_state.dart';
 import 'package:face_time_keeping/pages/widgets/empty_state_widget.dart';
 import 'package:face_time_keeping/route/app_route.dart';
 import 'package:face_time_keeping/route/navigator.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:face_time_keeping/pages/setting/cubit/setting/setting_cubit.dart';
 
 class CourseListPage extends StatelessWidget {
   const CourseListPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final courseBloc = getIt<CourseBloc>()..loadCourses();
+    final courseBloc = getIt<CourseBloc>();
     return BlocProvider.value(
       value: courseBloc,
       child: _CourseListView(courseBloc: courseBloc),
@@ -39,6 +39,33 @@ class _CourseListViewState extends State<_CourseListView>
   @override
   bool get wantKeepAlive => true;
 
+  late final SettingCubit _settingCubit = getIt<SettingCubit>();
+  bool _isAdmin = false;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final role = await _settingCubit.getUserRole();
+    if (mounted) {
+      setState(() {
+        _isAdmin = role.toLowerCase() == 'admin';
+        if (!_loaded) {
+          _loaded = true;
+          widget.courseBloc.loadCourses(mine: !_isAdmin);
+        }
+      });
+    }
+  }
+
+  void _refreshCourses() {
+    widget.courseBloc.loadCourses(mine: !_isAdmin);
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -56,6 +83,18 @@ class _CourseListViewState extends State<_CourseListView>
         backgroundColor: Colors.white,
         elevation: 0.5,
       ),
+      floatingActionButton: _isAdmin
+          ? FloatingActionButton(
+              onPressed: () async {
+                final result = await AppNavigator.pushNamed(RouterName.courseForm);
+                if (result == true && context.mounted) {
+                  widget.courseBloc.loadCourses(mine: !_isAdmin);
+                }
+              },
+              backgroundColor: AppColors.primary,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
       body: BlocConsumer<CourseBloc, CourseState>(
         listener: (context, state) {
           if (state.requestStatus == RequestStatus.failed &&
@@ -64,14 +103,6 @@ class _CourseListViewState extends State<_CourseListView>
               SnackBar(
                 content: SelectableText(state.message!),
                 backgroundColor: AppColors.red600,
-              ),
-            );
-          } else if (state.requestStatus == RequestStatus.success &&
-              state.message != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: SelectableText(state.message!),
-                backgroundColor: AppColors.green600,
               ),
             );
           }
@@ -115,7 +146,7 @@ class _CourseListViewState extends State<_CourseListView>
             if (state.courses.isEmpty) {
               return EmptyStateWidget(
                 title: 'Chưa có học phần',
-                subtitle: 'Nhấn nút + để tạo học phần mới',
+                subtitle: 'Bạn chưa được gán học phần nào',
               );
             }
 
@@ -128,11 +159,23 @@ class _CourseListViewState extends State<_CourseListView>
                 return _CourseCard(
                   courseBloc: widget.courseBloc,
                   course: course,
-                  onTap: () {
-                    AppNavigator.pushNamed(RouterName.courseDetail,
+                  isAdmin: _isAdmin,
+                  onTap: () async {
+                    await AppNavigator.pushNamed(RouterName.courseDetail,
                         arguments: course);
+                    if (context.mounted) {
+                      _refreshCourses();
+                    }
                   },
-                  onDelete: () => _showDeleteConfirmation(context, course),
+                  onEdit: () async {
+                    final result = await AppNavigator.pushNamed(
+                        RouterName.courseForm,
+                        arguments: course);
+                    if (result == true && context.mounted) {
+                      _refreshCourses();
+                    }
+                  },
+                  onDelete: () => _showDeleteDialog(context, course),
                 );
               },
             );
@@ -141,35 +184,29 @@ class _CourseListViewState extends State<_CourseListView>
           return const SizedBox.shrink();
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          AppNavigator.pushNamed(RouterName.courseForm);
-        },
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context, Course course) {
+  void _showDeleteDialog(BuildContext context, Course course) {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Xác nhận xóa'),
-        content: Text(
-          'Bạn có chắc chắn muốn xóa học phần "${course.courseName}"?',
-        ),
+        content: Text('Bạn có chắc chắn muốn xóa học phần "${course.courseName}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Hủy'),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () {
               Navigator.pop(dialogContext);
               widget.courseBloc.deleteCourse(course.id);
             },
-            style: TextButton.styleFrom(foregroundColor: AppColors.red600),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.red600,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Xóa'),
           ),
         ],
@@ -181,13 +218,17 @@ class _CourseListViewState extends State<_CourseListView>
 class _CourseCard extends StatelessWidget {
   final CourseBloc courseBloc;
   final Course course;
+  final bool isAdmin;
   final VoidCallback onTap;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const _CourseCard({
     required this.courseBloc,
     required this.course,
+    required this.isAdmin,
     required this.onTap,
+    required this.onEdit,
     required this.onDelete,
   });
 
@@ -271,36 +312,20 @@ class _CourseCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                IconButton(
-                  onPressed: onDelete,
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    color: AppColors.slate500,
+                if (isAdmin) ...[
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined,
+                        size: 20, color: AppColors.blue600),
+                    onPressed: onEdit,
                   ),
-                ),
-              ],
-            ),
-            if (course.subject != null) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  const Icon(Icons.menu_book,
-                      size: 16, color: AppColors.slate500),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      course.subject!,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.slate500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline,
+                        size: 20, color: AppColors.red600),
+                    onPressed: onDelete,
                   ),
                 ],
-              ),
-            ],
+              ],
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -332,9 +357,39 @@ class _CourseCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (course.dayOfWeek != null && course.timeSlotName != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.calendar_month,
+                      size: 16, color: AppColors.slate500),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${_getDayLabel(course.dayOfWeek!)} - ${course.timeSlotName}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.slate500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  String _getDayLabel(int day) {
+    const days = {
+      1: 'Thứ 2',
+      2: 'Thứ 3',
+      3: 'Thứ 4',
+      4: 'Thứ 5',
+      5: 'Thứ 6',
+      6: 'Thứ 7',
+      7: 'Chủ Nhật',
+    };
+    return days[day] ?? '???';
   }
 }

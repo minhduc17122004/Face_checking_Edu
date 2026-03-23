@@ -5,7 +5,7 @@ import 'package:injectable/injectable.dart';
 import '../../common/api_client/api_client.dart';
 import '../../common/api_client/api_response.dart';
 import '../../common/api_client/data_state.dart';
-import '../../entities/course_student.dart';
+import '../../entities/teacher.dart';
 import 'api_endpoint.dart';
 
 abstract class TeacherService {
@@ -15,7 +15,8 @@ abstract class TeacherService {
     int? offset,
   });
   Future<DataState<Teacher>> getTeacher(int id);
-  Future<DataState<Teacher>> assignDepartment(int teacherId, String departmentId);
+  Future<DataState<Teacher>> assignDepartment(
+      int teacherId, String departmentId);
   Future<DataState<Teacher>> removeDepartment(int teacherId);
 }
 
@@ -62,7 +63,8 @@ class TeacherServiceImplement implements TeacherService {
   @override
   Future<DataState<Teacher>> getTeacher(int id) async {
     try {
-      final response = await _apiClient.get(path: '${ApiEndpoint.teachers}/$id');
+      final response =
+          await _apiClient.get(path: '${ApiEndpoint.teachers}/$id');
       if (response.isSuccess()) {
         return DataSuccess<Teacher>(
           Teacher.fromJson(response.data as Map<String, dynamic>),

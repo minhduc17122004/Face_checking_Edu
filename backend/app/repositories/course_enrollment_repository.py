@@ -87,9 +87,10 @@ class CourseEnrollmentRepository(BaseRepository[CourseEnrollment]):
         """Join course_enrollments + students + face_embeddings.
 
         Returns rows with:
-        student_id, name, pin, enrolled_at, has_face, embedding_count
+        student_id, student_code, name, user_id, pin, enrolled_at, has_face, embedding_count
         """
         from app.models.student import Student
+        from app.models.user import User
         from app.models.face_embedding import FaceEmbedding
         from sqlalchemy import select as sa_select, case
 
@@ -106,6 +107,8 @@ class CourseEnrollmentRepository(BaseRepository[CourseEnrollment]):
         result = await self.db.execute(
             sa_select(
                 CourseEnrollment.student_id,
+                Student.student_code,
+                User.full_name.label("name"),
                 Student.user_id,  # For name lookup via user
                 Student.pin,
                 CourseEnrollment.enrolled_at,
@@ -113,6 +116,7 @@ class CourseEnrollmentRepository(BaseRepository[CourseEnrollment]):
                 func.coalesce(subq.c.emb_count, 0).label("embedding_count"),
             )
             .join(Student, CourseEnrollment.student_id == Student.id)
+            .join(User, Student.user_id == User.id, isouter=True)
             .outerjoin(subq, CourseEnrollment.student_id == subq.c.sid)
             .where(
                 and_(
@@ -120,7 +124,7 @@ class CourseEnrollmentRepository(BaseRepository[CourseEnrollment]):
                     Student.deleted_at.is_(None),
                 )
             )
-            .order_by(Student.user_id)
+            .order_by(User.full_name)
         )
         return result.all()
 
@@ -133,3 +137,77 @@ class CourseEnrollmentRepository(BaseRepository[CourseEnrollment]):
             .order_by(CourseEnrollment.enrolled_at.desc())
         )
         return result.scalars().all()
+
+    # ── Students NOT enrolled in a course ─────────────────────────────────────
+    async def get_available_students(
+        self,
+        course_id: uuid.UUID,
+        skip: int = 0,
+        limit: int = 100,
+    ):
+        """Get students not enrolled in a specific course with face status and name."""
+        from app.models.student import Student
+        from app.models.user import User
+        from app.models.face_embedding import FaceEmbedding
+        from sqlalchemy import select as sa_select, case, not_
+
+        subq = (
+            select(
+                FaceEmbedding.student_id.label("sid"),
+                func.count(FaceEmbedding.id).label("emb_count"),
+            )
+            .where(FaceEmbedding.is_active == True)  # noqa: E712
+            .group_by(FaceEmbedding.student_id)
+            .subquery()
+        )
+
+        enrolled_subq = (
+            select(CourseEnrollment.student_id)
+            .where(CourseEnrollment.course_id == course_id)
+            .subquery()
+        )
+
+        result = await self.db.execute(
+            sa_select(
+                Student.id,
+                Student.user_id,
+                Student.student_code,
+                Student.pin,
+                User.full_name,
+                case((subq.c.emb_count.is_(None), False), else_=True).label("has_face"),
+                func.coalesce(subq.c.emb_count, 0).label("embedding_count"),
+            )
+            .join(User, Student.user_id == User.id, isouter=True)
+            .outerjoin(subq, Student.id == subq.c.sid)
+            .where(
+                and_(
+                    Student.deleted_at.is_(None),
+                    Student.id.notin_(select(enrolled_subq.c.student_id)),
+                )
+            )
+            .offset(skip)
+            .limit(limit)
+            .order_by(User.full_name)
+        )
+        return result.all()
+
+    async def count_available_students(self, course_id: uuid.UUID) -> int:
+        """Count students not enrolled in a specific course."""
+        from app.models.student import Student
+
+        enrolled_subq = (
+            select(CourseEnrollment.student_id)
+            .where(CourseEnrollment.course_id == course_id)
+            .subquery()
+        )
+
+        result = await self.db.execute(
+            select(func.count(Student.id))
+            .where(
+                and_(
+                    Student.deleted_at.is_(None),
+                    Student.id.notin_(select(enrolled_subq.c.student_id)),
+                )
+            )
+        )
+        return result.scalar_one()

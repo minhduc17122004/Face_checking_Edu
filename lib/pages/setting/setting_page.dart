@@ -882,7 +882,7 @@ class _SettingPageState extends State<SettingPage> {
             }
 
             return AppDialog(
-              title: 'Thiết lập buổi học',
+              title: 'Thiết lập thời gian tiết học',
               icon: Icons.schedule_rounded,
               accentColor: AppColors.blue,
               content: SizedBox(
@@ -893,7 +893,7 @@ class _SettingPageState extends State<SettingPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Chọn thời gian cho từng buổi học:',
+                        'Chọn thời gian cho từng tiết học:',
                         style: TextStyles.blackNormalRegular,
                       ),
                       const SizedBox(height: 16),
@@ -1184,9 +1184,11 @@ class _SettingPageState extends State<SettingPage> {
                     ),
                     _buildSettingItem(
                       icon: Icons.schedule_rounded,
-                      title: "Thiết lập buổi học",
-                      subtitle: "Chọn thời gian cho từng buổi học",
-                      onTap: _showWorkShiftDialog,
+                      title: "Thiết lập tiết học",
+                      subtitle: "Thiết lập thời gian từng tiết học",
+                      onTap: () {
+                        AppNavigator.pushNamed(RouterName.timeSlot);
+                      },
                     ),
                     _buildSettingItem(
                       icon: Icons.sync_problem,
@@ -1220,13 +1222,21 @@ class _SettingPageState extends State<SettingPage> {
                         },
                       ),
                       _buildSettingItem(
-                        icon: Icons.assignment_ind,
-                        title: "Gán giáo viên",
-                        subtitle: "Gán giáo viên vào phòng ban",
+                        icon: Icons.school,
+                        title: "Quản lý học phần",
+                        subtitle: "Thêm, sửa, xóa học phần",
                         onTap: () {
-                          AppNavigator.pushNamed(RouterName.teacherAssignment);
+                          AppNavigator.pushNamed(RouterName.courseList);
                         },
                       ),
+                      // _buildSettingItem(
+                      // icon: Icons.assignment_ind,
+                      // title: "Gán giáo viên",
+                      // subtitle: "Gán giáo viên vào phòng ban",
+                      // onTap: () {
+                      // // AppNavigator.pushNamed(RouterName.teacherAssignment);
+                      // },
+                      // ),
                       _buildSettingItem(
                         icon: Icons.person_add,
                         title: "Quản lý người dùng",

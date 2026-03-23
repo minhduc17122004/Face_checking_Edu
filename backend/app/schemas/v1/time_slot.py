@@ -21,3 +21,9 @@ class TimeSlotOut(BaseModel):
 class TimeSlotList(BaseModel):
     total: int
     items: list[TimeSlotOut]
+
+
+class TimeSlotUpdate(BaseModel):
+    period_number: int | None = Field(None, ge=1)
+    start_time: time | None = None
+    end_time: time | None = None

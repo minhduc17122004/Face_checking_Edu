@@ -12,7 +12,7 @@ from app.core.database import Base
 AttendanceMode = Literal["preset", "flexible", "custom"]
 
 if TYPE_CHECKING:
-    from app.models.user import User
+    from app.models.teacher import Teacher
     from app.models.course_enrollment import CourseEnrollment
     from app.models.schedule import Schedule
     from app.models.session import Session
@@ -38,15 +38,15 @@ class Course(Base):
     )
 
     course_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    subject: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     course_code: Mapped[Optional[str]] = mapped_column(
         String(50), nullable=True
     )
 
-    instructor_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="SET NULL"),
+    # Course belongs to a teacher (domain entity), not directly to a User
+    teacher_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("teachers.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -103,8 +103,8 @@ class Course(Base):
     )
 
     # ── Relationships ──────────────────────────────────────────
-    instructor: Mapped[Optional["User"]] = relationship(
-        "User",
+    teacher: Mapped[Optional["Teacher"]] = relationship(
+        "Teacher",
         back_populates="courses",
     )
 
@@ -142,12 +142,12 @@ class Course(Base):
         return len([e for e in self.enrollments])
 
     @property
-    def instructor_name(self) -> Optional[str]:
-        """Full name of the instructor (from User relationship)."""
-        if self.instructor is None:
+    def teacher_name(self) -> Optional[str]:
+        """Full name of the teacher (from Teacher → User relationship)."""
+        if self.teacher is None:
             return None
-        return getattr(self.instructor, "full_name", None) or getattr(
-            self.instructor, "name", None
+        return getattr(self.teacher.user, "full_name", None) or getattr(
+            self.teacher.user, "name", None
         )
 
     @property

@@ -81,21 +81,30 @@ class ApiClient {
     return request();
   }
 
-  Future<ApiResponse> post(
-      {required String path,
-      dynamic data,
-      Map<String, dynamic>? queryParameters,
-      Map<String, dynamic>? headers,
-      ProgressCallback? onSendProgress,
-      CancelToken? cancelToken}) async {
-    dio.options.headers.addAll(headers ?? _defaultHeaders);
+  Future<ApiResponse> post({
+    required String path,
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Map<String, dynamic>? headers,
+    ProgressCallback? onSendProgress,
+    CancelToken? cancelToken,
+    Duration? sendTimeout,
+    Duration? receiveTimeout,
+  }) async {
     return _requestWithBaseUrlGuard(
       path,
-      () => responseWrapper(dio.post<dynamic>(path,
-          data: data,
-          queryParameters: queryParameters,
-          onSendProgress: onSendProgress,
-          cancelToken: cancelToken)),
+      () => responseWrapper(dio.post<dynamic>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        onSendProgress: onSendProgress,
+        cancelToken: cancelToken,
+        options: Options(
+          headers: headers ?? _defaultHeaders,
+          sendTimeout: sendTimeout?.inMilliseconds,
+          receiveTimeout: receiveTimeout?.inMilliseconds,
+        ),
+      )),
     );
   }
 
@@ -103,25 +112,58 @@ class ApiClient {
     required String path,
     dynamic data,
     Map<String, dynamic>? headers,
+    Duration? sendTimeout,
+    Duration? receiveTimeout,
   }) async {
-    dio.options.headers.addAll(headers ?? {});
     return _requestWithBaseUrlGuard(
       path,
-      () => responseWrapper(dio.put<dynamic>(path, data: data)),
+      () => responseWrapper(dio.put<dynamic>(
+        path,
+        data: data,
+        options: Options(
+          headers: headers ?? {},
+          sendTimeout: sendTimeout?.inMilliseconds,
+          receiveTimeout: receiveTimeout?.inMilliseconds,
+        ),
+      )),
     );
   }
 
-  Future<ApiResponse> patch({required String path, dynamic data}) async {
+  Future<ApiResponse> patch({
+    required String path,
+    dynamic data,
+    Duration? sendTimeout,
+    Duration? receiveTimeout,
+  }) async {
     return _requestWithBaseUrlGuard(
       path,
-      () => responseWrapper(dio.patch<dynamic>(path, data: data)),
+      () => responseWrapper(dio.patch<dynamic>(
+        path,
+        data: data,
+        options: Options(
+          sendTimeout: sendTimeout?.inMilliseconds,
+          receiveTimeout: receiveTimeout?.inMilliseconds,
+        ),
+      )),
     );
   }
 
-  Future<ApiResponse> delete({required String path, dynamic data}) async {
+  Future<ApiResponse> delete({
+    required String path,
+    dynamic data,
+    Duration? sendTimeout,
+    Duration? receiveTimeout,
+  }) async {
     return _requestWithBaseUrlGuard(
       path,
-      () => responseWrapper(dio.delete<dynamic>(path, data: data)),
+      () => responseWrapper(dio.delete<dynamic>(
+        path,
+        data: data,
+        options: Options(
+          sendTimeout: sendTimeout?.inMilliseconds,
+          receiveTimeout: receiveTimeout?.inMilliseconds,
+        ),
+      )),
     );
   }
 
@@ -130,8 +172,9 @@ class ApiClient {
     dynamic data,
     Map<String, dynamic>? queryParameters,
     Map<String, dynamic>? headers,
+    Duration? sendTimeout,
+    Duration? receiveTimeout,
   }) async {
-    dio.options.headers.addAll(headers ?? {});
     return _requestWithBaseUrlGuard(
       path,
       () => responseWrapper(dio.request<dynamic>(
@@ -142,7 +185,10 @@ class ApiClient {
           headers: {
             "Content-Type": "application/json",
             "Accept": "application/json",
+            ...?headers,
           },
+          sendTimeout: sendTimeout?.inMilliseconds,
+          receiveTimeout: receiveTimeout?.inMilliseconds,
         ),
         data: data,
       )),

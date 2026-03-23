@@ -53,31 +53,34 @@ class CourseBloc extends Cubit<CourseState> {
 
   Future<void> createCourse({
     required String courseName,
-    String? subject,
     String? courseCode,
     String? departmentId,
-    String? instructorId,
+    int? teacherId,
     String? roomId,
     AttendanceMode attendanceMode = AttendanceMode.preset,
     int attendanceBeforeMinutes = 30,
     int attendanceAfterMinutes = 30,
+    int? dayOfWeek,
+    int? timeSlotId,
   }) async {
     emit(state.copyWith(requestStatus: RequestStatus.requesting));
     final result = await _courseService.createCourse(
       courseName: courseName,
-      subject: subject,
       courseCode: courseCode,
       departmentId: departmentId,
-      instructorId: instructorId,
+      teacherId: teacherId,
       roomId: roomId,
       attendanceMode: attendanceMode,
       attendanceBeforeMinutes: attendanceBeforeMinutes,
       attendanceAfterMinutes: attendanceAfterMinutes,
+      dayOfWeek: dayOfWeek,
+      timeSlotId: timeSlotId,
     );
     if (result.isSuccess) {
       emit(state.copyWith(
         requestStatus: RequestStatus.success,
         selectedCourse: result.data,
+        message: 'Success',
       ));
       await loadCourses();
     } else {
@@ -91,30 +94,35 @@ class CourseBloc extends Cubit<CourseState> {
   Future<void> updateCourse({
     required String id,
     String? courseName,
-    String? subject,
     String? courseCode,
     String? departmentId,
+    int? teacherId,
     String? roomId,
     AttendanceMode? attendanceMode,
     int? attendanceBeforeMinutes,
     int? attendanceAfterMinutes,
+    int? dayOfWeek,
+    int? timeSlotId,
   }) async {
     emit(state.copyWith(requestStatus: RequestStatus.requesting));
     final result = await _courseService.updateCourse(
       id: id,
       courseName: courseName,
-      subject: subject,
       courseCode: courseCode,
       departmentId: departmentId,
+      teacherId: teacherId,
       roomId: roomId,
       attendanceMode: attendanceMode,
       attendanceBeforeMinutes: attendanceBeforeMinutes,
       attendanceAfterMinutes: attendanceAfterMinutes,
+      dayOfWeek: dayOfWeek,
+      timeSlotId: timeSlotId,
     );
     if (result.isSuccess) {
       emit(state.copyWith(
         requestStatus: RequestStatus.success,
         selectedCourse: result.data,
+        message: 'Success',
       ));
       await loadCourses();
     } else {
@@ -151,6 +159,32 @@ class CourseBloc extends Cubit<CourseState> {
         message: result.error ?? 'Failed to enroll student',
       ));
     }
+  }
+
+  Future<Map<String, dynamic>?> batchEnrollStudents(
+      String courseId, List<int> studentIds) async {
+    emit(state.copyWith(requestStatus: RequestStatus.requesting));
+    final result =
+        await _courseService.batchEnrollStudents(courseId, studentIds);
+    if (result.isSuccess) {
+      emit(state.copyWith(requestStatus: RequestStatus.success));
+      await loadCourseStudents(courseId);
+      return result.data;
+    } else {
+      emit(state.copyWith(
+        requestStatus: RequestStatus.failed,
+        message: result.error ?? 'Failed to enroll students',
+      ));
+      return null;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>?> getAvailableStudents(String courseId) async {
+    final result = await _courseService.getAvailableStudents(courseId);
+    if (result.isSuccess) {
+      return result.data;
+    }
+    return null;
   }
 
   Future<void> unenrollStudent(String courseId, int studentId) async {

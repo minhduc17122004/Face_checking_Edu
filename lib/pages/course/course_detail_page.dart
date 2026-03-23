@@ -14,7 +14,6 @@ import 'package:face_time_keeping/pages/schedule/bloc/schedule_state.dart';
 import 'package:face_time_keeping/pages/session/bloc/session_bloc.dart';
 import 'package:face_time_keeping/pages/session/bloc/session_state.dart';
 import 'package:face_time_keeping/pages/widgets/empty_state_widget.dart';
-import 'package:face_time_keeping/route/app_route.dart';
 import 'package:face_time_keeping/route/navigator.dart';
 
 class CourseDetailPage extends StatefulWidget {
@@ -107,7 +106,6 @@ class _CourseDetailPageState extends State<CourseDetailPage>
   }
 
   Widget _buildInfoTab() {
-    final course = widget.course;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -146,14 +144,12 @@ class _CourseDetailPageState extends State<CourseDetailPage>
           _buildInfoRow('Tên học phần', course.courseName),
           if (course.courseCode != null)
             _buildInfoRow('Mã học phần', course.courseCode!),
-          if (course.subject != null)
-            _buildInfoRow('Môn học', course.subject!),
           const Divider(height: 24),
           _buildInfoHeader('Phân công'),
           const SizedBox(height: 12),
           _buildInfoRow(
             'Giảng viên',
-            course.instructorName ?? 'Chưa phân công',
+            course.teacherName ?? 'Chưa phân công',
           ),
           _buildInfoRow(
             'Phòng học',
@@ -477,15 +473,17 @@ class _CourseDetailPageState extends State<CourseDetailPage>
         ),
         subtitle: Row(
           children: [
-            Text(
-              'ID: ${student.studentId}',
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.slate500,
+            if (student.studentCode != null) ...[
+              Text(
+                '${student.studentCode}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.slate500,
+                ),
               ),
-            ),
-            if (student.pin != null) ...[
-              const SizedBox(width: 12),
+              if (student.pin != null) const SizedBox(width: 12),
+            ],
+            if (student.pin != null)
               Text(
                 'PIN: ${student.pin}',
                 style: const TextStyle(
@@ -493,7 +491,6 @@ class _CourseDetailPageState extends State<CourseDetailPage>
                   color: AppColors.slate500,
                 ),
               ),
-            ],
           ],
         ),
         trailing: Row(
@@ -583,35 +580,11 @@ class _CourseDetailPageState extends State<CourseDetailPage>
   }
 
   void _showAddStudentDialog(BuildContext context) {
-    final studentIdController = TextEditingController();
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Thêm học sinh'),
-        content: TextField(
-          controller: studentIdController,
-          decoration: const InputDecoration(
-            labelText: 'ID học sinh',
-            border: OutlineInputBorder(),
-          ),
-          keyboardType: TextInputType.number,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => AppNavigator.pop(),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final id = int.tryParse(studentIdController.text);
-              if (id != null) {
-                _courseBloc.enrollStudent(widget.course.id, id);
-                AppNavigator.pop();
-              }
-            },
-            child: const Text('Thêm'),
-          ),
-        ],
+      builder: (ctx) => _AddStudentsDialog(
+        courseId: widget.course.id,
+        courseBloc: _courseBloc,
       ),
     );
   }
@@ -879,5 +852,267 @@ class _CourseDetailPageState extends State<CourseDetailPage>
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+}
+
+// ─── Add Students Dialog with list selection ─────────────────────────────────
+
+class _AddStudentsDialog extends StatefulWidget {
+  final String courseId;
+  final CourseBloc courseBloc;
+
+  const _AddStudentsDialog({
+    required this.courseId,
+    required this.courseBloc,
+  });
+
+  @override
+  State<_AddStudentsDialog> createState() => _AddStudentsDialogState();
+}
+
+class _AddStudentsDialogState extends State<_AddStudentsDialog> {
+  final Set<int> _selectedIds = {};
+  List<Map<String, dynamic>> _students = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAvailableStudents();
+  }
+
+  Future<void> _loadAvailableStudents() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    final result =
+        await widget.courseBloc.getAvailableStudents(widget.courseId);
+    if (mounted) {
+      if (result != null) {
+        setState(() {
+          _students = result;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _error = widget.courseBloc.state.message ?? 'Có lỗi xảy ra';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _toggleSelection(int id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _toggleSelectAll() {
+    setState(() {
+      if (_selectedIds.length == _students.length) {
+        _selectedIds.clear();
+      } else {
+        _selectedIds.addAll(_students.map((s) => s['id'] as int));
+      }
+    });
+  }
+
+  Future<void> _enrollSelected() async {
+    if (_selectedIds.isEmpty) return;
+
+    AppNavigator.pop();
+    final result = await widget.courseBloc.batchEnrollStudents(
+      widget.courseId,
+      _selectedIds.toList(),
+    );
+
+    if (mounted) {
+      if (result != null) {
+        final enrolled = result['total_enrolled'] as int? ?? 0;
+        final already = result['total_already_enrolled'] as int? ?? 0;
+        final total = _selectedIds.length;
+
+        String message;
+        if (enrolled == total) {
+          message = 'Đã thêm thành công $enrolled học sinh.';
+        } else if (enrolled > 0) {
+          message =
+              'Đã thêm $enrolled/$total học sinh. $already học sinh đã tồn tại.';
+        } else {
+          message = 'Tất cả $already học sinh đã tồn tại trong học phần.';
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor:
+                enrolled > 0 ? AppColors.green600 : AppColors.orange600,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.courseBloc.state.message ?? 'Có lỗi xảy ra'),
+            backgroundColor: AppColors.red600,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text('Thêm học sinh'),
+          if (_students.isNotEmpty)
+            Text(
+              '${_selectedIds.length}/${_students.length}',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.normal,
+                color: AppColors.slate500,
+              ),
+            ),
+        ],
+      ),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 400,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SelectableText(
+                          _error!,
+                          style: const TextStyle(color: AppColors.red),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadAvailableStudents,
+                          child: const Text('Thử lại'),
+                        ),
+                      ],
+                    ),
+                  )
+                : _students.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'Không có học sinh nào khả dụng',
+                          style: TextStyle(color: AppColors.slate500),
+                        ),
+                      )
+                    : Column(
+                        children: [
+                          // Select all row
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.slate200,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Checkbox(
+                                  value:
+                                      _selectedIds.length == _students.length,
+                                  onChanged: (_) => _toggleSelectAll(),
+                                ),
+                                const Text(
+                                  'Chọn tất cả',
+                                  style: TextStyle(fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          // Student list
+                          Expanded(
+                            child: ListView.builder(
+                              itemCount: _students.length,
+                              itemBuilder: (context, index) {
+                                final student = _students[index];
+                                final id = student['id'] as int;
+                                final studentCode =
+                                    student['student_code'] as String?;
+                                final hasFace =
+                                    student['has_face'] as bool? ?? false;
+                                final isSelected = _selectedIds.contains(id);
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 4),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? AppColors.blue50
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? AppColors.blue
+                                          : AppColors.slate200,
+                                    ),
+                                  ),
+                                  child: ListTile(
+                                    dense: true,
+                                    leading: Checkbox(
+                                      value: isSelected,
+                                      onChanged: (_) => _toggleSelection(id),
+                                    ),
+                                    title: Text(
+                                      (student['full_name'] as String?) ??
+                                          'HV#$id',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      '${studentCode ?? id}',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    trailing: Icon(
+                                      hasFace
+                                          ? Icons.face
+                                          : Icons.face_outlined,
+                                      color: hasFace
+                                          ? AppColors.green600
+                                          : AppColors.slate400,
+                                      size: 20,
+                                    ),
+                                    onTap: () => _toggleSelection(id),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => AppNavigator.pop(),
+          child: const Text('Hủy'),
+        ),
+        ElevatedButton(
+          onPressed: _selectedIds.isEmpty ? null : _enrollSelected,
+          child: Text('Thêm (${_selectedIds.length})'),
+        ),
+      ],
+    );
   }
 }

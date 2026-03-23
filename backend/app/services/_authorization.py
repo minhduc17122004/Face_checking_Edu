@@ -12,28 +12,28 @@ from app.models.course_enrollment import CourseEnrollment
 from app.models.attendance import Attendance
 
 
-def check_course_owner(course: Course, user_id: str) -> None:
+def check_course_owner(course: Course, teacher_id: int) -> None:
     """Raise 403 if user is not the owner of the course."""
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Course not found",
         )
-    if str(course.instructor_id) != user_id:
+    if course.teacher_id != teacher_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not own this course",
         )
 
 
-def check_session_owner(session: Session, user_id: str) -> None:
+def check_session_owner(session: Session, teacher_id: int) -> None:
     """Raise 403 if user is not the owner of the session's course."""
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found",
         )
-    if str(session.course.instructor_id) != user_id:
+    if session.course.teacher_id != teacher_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not own this session",

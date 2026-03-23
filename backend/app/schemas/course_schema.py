@@ -1,8 +1,8 @@
 from __future__ import annotations
-from typing import Optional
 """Course schemas — create and read responses for the /courses endpoints."""
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -11,7 +11,6 @@ class CourseCreate(BaseModel):
     """POST /courses — create a new course."""
 
     course_name: str = Field(..., min_length=1, max_length=255, examples=["12A1"])
-    subject: Optional[str] = Field(None, max_length=255, examples=["Toán"])
     course_code: Optional[str] = Field(None, max_length=50, examples=["MATH101"])
 
 
@@ -20,9 +19,8 @@ class CourseOut(BaseModel):
 
     id: uuid.UUID
     course_name: str
-    subject: Optional[str]
     course_code: Optional[str]
-    instructor_id: Optional[uuid.UUID]
+    teacher_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 

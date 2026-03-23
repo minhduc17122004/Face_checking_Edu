@@ -25,6 +25,7 @@ import 'package:face_time_keeping/pages/account/profile_page.dart';
 import 'package:face_time_keeping/pages/setting/teacher_list_page.dart';
 import 'package:face_time_keeping/pages/teacher/teacher_assignment_page.dart';
 import 'package:face_time_keeping/pages/setting/user_register_page.dart';
+import 'package:face_time_keeping/pages/setting/time_slot_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -64,6 +65,7 @@ class RouterName {
   static const String sessionList = '/sessions';
   static const String sessionDetail = '/sessions/detail';
   static const String teacherAssignment = '/teachers/assignment';
+  static const String timeSlot = '/settings/time-slots';
 }
 
 class AppRoutes {
@@ -146,7 +148,7 @@ class AppRoutes {
       case RouterName.schedule:
         return _materialRoute(
           settings,
-          SchedulePage(courseId: settings.arguments as String),
+          SchedulePage(courseId: settings.arguments as String?),
         );
       case RouterName.sessionList:
         return _materialRoute(
@@ -160,6 +162,8 @@ class AppRoutes {
         );
       case RouterName.teacherAssignment:
         return _materialRoute(settings, const TeacherAssignmentPage());
+      case RouterName.timeSlot:
+        return _materialRoute(settings, const TimeSlotPage());
     }
     return null;
   }

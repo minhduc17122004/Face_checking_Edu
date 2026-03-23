@@ -469,7 +469,7 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
           ),
         ),
         const SizedBox(height: 14),
-          GridView.count(
+        GridView.count(
           crossAxisCount: 2,
           crossAxisSpacing: 14,
           mainAxisSpacing: 14,
@@ -478,22 +478,14 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
           physics: const NeverScrollableScrollPhysics(),
           children: [
             _QuickAccessCard(
-              icon: Icons.history,
-              title: 'Lịch sử',
-              subtitle: 'Xem điểm danh trước đó',
-              iconBg: AppColors.orange50,
-              iconColor: AppColors.orange600,
-              onTap: () {
-                AppNavigator.pushNamed(RouterName.attendanceReport);
-              },
-            ),
-            _QuickAccessCard(
               icon: Icons.calendar_month,
               title: 'Lịch học',
               subtitle: 'Kế hoạch theo tuần',
               iconBg: AppColors.purple50,
               iconColor: AppColors.purple600,
-              onTap: () {},
+              onTap: () {
+                AppNavigator.pushNamed(RouterName.schedule);
+              },
             ),
             _QuickAccessCard(
               icon: Icons.description_outlined,

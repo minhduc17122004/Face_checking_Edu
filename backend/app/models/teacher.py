@@ -68,7 +68,17 @@ class Teacher(Base):
         "Department",
         back_populates="teachers",
     )
+    courses: Mapped[list["Course"]] = relationship(
+        "Course",
+        back_populates="teacher",
+    )
 
     def __repr__(self) -> str:
         return f"<Teacher id={self.id} teacher_id={self.teacher_id}>"
+
+    # ── Accessors ───────────────────────────────────────────────
+    @property
+    def is_deleted(self) -> bool:
+        """Check if teacher is soft-deleted (compatibility accessor)."""
+        return self.deleted_at is not None
 

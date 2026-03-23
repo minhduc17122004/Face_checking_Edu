@@ -28,6 +28,7 @@ import 'package:face_time_keeping/data/remote/session_service.dart' as _i440;
 import 'package:face_time_keeping/data/remote/student_group_service.dart'
     as _i691;
 import 'package:face_time_keeping/data/remote/teacher_service.dart' as _i169;
+import 'package:face_time_keeping/data/remote/time_slot_service.dart' as _i148;
 import 'package:face_time_keeping/data/remote/user_service.dart' as _i687;
 import 'package:face_time_keeping/di/modules.dart' as _i754;
 import 'package:face_time_keeping/pages/account/account_cubit.dart' as _i607;
@@ -125,6 +126,8 @@ extension GetItInjectableX on _i174.GetIt {
         ));
     gh.lazySingleton<_i276.DepartmentService>(
         () => _i276.DepartmentServiceImplement(gh<_i644.ApiClient>()));
+    gh.lazySingleton<_i148.TimeSlotService>(
+        () => _i148.TimeSlotServiceImplement(gh<_i644.ApiClient>()));
     gh.factory<_i371.TeacherBloc>(
         () => _i371.TeacherBloc(gh<_i169.TeacherService>()));
     gh.lazySingleton<_i368.AuthenticationService>(

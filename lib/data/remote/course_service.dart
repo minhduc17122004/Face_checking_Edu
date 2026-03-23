@@ -20,30 +20,35 @@ abstract class CourseService {
   Future<DataState<Course>> getCourse(String id);
   Future<DataState<Course>> createCourse({
     required String courseName,
-    String? subject,
     String? courseCode,
     String? departmentId,
-    String? instructorId,
+    int? teacherId,
     String? roomId,
     AttendanceMode attendanceMode = AttendanceMode.preset,
     int attendanceBeforeMinutes = 30,
     int attendanceAfterMinutes = 30,
+    int? dayOfWeek,
+    int? timeSlotId,
   });
   Future<DataState<Course>> updateCourse({
     required String id,
     String? courseName,
-    String? subject,
     String? courseCode,
     String? departmentId,
+    int? teacherId,
     String? roomId,
     AttendanceMode? attendanceMode,
     int? attendanceBeforeMinutes,
     int? attendanceAfterMinutes,
+    int? dayOfWeek,
+    int? timeSlotId,
   });
   Future<DataState<void>> deleteCourse(String id);
   Future<DataState<Room?>> assignRoom(String courseId, String roomId);
   Future<DataState<List<CourseStudent>>> getCourseStudents(String courseId);
   Future<DataState<void>> enrollStudent(String courseId, int studentId);
+  Future<DataState<Map<String, dynamic>>> batchEnrollStudents(String courseId, List<int> studentIds);
+  Future<DataState<List<Map<String, dynamic>>>> getAvailableStudents(String courseId, {int? limit, int? offset});
   Future<DataState<void>> unenrollStudent(String courseId, int studentId);
 }
 
@@ -111,29 +116,33 @@ class CourseServiceImplement implements CourseService {
   @override
   Future<DataState<Course>> createCourse({
     required String courseName,
-    String? subject,
     String? courseCode,
     String? departmentId,
-    String? instructorId,
+    int? teacherId,
     String? roomId,
     AttendanceMode attendanceMode = AttendanceMode.preset,
     int attendanceBeforeMinutes = 30,
     int attendanceAfterMinutes = 30,
+    int? dayOfWeek,
+    int? timeSlotId,
   }) async {
     try {
       final response = await _apiClient.post(
         path: ApiEndpoint.courses,
         data: {
           'course_name': courseName,
-          if (subject != null) 'subject': subject,
           if (courseCode != null) 'course_code': courseCode,
           if (departmentId != null) 'department_id': departmentId,
-          if (instructorId != null) 'instructor_id': instructorId,
+          if (teacherId != null) 'teacher_id': teacherId,
           if (roomId != null) 'room_id': roomId,
           'attendance_mode': attendanceMode.value,
           'attendance_before_minutes': attendanceBeforeMinutes,
           'attendance_after_minutes': attendanceAfterMinutes,
+          if (dayOfWeek != null) 'day_of_week': dayOfWeek,
+          if (timeSlotId != null) 'time_slot_id': timeSlotId,
         },
+        sendTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(seconds: 20),
       );
       if (response.isSuccess()) {
         return DataSuccess<Course>(
@@ -154,32 +163,39 @@ class CourseServiceImplement implements CourseService {
   Future<DataState<Course>> updateCourse({
     required String id,
     String? courseName,
-    String? subject,
     String? courseCode,
     String? departmentId,
+    int? teacherId,
     String? roomId,
     AttendanceMode? attendanceMode,
     int? attendanceBeforeMinutes,
     int? attendanceAfterMinutes,
+    int? dayOfWeek,
+    int? timeSlotId,
   }) async {
     try {
       final data = <String, dynamic>{};
       if (courseName != null) data['course_name'] = courseName;
-      if (subject != null) data['subject'] = subject;
       if (courseCode != null) data['course_code'] = courseCode;
       if (departmentId != null) data['department_id'] = departmentId;
       if (roomId != null) data['room_id'] = roomId;
-      if (attendanceMode != null) data['attendance_mode'] = attendanceMode.value;
+      if (teacherId != null) data['teacher_id'] = teacherId;
+      if (attendanceMode != null)
+        data['attendance_mode'] = attendanceMode.value;
       if (attendanceBeforeMinutes != null) {
         data['attendance_before_minutes'] = attendanceBeforeMinutes;
       }
       if (attendanceAfterMinutes != null) {
         data['attendance_after_minutes'] = attendanceAfterMinutes;
       }
+      if (dayOfWeek != null) data['day_of_week'] = dayOfWeek;
+      if (timeSlotId != null) data['time_slot_id'] = timeSlotId;
 
       final response = await _apiClient.put(
         path: '${ApiEndpoint.courses}/$id',
         data: data,
+        sendTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(seconds: 20),
       );
       if (response.isSuccess()) {
         return DataSuccess<Course>(
@@ -199,7 +215,8 @@ class CourseServiceImplement implements CourseService {
   @override
   Future<DataState<void>> deleteCourse(String id) async {
     try {
-      final response = await _apiClient.delete(path: '${ApiEndpoint.courses}/$id');
+      final response =
+          await _apiClient.delete(path: '${ApiEndpoint.courses}/$id');
       if (response.isSuccess()) {
         return const DataSuccess<void>(null);
       }
@@ -261,8 +278,7 @@ class CourseServiceImplement implements CourseService {
   }
 
   @override
-  Future<DataState<void>> enrollStudent(
-      String courseId, int studentId) async {
+  Future<DataState<void>> enrollStudent(String courseId, int studentId) async {
     try {
       final response = await _apiClient.post(
         path: '${ApiEndpoint.courses}/$courseId/students/$studentId',
@@ -277,6 +293,60 @@ class CourseServiceImplement implements CourseService {
     } on Exception catch (e) {
       await pushLog('Error in enrollStudent: $e');
       return DataFailed<void>(e.toString());
+    }
+  }
+
+  @override
+  Future<DataState<Map<String, dynamic>>> batchEnrollStudents(
+      String courseId, List<int> studentIds) async {
+    try {
+      final response = await _apiClient.post(
+        path: '${ApiEndpoint.courses}/$courseId/students/batch',
+        data: {'student_ids': studentIds},
+        sendTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+      );
+      if (response.isSuccess()) {
+        return DataSuccess<Map<String, dynamic>>(
+          response.data as Map<String, dynamic>,
+        );
+      }
+      return DataFailed<Map<String, dynamic>>(response.error);
+    } on DioError catch (e) {
+      await pushLog('Error in batchEnrollStudents: $e');
+      return DataFailed<Map<String, dynamic>>(e.message);
+    } on Exception catch (e) {
+      await pushLog('Error in batchEnrollStudents: $e');
+      return DataFailed<Map<String, dynamic>>(e.toString());
+    }
+  }
+
+  @override
+  Future<DataState<List<Map<String, dynamic>>>> getAvailableStudents(
+      String courseId, {int? limit, int? offset}) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (limit != null) queryParams['limit'] = limit;
+      if (offset != null) queryParams['skip'] = offset;
+
+      final response = await _apiClient.get(
+        path: '${ApiEndpoint.courses}/$courseId/available-students',
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
+      if (response.isSuccess()) {
+        final json = response.data as Map<String, dynamic>;
+        final students = json['students'] as List<dynamic>;
+        return DataSuccess<List<Map<String, dynamic>>>(
+          students.map((e) => e as Map<String, dynamic>).toList(),
+        );
+      }
+      return DataFailed<List<Map<String, dynamic>>>(response.error);
+    } on DioError catch (e) {
+      await pushLog('Error in getAvailableStudents: $e');
+      return DataFailed<List<Map<String, dynamic>>>(e.message);
+    } on Exception catch (e) {
+      await pushLog('Error in getAvailableStudents: $e');
+      return DataFailed<List<Map<String, dynamic>>>(e.toString());
     }
   }
 

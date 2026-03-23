@@ -470,7 +470,7 @@ abstract class SessionService {
   - Attendance window (auto từ course.attendance_mode)
   - Trạng thái: Scheduled
 
-`**lib/pages/session/session_detail_page.dart**`
+`**lib/pages/session/session_detail_page.dart`**
 
 - Thông tin phiên: Tên học phần, Ngày, Giờ, Attendance window
 - Nút "Bắt đầu điểm danh" → `POST /api/v1/sessions/{id}/activate`

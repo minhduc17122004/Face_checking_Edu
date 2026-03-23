@@ -4,8 +4,8 @@ import 'package:face_time_keeping/common/enums/request_status.dart';
 import 'package:face_time_keeping/common/resources/app_colors.dart';
 import 'package:face_time_keeping/di/injection.dart';
 import 'package:face_time_keeping/entities/course.dart';
-import 'package:face_time_keeping/entities/course_student.dart';
 import 'package:face_time_keeping/entities/department.dart';
+import 'package:face_time_keeping/entities/teacher.dart';
 import 'package:face_time_keeping/pages/course/bloc/course_bloc.dart';
 import 'package:face_time_keeping/pages/course/bloc/course_state.dart';
 import 'package:face_time_keeping/pages/department/bloc/department_bloc.dart';
@@ -186,8 +186,11 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<Department>(
-                      value: _selectedDepartment != null && state.departments.any((d) => d.id == _selectedDepartment!.id)
-                          ? state.departments.firstWhere((d) => d.id == _selectedDepartment!.id)
+                      value: _selectedDepartment != null &&
+                              state.departments
+                                  .any((d) => d.id == _selectedDepartment!.id)
+                          ? state.departments.firstWhere(
+                              (d) => d.id == _selectedDepartment!.id)
                           : null,
                       isExpanded: true,
                       hint: const Text(
@@ -224,13 +227,6 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
                                     color: AppColors.slate900,
                                   ),
                                   overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              Text(
-                                '${dept.teacherCount} GV',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.slate500,
                                 ),
                               ),
                             ],
@@ -366,7 +362,9 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
             child: Text(
               (teacher.userFullName?.isNotEmpty ?? false)
                   ? teacher.userFullName![0].toUpperCase()
-                  : (teacher.userId.isNotEmpty ? teacher.userId[0].toUpperCase() : 'G'),
+                  : (teacher.userId.isNotEmpty
+                      ? teacher.userId[0].toUpperCase()
+                      : 'G'),
               style: const TextStyle(
                 color: AppColors.blue600,
                 fontWeight: FontWeight.bold,
@@ -778,7 +776,7 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
               ),
             ],
           ),
-          if (course.instructorName != null) ...[
+          if (course.teacherName != null) ...[
             const SizedBox(height: 8),
             Row(
               children: [
@@ -789,7 +787,7 @@ class _TeacherAssignmentPageState extends State<TeacherAssignmentPage>
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  'GV: ${course.instructorName}',
+                  'GV: ${course.teacherName}',
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.slate500,

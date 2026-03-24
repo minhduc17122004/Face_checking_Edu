@@ -3,6 +3,7 @@ import 'time_slot.dart';
 class Schedule {
   final String id;
   final String courseId;
+  final String courseName;
   final int dayOfWeek;
   final int timeSlotId;
   final TimeSlot? timeSlot;
@@ -11,6 +12,7 @@ class Schedule {
   const Schedule({
     required this.id,
     required this.courseId,
+    required this.courseName,
     required this.dayOfWeek,
     required this.timeSlotId,
     this.timeSlot,
@@ -25,6 +27,7 @@ class Schedule {
     return Schedule(
       id: json['id'] as String,
       courseId: json['course_id'] as String,
+      courseName: json['course_name'] as String? ?? 'Unknown',
       dayOfWeek: json['day_of_week'] as int,
       timeSlotId: json['time_slot_id'] as int,
       timeSlot: ts,

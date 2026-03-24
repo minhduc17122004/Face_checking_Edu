@@ -3,10 +3,13 @@ from __future__ import annotations
 import uuid
 from typing import Sequence
 
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.schedule import Schedule
+from app.models.course import Course
+from app.models.course_enrollment import CourseEnrollment
 from app.repositories._base import BaseRepository
 
 
@@ -23,7 +26,9 @@ class ScheduleRepository(BaseRepository[Schedule]):
 
     async def get_by_id(self, schedule_id: uuid.UUID) -> Schedule | None:
         result = await self.db.execute(
-            select(Schedule).where(Schedule.id == schedule_id)
+            select(Schedule)
+            .options(joinedload(Schedule.time_slot), joinedload(Schedule.course))
+            .where(Schedule.id == schedule_id)
         )
         return result.scalar_one_or_none()
 
@@ -31,7 +36,9 @@ class ScheduleRepository(BaseRepository[Schedule]):
         self, course_id: uuid.UUID, day_of_week: int
     ) -> Sequence[Schedule]:
         result = await self.db.execute(
-            select(Schedule).where(
+            select(Schedule)
+            .options(joinedload(Schedule.time_slot), joinedload(Schedule.course))
+            .where(
                 and_(
                     Schedule.course_id == course_id,
                     Schedule.day_of_week == day_of_week,
@@ -43,7 +50,9 @@ class ScheduleRepository(BaseRepository[Schedule]):
 
     async def get_by_course(self, course_id: uuid.UUID) -> Sequence[Schedule]:
         result = await self.db.execute(
-            select(Schedule).where(
+            select(Schedule)
+            .options(joinedload(Schedule.time_slot), joinedload(Schedule.course))
+            .where(
                 and_(
                     Schedule.course_id == course_id,
                     Schedule.deleted_at.is_(None),
@@ -58,20 +67,29 @@ class ScheduleRepository(BaseRepository[Schedule]):
         day_of_week: int | None = None,
         skip: int = 0,
         limit: int = 200,
+        teacher_id: int | None = None,
+        student_id: int | None = None,
     ) -> tuple[Sequence[Schedule], int]:
         conditions = [Schedule.deleted_at.is_(None)]
+        if teacher_id is not None:
+            conditions.append(Schedule.course.has(Course.teacher_id == teacher_id))
+        if student_id is not None:
+            conditions.append(Schedule.course.has(Course.enrollments.any(CourseEnrollment.student_id == student_id)))
         if course_id:
             conditions.append(Schedule.course_id == course_id)
         if day_of_week is not None:
             conditions.append(Schedule.day_of_week == day_of_week)
         where_clause = and_(*conditions)
-        from sqlalchemy import func
         count_result = await self.db.execute(
             select(func.count()).select_from(Schedule).where(where_clause)
         )
         total = count_result.scalar_one()
         result = await self.db.execute(
-            select(Schedule).where(where_clause).offset(skip).limit(limit)
+            select(Schedule)
+            .options(joinedload(Schedule.time_slot), joinedload(Schedule.course))
+            .where(where_clause)
+            .offset(skip)
+            .limit(limit)
         )
         return result.scalars().all(), total
 

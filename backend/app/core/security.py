@@ -7,13 +7,14 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.models.refresh_token import RefreshToken
+from app.models.user import User
 
 # ──────────────────────────────────────────────────────────────
 # Password hashing
@@ -198,3 +199,20 @@ async def get_current_user_id(token: str = Depends(oauth2_scheme)) -> str:
     """Extract and return the authenticated user's UUID string from the token."""
     payload = decode_access_token(token)
     return payload["sub"]
+
+
+async def get_current_user_obj(user_id: str = Depends(get_current_user_id)) -> User:
+    """Dependency that returns the current User object from the database."""
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(User)
+            .options(selectinload(User.teacher_profile), selectinload(User.student_profile))
+            .where(User.id == uuid.UUID(user_id))
+        )
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+        return user

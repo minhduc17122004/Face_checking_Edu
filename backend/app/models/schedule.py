@@ -101,3 +101,8 @@ class Schedule(Base):
     def is_deleted(self) -> bool:
         """Check if schedule is soft-deleted (compatibility accessor)."""
         return self.deleted_at is not None
+
+    @property
+    def course_name(self) -> str:
+        """Name of the course from Course relation."""
+        return self.course.course_name if self.course else "Unknown"

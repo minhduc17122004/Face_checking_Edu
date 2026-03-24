@@ -13,19 +13,31 @@ import 'package:face_time_keeping/route/navigator.dart';
 /// Thời gian biểu tham khảo: ĐH Kinh tế – ĐH Đà Nẵng (12 tiết / ngày).
 class TimeSlotConfig {
   static List<TimeSlot> get defaultSlots => [
-    const TimeSlot(id: 1, periodNumber: 1, startTime: '07:00', endTime: '07:50'),
-    const TimeSlot(id: 2, periodNumber: 2, startTime: '07:50', endTime: '08:40'),
-    const TimeSlot(id: 3, periodNumber: 3, startTime: '08:50', endTime: '09:40'),
-    const TimeSlot(id: 4, periodNumber: 4, startTime: '09:45', endTime: '10:35'),
-    const TimeSlot(id: 5, periodNumber: 5, startTime: '10:35', endTime: '11:25'),
-    const TimeSlot(id: 6, periodNumber: 6, startTime: '11:35', endTime: '12:25'),
-    const TimeSlot(id: 7, periodNumber: 7, startTime: '13:30', endTime: '14:20'),
-    const TimeSlot(id: 8, periodNumber: 8, startTime: '14:20', endTime: '15:10'),
-    const TimeSlot(id: 9, periodNumber: 9, startTime: '15:20', endTime: '16:10'),
-    const TimeSlot(id: 10, periodNumber: 10, startTime: '16:15', endTime: '17:05'),
-    const TimeSlot(id: 11, periodNumber: 11, startTime: '17:05', endTime: '17:55'),
-    const TimeSlot(id: 12, periodNumber: 12, startTime: '18:05', endTime: '18:55'),
-  ];
+        const TimeSlot(
+            id: 1, periodNumber: 1, startTime: '07:00', endTime: '07:50'),
+        const TimeSlot(
+            id: 2, periodNumber: 2, startTime: '07:50', endTime: '08:40'),
+        const TimeSlot(
+            id: 3, periodNumber: 3, startTime: '08:50', endTime: '09:40'),
+        const TimeSlot(
+            id: 4, periodNumber: 4, startTime: '09:45', endTime: '10:35'),
+        const TimeSlot(
+            id: 5, periodNumber: 5, startTime: '10:35', endTime: '11:25'),
+        const TimeSlot(
+            id: 6, periodNumber: 6, startTime: '11:35', endTime: '12:25'),
+        const TimeSlot(
+            id: 7, periodNumber: 7, startTime: '13:30', endTime: '14:20'),
+        const TimeSlot(
+            id: 8, periodNumber: 8, startTime: '14:20', endTime: '15:10'),
+        const TimeSlot(
+            id: 9, periodNumber: 9, startTime: '15:20', endTime: '16:10'),
+        const TimeSlot(
+            id: 10, periodNumber: 10, startTime: '16:15', endTime: '17:05'),
+        const TimeSlot(
+            id: 11, periodNumber: 11, startTime: '17:05', endTime: '17:55'),
+        const TimeSlot(
+            id: 12, periodNumber: 12, startTime: '18:05', endTime: '18:55'),
+      ];
 }
 
 class SchedulePage extends StatelessWidget {
@@ -37,10 +49,7 @@ class SchedulePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheduleBloc = getIt<ScheduleBloc>();
     scheduleBloc.loadTimeSlots();
-    final courseId = this.courseId;
-    if (courseId != null) {
-      scheduleBloc.loadSchedules(courseId: courseId);
-    }
+    scheduleBloc.loadSchedules(courseId: courseId);
     return BlocProvider.value(
       value: scheduleBloc,
       child: _ScheduleView(
@@ -65,7 +74,7 @@ class _ScheduleView extends StatefulWidget {
 }
 
 class _ScheduleViewState extends State<_ScheduleView> {
-  int _selectedDay = 2;
+  int _selectedDay = 1;
 
   static const List<Map<String, dynamic>> _dayOptions = [
     {'value': 1, 'label': 'Thứ 2'},
@@ -457,7 +466,7 @@ class _ScheduleCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  schedule.dayName,
+                  schedule.courseName,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,

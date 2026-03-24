@@ -48,9 +48,11 @@ from app.schemas.v1.user import (
 )
 from app.schemas.v1.schedule import (
     ScheduleCreate,
+    ScheduleUpdate,
     ScheduleOut,
     ScheduleWithTimeSlot,
     ScheduleList,
+    ScheduleListWithTimeSlot,
 )
 from app.schemas.v1.time_slot import (
     TimeSlotCreate,
@@ -127,9 +129,11 @@ __all__ = [
     "UserList",
     # Schedule
     "ScheduleCreate",
+    "ScheduleUpdate",
     "ScheduleOut",
     "ScheduleWithTimeSlot",
     "ScheduleList",
+    "ScheduleListWithTimeSlot",
     # TimeSlot
     "TimeSlotCreate",
     "TimeSlotOut",

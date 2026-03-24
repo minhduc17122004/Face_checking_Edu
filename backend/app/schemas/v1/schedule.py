@@ -2,7 +2,10 @@ from __future__ import annotations
 from datetime import datetime
 import uuid
 from typing import Optional
+
 from pydantic import BaseModel, Field
+
+from app.schemas.v1.time_slot import TimeSlotOut
 
 
 class ScheduleCreate(BaseModel):
@@ -23,15 +26,25 @@ class ScheduleOut(BaseModel):
     course_id: uuid.UUID
     day_of_week: int
     time_slot_id: int
+    course_name: str
     created_at: datetime
 
     model_config = {"from_attributes": True}
 
 
 class ScheduleWithTimeSlot(ScheduleOut):
-    time_slot: dict | None = None
+    """Response that includes the joined time_slot object."""
+
+    time_slot: Optional[TimeSlotOut] = None
 
 
 class ScheduleList(BaseModel):
+    """Paginated collection of simple schedules."""
     total: int
     items: list[ScheduleOut]
+
+
+class ScheduleListWithTimeSlot(BaseModel):
+    """Paginated collection of schedules with joined time_slots."""
+    total: int
+    items: list[ScheduleWithTimeSlot]

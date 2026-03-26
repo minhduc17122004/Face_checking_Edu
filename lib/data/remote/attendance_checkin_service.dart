@@ -82,9 +82,10 @@ class AttendanceCheckinSummary {
 
 abstract class AttendanceCheckinService {
   Future<DataState<ManualCheckinResult>> manualCheckin({
-    required String sessionId,
     required int studentId,
-    DateTime? checkinTime,
+    String? sessionId,
+    String? roomId,
+    DateTime? timestamp,
     String status = 'present',
     String? deviceId,
   });
@@ -103,9 +104,10 @@ class AttendanceCheckinServiceImplement implements AttendanceCheckinService {
 
   @override
   Future<DataState<ManualCheckinResult>> manualCheckin({
-    required String sessionId,
     required int studentId,
-    DateTime? checkinTime,
+    String? sessionId,
+    String? roomId,
+    DateTime? timestamp,
     String status = 'present',
     String? deviceId,
   }) async {
@@ -113,9 +115,11 @@ class AttendanceCheckinServiceImplement implements AttendanceCheckinService {
       final response = await _apiClient.post(
         path: ApiEndpoint.attendanceCheckin,
         data: {
-          'session_id': sessionId,
+          if (sessionId != null) 'session_id': sessionId,
           'student_id': studentId,
-          if (checkinTime != null) 'checkin_time': checkinTime.toIso8601String(),
+          if (roomId != null) 'room_id': roomId,
+          if (timestamp != null) 'timestamp': timestamp.toIso8601String(),
+          if (timestamp != null) 'checkin_time': timestamp.toIso8601String(),
           'status': status,
           if (deviceId != null) 'device_id': deviceId,
         },

@@ -44,14 +44,19 @@ class ApiEndpoint {
 
   // Sessions
   static const String sessions = "/api/v1/sessions/";
-  static const String sessionActivate = "/api/v1/sessions/{id}/activate";
+  static const String sessionActivate = "/api/v1/sessions/{id}/open";
   static const String sessionClose = "/api/v1/sessions/{id}/close";
+  static const String sessionStatus = "/api/v1/sessions/{id}/status";
   static const String sessionSummary = "/api/v1/sessions/{id}/summary";
   static const String sessionGenerateDaily = "/api/v1/sessions/generate-daily";
+  static const String sessionTeacher = "/api/v1/sessions/teacher";
+  static const String sessionTeacherActiveOrNext =
+      "/api/v1/sessions/teacher/active-or-next";
 
   // Teachers
   static const String teachers = "/api/v1/teachers/";
-  static const String teacherAssignDepartment = "/api/v1/teachers/{id}/assign-department";
+  static const String teacherAssignDepartment =
+      "/api/v1/teachers/{id}/assign-department";
 
   // Devices
   static const String devices = "/api/v1/devices/";
@@ -68,11 +73,14 @@ class ApiEndpoint {
 
   // Phase 9: Room Sessions
   static const String roomSessions = "/api/v1/rooms/{id}/sessions";
+  static const String roomActiveSession = "/api/v1/rooms/{id}/active-session";
 
   // Phase 9: Attendance Check-in
   static const String attendanceCheckin = "/api/v1/attendance/check-in";
-  static const String attendanceSessionCheckins = "/api/v1/attendance/session/{id}/checkins";
-  static const String attendanceSessionSummary = "/api/v1/attendance/session/{id}/summary";
+  static const String attendanceSessionCheckins =
+      "/api/v1/attendance/session/{id}/checkins";
+  static const String attendanceSessionSummary =
+      "/api/v1/attendance/session/{id}/summary";
 
   // Phase 10: Attendance History
   static const String attendanceHistory = "/api/v1/attendance/history";

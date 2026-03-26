@@ -40,6 +40,12 @@ abstract class SessionService {
   Future<DataState<Session>> closeSession(String id);
   Future<DataState<Map<String, dynamic>>> generateDailySessions(
       DateTime date);
+  Future<DataState<Session>> getTeacherActiveOrNextSession();
+  Future<DataState<List<Session>>> getTeacherSessions({
+    DateTime? date,
+    int? limit,
+    int? offset,
+  });
 }
 
 @LazySingleton(as: SessionService)
@@ -228,17 +234,19 @@ class SessionServiceImplement implements SessionService {
   @override
   Future<DataState<Session>> activateSession(String id) async {
     try {
-      final now = DateTime.now();
-      final response = await _apiClient.patch(
-        path: '${ApiEndpoint.sessions}/$id',
-        data: {
-          'status': 'active',
-          'checkin_window_start': now.toIso8601String(),
-        },
+      final response = await _apiClient.post(
+        path: ApiEndpoint.sessionActivate.replaceFirst('{id}', id),
       );
       if (response.isSuccess()) {
+        final data = response.data as Map<String, dynamic>;
+        // If the backend returns just {session_id, status}, we might need to fetch the full session
+        // but often the backend is updated to return more.
+        // For now, let's assume it returns enough or handle it.
+        if (data.containsKey('session_id') && !data.containsKey('id')) {
+          return getSession(id);
+        }
         return DataSuccess<Session>(
-          Session.fromJson(response.data as Map<String, dynamic>),
+          Session.fromJson(data),
         );
       }
       return DataFailed<Session>(response.error);
@@ -254,18 +262,16 @@ class SessionServiceImplement implements SessionService {
   @override
   Future<DataState<Session>> closeSession(String id) async {
     try {
-      final now = DateTime.now();
-      final response = await _apiClient.patch(
-        path: '${ApiEndpoint.sessions}/$id',
-        data: {
-          'status': 'closed',
-          'end_time': now.toIso8601String(),
-          'checkin_window_end': now.toIso8601String(),
-        },
+      final response = await _apiClient.post(
+        path: ApiEndpoint.sessionClose.replaceFirst('{id}', id),
       );
       if (response.isSuccess()) {
+        final data = response.data as Map<String, dynamic>;
+        if (data.containsKey('session_id') && !data.containsKey('id')) {
+          return getSession(id);
+        }
         return DataSuccess<Session>(
-          Session.fromJson(response.data as Map<String, dynamic>),
+          Session.fromJson(data),
         );
       }
       return DataFailed<Session>(response.error);
@@ -300,6 +306,77 @@ class SessionServiceImplement implements SessionService {
     } on Exception catch (e) {
       await pushLog('Error in generateDailySessions: $e');
       return DataFailed<Map<String, dynamic>>(e.toString());
+    }
+  }
+
+  @override
+  Future<DataState<Session>> getTeacherActiveOrNextSession() async {
+    try {
+      final response = await _apiClient.get(
+        path: ApiEndpoint.sessionTeacherActiveOrNext,
+      );
+      if (response.isSuccess()) {
+        final data = response.data as Map<String, dynamic>;
+        if (data['session'] == null) {
+          return DataFailed<Session>('No active or upcoming session found.');
+        }
+
+        // The endpoint returns { session, status, mode, can_open, can_close }
+        // We need to merge these into the Session object
+        final sessionData = data['session'] as Map<String, dynamic>;
+        sessionData['mapped_status'] = data['status'];
+        sessionData['mode'] = data['mode'];
+        sessionData['can_open'] = data['can_open'];
+        sessionData['can_close'] = data['can_close'];
+
+        return DataSuccess<Session>(
+          Session.fromJson(sessionData),
+        );
+      }
+      return DataFailed<Session>(response.error);
+    } on DioError catch (e) {
+      await pushLog('Error in getTeacherActiveOrNextSession: $e');
+      return DataFailed<Session>(e.message);
+    } on Exception catch (e) {
+      await pushLog('Error in getTeacherActiveOrNextSession: $e');
+      return DataFailed<Session>(e.toString());
+    }
+  }
+
+  @override
+  Future<DataState<List<Session>>> getTeacherSessions({
+    DateTime? date,
+    int? limit,
+    int? offset,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (date != null) {
+        queryParams['session_date'] =
+            '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      }
+      if (limit != null) queryParams['limit'] = limit;
+      if (offset != null) queryParams['skip'] = offset;
+
+      final ApiResponse response = await _apiClient.get(
+        path: ApiEndpoint.sessionTeacher,
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
+      if (response.isSuccess()) {
+        final json = response.data as Map<String, dynamic>;
+        final items = json['items'] as List<dynamic>;
+        final sessions = items
+            .map((e) => Session.fromJson(e as Map<String, dynamic>))
+            .toList();
+        return DataSuccess<List<Session>>(sessions);
+      }
+      return DataFailed<List<Session>>(response.error);
+    } on DioError catch (e) {
+      await pushLog('Error in getTeacherSessions: $e');
+      return DataFailed<List<Session>>(e.message);
+    } on Exception catch (e) {
+      await pushLog('Error in getTeacherSessions: $e');
+      return DataFailed<List<Session>>(e.toString());
     }
   }
 }

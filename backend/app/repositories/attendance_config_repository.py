@@ -30,12 +30,16 @@ class AttendanceConfigRepository(BaseRepository[AttendanceConfig]):
     async def upsert(
         self,
         session_id: uuid.UUID,
+        room_id: uuid.UUID | None = None,
+        mode: str | None = None,
         early_allowance: int = 15,
         late_allowance: int = 15,
     ) -> AttendanceConfig:
         """Create or update config for a session."""
         existing = await self.get_by_session(session_id)
         if existing:
+            existing.room_id = room_id
+            existing.mode = mode
             existing.early_allowance = early_allowance
             existing.late_allowance = late_allowance
             await self.db.flush()
@@ -44,6 +48,8 @@ class AttendanceConfigRepository(BaseRepository[AttendanceConfig]):
         else:
             cfg = AttendanceConfig(
                 session_id=session_id,
+                room_id=room_id,
+                mode=mode,
                 early_allowance=early_allowance,
                 late_allowance=late_allowance,
             )

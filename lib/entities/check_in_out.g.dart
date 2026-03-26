@@ -26,13 +26,15 @@ class CheckInOutAdapter extends TypeAdapter<CheckInOut> {
       isCheckIn: fields[6] as bool,
       latitude: fields[7] as double?,
       longitude: fields[8] as double?,
+      roomId: fields[9] as String?,
+      deviceId: fields[10] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, CheckInOut obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.studentId)
       ..writeByte(1)
@@ -50,7 +52,11 @@ class CheckInOutAdapter extends TypeAdapter<CheckInOut> {
       ..writeByte(7)
       ..write(obj.latitude)
       ..writeByte(8)
-      ..write(obj.longitude);
+      ..write(obj.longitude)
+      ..writeByte(9)
+      ..write(obj.roomId)
+      ..writeByte(10)
+      ..write(obj.deviceId);
   }
 
   @override

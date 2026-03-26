@@ -1,15 +1,19 @@
 from __future__ import annotations
 """Attendance service — unified session-based check-in with anti-cheat."""
 import uuid
+import logging
 from datetime import datetime, timezone, timedelta
 from typing import overload
 
 from fastapi import HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.attendance import Attendance
 from app.models.session import Session
 from app.models.student import Student
+from app.models.course import Course
 from app.repositories.attendance_repository import AttendanceRepository
 from app.repositories.student_repository import StudentRepository
 from app.repositories.session_repository import SessionRepository
@@ -37,6 +41,9 @@ from app.services.device_authorization_service import DeviceAuthorizationService
 from app.core.distributed_lock import checkin_lock, LockAcquisitionError
 
 
+logger = logging.getLogger(__name__)
+
+
 class AttendanceService:
     """Unified attendance service using session-based check-in.
 
@@ -56,6 +63,55 @@ class AttendanceService:
         self.audit = AuditService(db)
         self.config_svc = AttendanceConfigService(db)
         self.device_auth = DeviceAuthorizationService(db)
+        self._client_time_drift_tolerance = timedelta(minutes=20)
+
+    def _normalized_client_timestamp(self, ts: datetime | None) -> datetime:
+        """Normalize client timestamp to UTC and bound excessive drift."""
+        now = datetime.now(timezone.utc)
+        if ts is None:
+            return now
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        normalized = ts.astimezone(timezone.utc)
+        if abs(now - normalized) > self._client_time_drift_tolerance:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Client timestamp drift exceeds tolerance window.",
+            )
+        return normalized
+
+    async def _resolve_session_by_room_timestamp(
+        self,
+        room_id: uuid.UUID,
+        checkin_time: datetime,
+    ) -> Session | None:
+        """Resolve session using (room_id + timestamp) with grace window."""
+        stmt = (
+            select(Session)
+            .join(Course, Session.course_id == Course.id)
+            .options(
+                joinedload(Session.course),
+                joinedload(Session.attendance_config),
+            )
+            .where(
+                Course.room_id == room_id,
+                Session.deleted_at.is_(None),
+                Course.deleted_at.is_(None),
+                Session.start_time <= checkin_time,
+            )
+            .order_by(Session.start_time.desc())
+        )
+        result = await self.db.execute(stmt)
+        candidates = result.unique().scalars().all()
+
+        for candidate in candidates:
+            late_allowance = 15
+            if candidate.attendance_config:
+                late_allowance = candidate.attendance_config.late_allowance
+            effective_end = candidate.end_time + timedelta(minutes=late_allowance) if candidate.end_time else None
+            if effective_end is None or checkin_time <= effective_end:
+                return candidate
+        return None
 
     # ── Phase 9: Time Window Validation ─────────────────────────────────────
     async def _validate_checkin_window(
@@ -75,8 +131,9 @@ class AttendanceService:
         if session.status != "active":
             return False, f"Session is not active (status: {session.status})"
 
-        # flexible mode: no window restriction
-        if session.attendance_mode == "flexible":
+        # FLEXIBLE mode: no fixed window restriction.
+        effective_mode = await self.config_svc.get_effective_mode(session_id)
+        if effective_mode == "FLEXIBLE":
             return True, "OK"
 
         # Get effective window from config or session
@@ -106,32 +163,76 @@ class AttendanceService:
         Wrapped with distributed lock to prevent race conditions.
         """
         now = datetime.now(timezone.utc)
-        checkin_time = req.checkin_time or now
+        checkin_time = self._normalized_client_timestamp(
+            req.timestamp or req.checkin_time
+        )
+
+        resolved_session_id = req.session_id
+        mapping_reason = "session_id"
+
+        if resolved_session_id is None:
+            if req.room_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="room_id is required when session_id is missing.",
+                )
+            resolved_session = await self._resolve_session_by_room_timestamp(
+                req.room_id,
+                checkin_time,
+            )
+            if not resolved_session:
+                logger.info(
+                    "checkin rejected: no session mapping room=%s student=%s ts=%s device=%s",
+                    req.room_id,
+                    req.student_id,
+                    checkin_time.isoformat(),
+                    req.device_id,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="No matching session found for room and timestamp.",
+                )
+            resolved_session_id = resolved_session.id
+            mapping_reason = "room_timestamp"
+
+        if req.device_id and req.room_id:
+            ok, msg, device_uuid = await self.device_auth.check_device_room_binding_by_code(
+                req.device_id,
+                req.room_id,
+            )
+            if not ok:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Device-room validation failed: {msg}",
+                )
+            normalized_device_id = device_uuid
+        else:
+            normalized_device_id = None
 
         try:
-            async with checkin_lock(req.session_id, req.student_id):
+            async with checkin_lock(resolved_session_id, req.student_id):
                 # Delegate to create_attendance for full validation pipeline
                 # skip_audit=True because we write our own "manual" audit record
                 record = await self.create_attendance(
-                    session_id=req.session_id,
+                    session_id=resolved_session_id,
                     student_id=req.student_id,
                     checkin_time=checkin_time,
                     status=req.status,
-                    device_id=req.device_id,
+                    device_id=normalized_device_id,
                     skip_audit=True,
                 )
                 # Log manual check-in separately with "manual" action
-                session_ref = await self.session_repo.get_by_id(req.session_id)
+                session_ref = await self.session_repo.get_by_id(resolved_session_id)
                 mins_diff = None
                 if session_ref and record.checkin_time:
                     mins_diff = int((record.checkin_time - session_ref.start_time).total_seconds() / 60)
                 await self.audit.write_attendance_audit(
                     student_id=req.student_id,
-                    session_id=req.session_id,
+                    session_id=resolved_session_id,
                     action="manual",
                     new_status=record.status,
                     old_status=None,
-                    device_id=req.device_id,
+                    device_id=normalized_device_id,
                     minutes_diff=mins_diff,
                 )
         except LockAcquisitionError:
@@ -141,11 +242,22 @@ class AttendanceService:
             )
 
         # Get session for response
-        session = await self.session_repo.get_by_id(req.session_id)
+        session = await self.session_repo.get_by_id(resolved_session_id)
         minutes_diff = None
         if session and record.checkin_time:
             delta = record.checkin_time - session.start_time
             minutes_diff = int(delta.total_seconds() / 60)
+
+        logger.info(
+            "checkin mapped reason=%s room=%s session=%s student=%s status=%s device=%s ts=%s",
+            mapping_reason,
+            req.room_id,
+            resolved_session_id,
+            req.student_id,
+            record.status,
+            req.device_id,
+            checkin_time.isoformat(),
+        )
 
         return ManualCheckinResponse(
             attendance_id=record.id,
@@ -688,3 +800,27 @@ class AttendanceService:
             old_status=record.status,
         )
         await self.repo.soft_delete(record)
+
+    # ── Teacher-specific context (Phase 11) ──────────────────────────────────
+    async def get_active_or_next_session_for_teacher(
+        self, user_id: uuid.UUID
+    ) -> Session | None:
+        """Find the most relevant session for a teacher's dashboard.
+        
+        Logic:
+        1. Resolve teacher_id from user_id.
+        2. Fetch active/upcoming sessions for this teacher.
+        3. Return the first one (Repository handles active-first sorting).
+        """
+        from app.services.course_service import CourseService
+        course_svc = CourseService(self.db)
+        teacher_id = await course_svc.resolve_teacher_id_from_user(user_id)
+        if not teacher_id:
+            return None
+
+        from app.repositories.session_repository import SessionRepository
+        session_repo = SessionRepository(self.db)
+        sessions = await session_repo.get_upcoming_sessions_by_teacher(
+            teacher_id=teacher_id, limit=1
+        )
+        return sessions[0] if sessions else None

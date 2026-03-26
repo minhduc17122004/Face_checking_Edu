@@ -1,5 +1,4 @@
 import 'package:face_time_keeping/pages/attendance_checkin/attendance_checkin_page.dart';
-import 'package:face_time_keeping/pages/edu_checking/edu_checking_page.dart';
 import 'package:face_time_keeping/pages/checking/checking_page.dart';
 import 'package:face_time_keeping/pages/course/course_detail_page.dart';
 import 'package:face_time_keeping/pages/course/course_form_page.dart';
@@ -14,10 +13,8 @@ import 'package:face_time_keeping/pages/domain/domain_page.dart';
 import 'package:face_time_keeping/pages/room/room_form_page.dart';
 import 'package:face_time_keeping/pages/room/room_list_page.dart';
 import 'package:face_time_keeping/pages/room/room_selection_page.dart';
-import 'package:face_time_keeping/pages/room/room_session/room_session_page.dart';
 import 'package:face_time_keeping/pages/schedule/schedule_page.dart';
-import 'package:face_time_keeping/pages/session/session_detail_page.dart';
-import 'package:face_time_keeping/pages/session/session_list_page.dart';
+import 'package:face_time_keeping/pages/home/session_management/session_management_page.dart';
 import 'package:face_time_keeping/pages/student/student_page.dart';
 import 'package:face_time_keeping/pages/login/login_confirm_widget.dart';
 import 'package:face_time_keeping/pages/login/login_page.dart';
@@ -67,17 +64,15 @@ class RouterName {
   static const String roomForm = '/rooms/form';
   static const String roomSessions = '/rooms/sessions';
   static const String roomSelection = '/rooms/selection';
+  static const String sessionManagement = '/session-management';
   static const String courseForm = '/courses/form';
   static const String courseDetail = '/courses/detail';
   static const String schedule = '/schedule';
-  static const String sessionList = '/sessions';
-  static const String sessionDetail = '/sessions/detail';
   static const String teacherAssignment = '/teachers/assignment';
   static const String timeSlot = '/settings/time-slots';
   static const String devicePermission = '/settings/device-permission';
   static const String deviceRequestSubmit = '/settings/device-request-submit';
   static const String attendanceCheckin = '/attendance-checkin';
-  static const String eduChecking = '/edu-checking';
 }
 
 class AppRoutes {
@@ -147,13 +142,10 @@ class AppRoutes {
           settings,
           RoomFormPage(room: settings.arguments as dynamic),
         );
-      case RouterName.roomSessions:
-        return _materialRoute(
-          settings,
-          RoomSessionPage(room: settings.arguments as dynamic),
-        );
       case RouterName.roomSelection:
         return _materialRoute(settings, const RoomSelectionPage());
+      case RouterName.sessionManagement:
+        return _materialRoute(settings, const SessionManagementPage());
       case RouterName.courseForm:
         return _materialRoute(
           settings,
@@ -169,16 +161,6 @@ class AppRoutes {
           settings,
           SchedulePage(courseId: settings.arguments as String?),
         );
-      case RouterName.sessionList:
-        return _materialRoute(
-          settings,
-          SessionListPage(courseId: settings.arguments as String?),
-        );
-      case RouterName.sessionDetail:
-        return _materialRoute(
-          settings,
-          SessionDetailPage(session: settings.arguments as dynamic),
-        );
       case RouterName.teacherAssignment:
         return _materialRoute(settings, const TeacherAssignmentPage());
       case RouterName.timeSlot:
@@ -192,13 +174,6 @@ class AppRoutes {
           settings,
           AttendanceCheckinPage(
             args: settings.arguments as AttendanceCheckinArgs,
-          ),
-        );
-      case RouterName.eduChecking:
-        return _materialRoute(
-          settings,
-          EduCheckingPage(
-            args: settings.arguments as EduCheckingArgs,
           ),
         );
     }

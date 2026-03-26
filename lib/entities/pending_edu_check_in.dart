@@ -38,6 +38,12 @@ class PendingEduCheckIn extends HiveObject {
   @HiveField(9)
   String? studentName;
 
+  @HiveField(10)
+  String? roomId;
+
+  @HiveField(11)
+  String? deviceId;
+
   PendingEduCheckIn({
     required this.localId,
     required this.studentId,
@@ -49,6 +55,8 @@ class PendingEduCheckIn extends HiveObject {
     this.latitude,
     this.longitude,
     this.studentName,
+    this.roomId,
+    this.deviceId,
   });
 
   PendingEduCheckIn copyWith({
@@ -62,6 +70,8 @@ class PendingEduCheckIn extends HiveObject {
     double? latitude,
     double? longitude,
     String? studentName,
+    String? roomId,
+    String? deviceId,
   }) =>
       PendingEduCheckIn(
         localId: localId ?? this.localId,
@@ -74,5 +84,7 @@ class PendingEduCheckIn extends HiveObject {
         latitude: latitude ?? this.latitude,
         longitude: longitude ?? this.longitude,
         studentName: studentName ?? this.studentName,
+        roomId: roomId ?? this.roomId,
+        deviceId: deviceId ?? this.deviceId,
       );
 }

@@ -11,6 +11,14 @@ class RoomSessionState {
   final Room? selectedRoom;
   final String? message;
 
+  /// The single active session returned by GET /rooms/{id}/active-session.
+  /// Null  → no active session in the room right now.
+  /// The [_hasActiveSession] flag distinguishes between:
+  ///   - "field not yet loaded" (false) vs.
+  ///   - "loaded and confirmed null" (true, activeSession == null).
+  final RoomSession? activeSession;
+  final bool hasActiveSession;
+
   RoomSessionState({
     this.requestStatus = RequestStatus.initial,
     this.rooms = const [],
@@ -18,6 +26,8 @@ class RoomSessionState {
     this.courses = const [],
     this.selectedRoom,
     this.message,
+    this.activeSession,
+    this.hasActiveSession = false,
   });
 
   RoomSessionState copyWith({
@@ -27,6 +37,9 @@ class RoomSessionState {
     List<Course>? courses,
     Room? selectedRoom,
     String? message,
+    RoomSession? activeSession,
+    bool? hasActiveSession,
+    bool clearActiveSession = false,
   }) {
     return RoomSessionState(
       requestStatus: requestStatus ?? this.requestStatus,
@@ -35,9 +48,12 @@ class RoomSessionState {
       courses: courses ?? this.courses,
       selectedRoom: selectedRoom ?? this.selectedRoom,
       message: message,
+      activeSession: clearActiveSession ? null : (activeSession ?? this.activeSession),
+      hasActiveSession: hasActiveSession ?? (clearActiveSession ? true : this.hasActiveSession),
     );
   }
 
+  // ── Derived lists (used by RoomSessionPage tab view) ─────────────────────
   List<RoomSession> get activeSessions =>
       sessions.where((s) => s.isActive).toList();
 

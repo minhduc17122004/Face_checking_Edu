@@ -7,6 +7,8 @@ import 'package:face_time_keeping/entities/time_slot.dart';
 import 'package:face_time_keeping/data/remote/time_slot_service.dart';
 import 'package:face_time_keeping/pages/widgets/default_app_bar.dart';
 import 'package:face_time_keeping/pages/widgets/empty_state_widget.dart';
+import 'package:face_time_keeping/common/event/event_bus_event.dart';
+import 'package:face_time_keeping/common/event/event_bus_mixin.dart';
 
 class TimeSlotPage extends StatelessWidget {
   const TimeSlotPage({super.key});
@@ -152,6 +154,41 @@ class _TimeSlotViewState extends State<_TimeSlotView> {
     final startStr = _formatTimeOfDay(startTime);
     final endStr = _formatTimeOfDay(endTime);
 
+    // 1. Validate Time
+    final startMinutes = startTime.hour * 60 + startTime.minute;
+    var endMinutes = endTime.hour * 60 + endTime.minute;
+
+    // Nếu end < start, có thể hiểu là tiết học vắt qua ngày hôm sau (ví dụ: 23:25 - 00:10)
+    if (endMinutes < startMinutes) {
+      endMinutes += 24 * 60;
+    }
+
+    if (startMinutes == endMinutes) {
+      _showError('Thời gian bắt đầu và kết thúc không được giống nhau');
+      return;
+    }
+
+    // 2. Validate Overlap with other slots
+    for (var other in _slots) {
+      if (isEdit && other.id == slot.id) continue;
+
+      final otherStart = _parseTime(other.startTime);
+      final otherEnd = _parseTime(other.endTime);
+      final otherSMin = otherStart.hour * 60 + otherStart.minute;
+      var otherEMin = otherEnd.hour * 60 + otherEnd.minute;
+
+      if (otherEMin < otherSMin) {
+        otherEMin += 24 * 60;
+      }
+
+      // Overlap condition: (StartA < EndB) and (EndA > StartB)
+      if (startMinutes < otherEMin && endMinutes > otherSMin) {
+        _showError(
+            'Thời gian bị trùng với tiết ${other.periodNumber} (${other.startTime} - ${other.endTime})');
+        return;
+      }
+    }
+
     if (isEdit) {
       final result = await _service.updateTimeSlot(
         slot.id,
@@ -161,6 +198,7 @@ class _TimeSlotViewState extends State<_TimeSlotView> {
       );
       if (!mounted) return;
       if (result.isSuccess) {
+        EventBusMixin.shareStaticEvent(CourseChangeEvent());
         _showSuccess('Đã cập nhật tiết học');
         _loadSlots();
       } else {
@@ -174,6 +212,7 @@ class _TimeSlotViewState extends State<_TimeSlotView> {
       );
       if (!mounted) return;
       if (result.isSuccess) {
+        EventBusMixin.shareStaticEvent(CourseChangeEvent());
         _showSuccess('Đã thêm tiết học');
         _loadSlots();
       } else {
@@ -210,6 +249,7 @@ class _TimeSlotViewState extends State<_TimeSlotView> {
     final result = await _service.deleteTimeSlot(slot.id);
     if (!mounted) return;
     if (result.isSuccess) {
+      EventBusMixin.shareStaticEvent(CourseChangeEvent());
       _showSuccess('Đã xóa tiết học');
       _loadSlots();
     } else {

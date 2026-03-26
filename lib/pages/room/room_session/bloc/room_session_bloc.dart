@@ -126,6 +126,46 @@ class RoomSessionBloc extends Cubit<RoomSessionState> {
     }
   }
 
+  Future<void> closeSession(String sessionId, String roomId,
+      {DateTime? sessionDate}) async {
+    emit(state.copyWith(requestStatus: RequestStatus.requesting));
+    final result = await _roomSessionService.closeSession(sessionId);
+    if (result.isSuccess) {
+      await loadRoomSessions(roomId, sessionDate: sessionDate);
+    } else {
+      emit(state.copyWith(
+        requestStatus: RequestStatus.failed,
+        message: result.error ?? 'Failed to close session',
+      ));
+    }
+  }
+
+  Future<void> loadActiveRoomSession(String roomId) async {
+    emit(state.copyWith(
+      requestStatus: RequestStatus.requesting,
+      clearActiveSession: true,
+      hasActiveSession: false,
+    ));
+
+    final result = await _roomSessionService.getActiveRoomSession(roomId);
+
+    if (result.isSuccess) {
+      emit(state.copyWith(
+        requestStatus: RequestStatus.success,
+        activeSession: result.data,
+        hasActiveSession: true,
+        clearActiveSession: result.data == null,
+      ));
+    } else {
+      emit(state.copyWith(
+        requestStatus: RequestStatus.failed,
+        message: result.error ?? 'Failed to load active session',
+        hasActiveSession: true,
+        clearActiveSession: true,
+      ));
+    }
+  }
+
   void reset() {
     emit(RoomSessionState());
   }

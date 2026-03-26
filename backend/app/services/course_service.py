@@ -4,8 +4,12 @@ import uuid
 from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.course import Course
+from app.models.schedule import Schedule
+from app.models.time_slot import TimeSlot
 from app.repositories.course_repository import CourseRepository
 from app.repositories.teacher_repository import TeacherRepository
 from app.schemas.v1.course import CourseCreate, CourseUpdate, CourseOut, CourseList
@@ -81,7 +85,7 @@ class CourseService:
         from sqlalchemy import select
         from app.models.student import Student
         import uuid
-        
+
         result = await self._db.execute(
             select(Student).where(
                 Student.user_id == uuid.UUID(user_id),
@@ -90,6 +94,82 @@ class CourseService:
         )
         student = result.scalar_one_or_none()
         return student.id if student else None
+
+    async def _validate_schedule_conflict(
+        self,
+        *,
+        day_of_week: int,
+        time_slot_id: int,
+        teacher_id: int | None,
+        room_id: uuid.UUID | None,
+        exclude_course_id: uuid.UUID | None = None,
+    ) -> None:
+        """Prevent duplicate teaching slots for the same teacher or room."""
+
+        day_label_map = {
+            1: "Thứ Hai",
+            2: "Thứ Ba",
+            3: "Thứ Tư",
+            4: "Thứ Năm",
+            5: "Thứ Sáu",
+            6: "Thứ Bảy",
+            7: "Chủ Nhật",
+        }
+        day_label = day_label_map.get(day_of_week, f"Thứ {day_of_week}")
+
+        if teacher_id is not None:
+            teacher_stmt = (
+                select(Course, Schedule, TimeSlot)
+                .join(Schedule, Schedule.course_id == Course.id)
+                .join(TimeSlot, TimeSlot.id == Schedule.time_slot_id)
+                .where(
+                    Course.deleted_at.is_(None),
+                    Schedule.deleted_at.is_(None),
+                    Course.teacher_id == teacher_id,
+                    Schedule.day_of_week == day_of_week,
+                    Schedule.time_slot_id == time_slot_id,
+                )
+            )
+            if exclude_course_id is not None:
+                teacher_stmt = teacher_stmt.where(Course.id != exclude_course_id)
+
+            teacher_conflict = (await self._db.execute(teacher_stmt)).first()
+            if teacher_conflict is not None:
+                conflict_course, _, conflict_slot = teacher_conflict
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=(
+                        f"Giảng viên đã có học phần '{conflict_course.course_name}' "
+                        f"vào {day_label}, tiết {conflict_slot.period_number}."
+                    ),
+                )
+
+        if room_id is not None:
+            room_stmt = (
+                select(Course, Schedule, TimeSlot)
+                .join(Schedule, Schedule.course_id == Course.id)
+                .join(TimeSlot, TimeSlot.id == Schedule.time_slot_id)
+                .where(
+                    Course.deleted_at.is_(None),
+                    Schedule.deleted_at.is_(None),
+                    Course.room_id == room_id,
+                    Schedule.day_of_week == day_of_week,
+                    Schedule.time_slot_id == time_slot_id,
+                )
+            )
+            if exclude_course_id is not None:
+                room_stmt = room_stmt.where(Course.id != exclude_course_id)
+
+            room_conflict = (await self._db.execute(room_stmt)).first()
+            if room_conflict is not None:
+                conflict_course, _, conflict_slot = room_conflict
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=(
+                        f"Phòng học đã được dùng bởi học phần '{conflict_course.course_name}' "
+                        f"vào {day_label}, tiết {conflict_slot.period_number}."
+                    ),
+                )
 
     # ── CRUD ────────────────────────────────────────────────────
 
@@ -125,6 +205,20 @@ class CourseService:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Room not found.",
                 )
+
+        if (req.day_of_week is None) != (req.time_slot_id is None):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cần cung cấp đầy đủ cả thứ học và tiết học.",
+            )
+
+        if req.day_of_week is not None and req.time_slot_id is not None:
+            await self._validate_schedule_conflict(
+                day_of_week=req.day_of_week,
+                time_slot_id=req.time_slot_id,
+                teacher_id=resolved_teacher_id,
+                room_id=req.room_id,
+            )
 
         course = await self.repo.create(
             course_name=req.course_name,
@@ -229,9 +323,12 @@ class CourseService:
         user_id: str,
     ) -> CourseOut:
         """Update a course. Admin (no teacher profile) can update any course."""
-        resolved_teacher_id = await self._resolve_teacher_id(
-            teacher_id, user_id, required=False
-        )
+        import uuid
+
+        # 1. Authorize based ONLY on the user making the request
+        # (do not use the target req.teacher_id for authorization logic!)
+        current_teacher = await self.teacher_repo.get_by_user_id(uuid.UUID(user_id))
+        current_teacher_id = current_teacher.id if current_teacher and current_teacher.deleted_at is None else None
 
         course = await self.repo.get_by_id(course_id)
         if not course:
@@ -239,9 +336,10 @@ class CourseService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Course '{course_id}' not found.",
             )
-        # Admin (resolved_teacher_id is None) can update any course
+
+        # Admin (current_teacher_id is None) can update any course
         # Teacher can only update their own courses
-        if resolved_teacher_id is not None and course.teacher_id != resolved_teacher_id:
+        if current_teacher_id is not None and course.teacher_id != current_teacher_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You do not own this course.",
@@ -278,9 +376,44 @@ class CourseService:
                     detail="Teacher not found.",
                 )
             target_teacher_id = req.teacher_id
-        elif resolved_teacher_id is not None:
-            # Teacher case: use resolved teacher_id
-            target_teacher_id = resolved_teacher_id
+        elif current_teacher_id is not None:
+            # Teacher case: use current teacher_id
+            target_teacher_id = current_teacher_id
+
+        target_room_id = req.room_id if req.room_id is not None else course.room_id
+
+        existing_schedule = next(
+            (s for s in getattr(course, "schedules", []) if s.deleted_at is None),
+            None,
+        )
+        effective_day = (
+            req.day_of_week
+            if req.day_of_week is not None
+            else (existing_schedule.day_of_week if existing_schedule else None)
+        )
+        effective_slot = (
+            req.time_slot_id
+            if req.time_slot_id is not None
+            else (existing_schedule.time_slot_id if existing_schedule else None)
+        )
+
+        if (
+            (req.day_of_week is None) != (req.time_slot_id is None)
+            and existing_schedule is None
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cần cung cấp đầy đủ cả thứ học và tiết học.",
+            )
+
+        if effective_day is not None and effective_slot is not None:
+            await self._validate_schedule_conflict(
+                day_of_week=effective_day,
+                time_slot_id=effective_slot,
+                teacher_id=target_teacher_id,
+                room_id=target_room_id,
+                exclude_course_id=course.id,
+            )
 
         updated = await self.repo.update(
             course,
@@ -293,6 +426,40 @@ class CourseService:
             attendance_before_minutes=req.attendance_before_minutes,
             attendance_after_minutes=req.attendance_after_minutes,
         )
+
+        # ── Update checkin windows for existing sessions if attendance config changed ──
+        if req.attendance_mode is not None or req.attendance_before_minutes is not None or req.attendance_after_minutes is not None:
+            from app.models.session import Session
+            from sqlalchemy import select
+            from datetime import timedelta
+
+            sessions_to_update = await self._db.execute(
+                select(Session).where(
+                    Session.course_id == course.id,
+                    Session.status.in_(["scheduled", "active", "paused"]),
+                    Session.deleted_at.is_(None)
+                )
+            )
+            for session in sessions_to_update.scalars():
+                mode = getattr(course, "attendance_mode", "preset") or "preset"
+                before = getattr(course, "attendance_before_minutes", 0) or 0
+                after = getattr(course, "attendance_after_minutes", 30) or 30
+
+                if mode == "custom" and session.start_time and session.end_time:
+                    window_start = session.start_time + timedelta(minutes=before)
+                    window_end = window_start + timedelta(minutes=after)
+                    if window_end > session.end_time:
+                        window_end = session.end_time
+                    session.checkin_window_start = window_start
+                    session.checkin_window_end = window_end
+                elif mode == "preset" and session.start_time and session.end_time:
+                    session.checkin_window_start = session.start_time
+                    session.checkin_window_end = session.end_time
+                else:
+                    session.checkin_window_start = None
+                    session.checkin_window_end = None
+
+            await self._db.flush()
 
         # ── Phase 10: Automatic Schedule update ───────────────────────────
         if req.day_of_week is not None or req.time_slot_id is not None:

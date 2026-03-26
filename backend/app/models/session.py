@@ -154,3 +154,16 @@ class Session(Base):
             return None
         return self.checkin_window_end
 
+    @property
+    def room_name(self) -> str | None:
+        if self.course:
+            return getattr(self.course, "room_name", None)
+        return None
+
+    @property
+    def day_of_week(self) -> int | None:
+        if self.schedule:
+            return getattr(self.schedule, "day_of_week", None)
+        return None
+
+

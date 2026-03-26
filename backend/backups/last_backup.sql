@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict MwZMFnkigbLGiqEd5AdiRFKecwcjQLBq393iuvPHU8hLWf2kakSWP5e5sGNVygp
+\restrict JIADJaeMut080n4iaIbVM67bt6aEP2YNnoI2EgbwHLCp2PnDtIIfjYfCcZxDDKn
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -64,7 +64,8 @@ CREATE TABLE public.attendance (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     sync_time timestamp with time zone DEFAULT now() NOT NULL,
     deleted_at timestamp with time zone,
-    CONSTRAINT ck_attendance_status CHECK (((status)::text = ANY ((ARRAY['present'::character varying, 'late'::character varying, 'absent'::character varying])::text[])))
+    minutes_diff integer,
+    CONSTRAINT ck_attendance_status CHECK (((status)::text = ANY ((ARRAY['present'::character varying, 'late'::character varying, 'absent'::character varying, 'early'::character varying, 'on_time'::character varying])::text[])))
 );
 
 
@@ -173,12 +174,13 @@ CREATE TABLE public.device_requests (
     device_name character varying(100),
     room_id uuid,
     requested_by uuid,
-    status character varying(20) NOT NULL,
+    status character varying(20) DEFAULT 'PENDING'::character varying NOT NULL,
     reviewed_by uuid,
     reviewed_at timestamp with time zone,
     admin_note character varying(255),
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
 );
 
 
@@ -202,7 +204,9 @@ CREATE TABLE public.devices (
     device_code character varying(50) NOT NULL,
     created_by uuid,
     updated_by uuid,
-    room_id uuid
+    room_id uuid,
+    is_global boolean DEFAULT false NOT NULL,
+    status character varying(20) DEFAULT 'ACTIVE'::character varying NOT NULL
 );
 
 
@@ -496,7 +500,7 @@ ALTER TABLE ONLY public.time_slots ALTER COLUMN id SET DEFAULT nextval('public.t
 --
 
 COPY public.alembic_version (version_num) FROM stdin;
-fc7a550c7bb0
+0030_finalize_phase9
 \.
 
 
@@ -504,7 +508,7 @@ fc7a550c7bb0
 -- Data for Name: attendance; Type: TABLE DATA; Schema: public; Owner: vedura
 --
 
-COPY public.attendance (id, session_id, student_id, checkin_time, status, confidence, device_id, created_at, sync_time, deleted_at) FROM stdin;
+COPY public.attendance (id, session_id, student_id, checkin_time, status, confidence, device_id, created_at, sync_time, deleted_at, minutes_diff) FROM stdin;
 \.
 
 
@@ -558,6 +562,22 @@ fa9979ba-c57b-4f91-94eb-b3390c998827	7	2026-03-24 04:42:15.459962+00	3078abf6-27
 81107f75-b1f2-4f03-a5cd-bfcff4d6799c	5	2026-03-24 04:42:15.464434+00	3078abf6-278b-4409-b544-94eff0cf27df
 38130ef4-76bd-4cc5-affb-7886cf16e6a6	6	2026-03-24 04:42:15.466832+00	3078abf6-278b-4409-b544-94eff0cf27df
 eb0b693b-401a-4783-9a63-b115b9616b4b	8	2026-03-24 04:42:15.469188+00	3078abf6-278b-4409-b544-94eff0cf27df
+47772905-1109-44ec-a870-9abd0c7cc5b8	1	2026-03-24 13:45:23.941406+00	55a06610-7bfd-4ab3-b277-f6c2ab611754
+dc1dfb83-9955-472d-9ab4-7a34113d2033	4	2026-03-24 13:45:23.956431+00	55a06610-7bfd-4ab3-b277-f6c2ab611754
+968a07ce-37f4-47f6-9cff-fc5dc5b97c89	2	2026-03-24 13:45:23.959246+00	55a06610-7bfd-4ab3-b277-f6c2ab611754
+14706d6b-e328-4cd4-aa4e-2ab225cccce5	7	2026-03-24 13:45:23.962037+00	55a06610-7bfd-4ab3-b277-f6c2ab611754
+0dba4c11-daa5-41d1-86f3-ba62d497fa51	9	2026-03-24 13:45:23.96603+00	55a06610-7bfd-4ab3-b277-f6c2ab611754
+d7293309-bcc3-42aa-aa6e-113118b06de9	5	2026-03-24 13:45:23.969719+00	55a06610-7bfd-4ab3-b277-f6c2ab611754
+7a29abb5-2bab-4456-95bf-1b31031f1c6e	6	2026-03-24 13:45:23.972194+00	55a06610-7bfd-4ab3-b277-f6c2ab611754
+31574db1-b600-4752-af38-029c86174e40	8	2026-03-24 13:45:23.974651+00	55a06610-7bfd-4ab3-b277-f6c2ab611754
+ff2cb5d6-86eb-4c0f-8e20-5e083995c278	1	2026-03-25 02:50:04.637144+00	7948c125-5861-4bda-9fcc-484b9f26de56
+0b2dc877-513a-42f8-a2e1-0ec1bfb82def	4	2026-03-25 02:50:04.642907+00	7948c125-5861-4bda-9fcc-484b9f26de56
+c8acaa16-c687-4c92-b771-5fb3b924f764	2	2026-03-25 02:50:04.64618+00	7948c125-5861-4bda-9fcc-484b9f26de56
+b4a23b9e-aba9-4bad-a2c2-099e58244236	7	2026-03-25 02:50:04.651832+00	7948c125-5861-4bda-9fcc-484b9f26de56
+0f7af0aa-ed0b-40bb-a540-5b4f1fd9dc82	9	2026-03-25 02:50:04.654869+00	7948c125-5861-4bda-9fcc-484b9f26de56
+b78d0142-3285-411c-a637-d28cd4be0b23	5	2026-03-25 02:50:04.658539+00	7948c125-5861-4bda-9fcc-484b9f26de56
+6749b08c-099e-484d-bb2c-750503d609ce	6	2026-03-25 02:50:04.661608+00	7948c125-5861-4bda-9fcc-484b9f26de56
+14724724-45bf-432f-b8c8-1f5f2a47b635	8	2026-03-25 02:50:04.664298+00	7948c125-5861-4bda-9fcc-484b9f26de56
 \.
 
 
@@ -578,6 +598,10 @@ fbe53de1-2e6f-4063-b940-dd49126681ba	j	\N	2026-03-23 14:14:03.721697+00	2026-03-
 83c2ae1b-795d-4a4f-94d9-9a8af7079df1	Điểm danh thứ 3	\N	2026-03-24 05:47:02.053105+00	2026-03-24 05:47:02.053113+00	\N	T3	\N	\N	flexible	30	30	a6c2c983-6cd6-4cbb-b402-ba1a18fd1ab2	d7e7c387-5acf-4e4d-b06b-a23467983191	1
 55a06610-7bfd-4ab3-b277-f6c2ab611754	Điểm danh thứ 4	\N	2026-03-24 05:47:55.769338+00	2026-03-24 05:47:55.769344+00	\N	T4	\N	\N	flexible	30	30	a6c2c983-6cd6-4cbb-b402-ba1a18fd1ab2	402d2280-93f4-4c8f-89ff-8605db02787e	1
 9472af2f-94b2-47e6-8b22-f60449fc1110	LT OOP	\N	2026-03-23 13:18:14.424765+00	2026-03-24 05:49:03.563929+00	2026-03-24 05:49:03.548482+00	OOP	\N	\N	flexible	30	30	9dc6f0cb-0c7b-4dda-83e2-a1ac0a50b523	d7e7c387-5acf-4e4d-b06b-a23467983191	2
+7e61dfb7-e1b7-4cf3-954d-b791d382431c	Testt	\N	2026-03-24 16:15:34.405291+00	2026-03-24 16:15:34.405296+00	\N	Test	\N	\N	flexible	30	30	2e727237-931f-411a-ac44-f94b3e653eb5	d7e7c387-5acf-4e4d-b06b-a23467983191	3
+d54ea08d-faa5-4742-8481-96ec23277851	ok	\N	2026-03-24 16:44:35.981683+00	2026-03-24 16:44:35.981691+00	\N	ok	\N	\N	flexible	30	30	9dc6f0cb-0c7b-4dda-83e2-a1ac0a50b523	402d2280-93f4-4c8f-89ff-8605db02787e	2
+7948c125-5861-4bda-9fcc-484b9f26de56	Thứ 4 tiết 4	\N	2026-03-25 02:49:15.776415+00	2026-03-25 02:49:15.776421+00	\N	T4	\N	\N	flexible	30	30	9dc6f0cb-0c7b-4dda-83e2-a1ac0a50b523	d7e7c387-5acf-4e4d-b06b-a23467983191	2
+d9b5dd11-ef43-4f67-bcf0-8ea251f6cde0	A002	\N	2026-03-25 03:24:46.572641+00	2026-03-25 03:24:46.572645+00	\N	test	\N	\N	flexible	30	30	9dc6f0cb-0c7b-4dda-83e2-a1ac0a50b523	402d2280-93f4-4c8f-89ff-8605db02787e	2
 \.
 
 
@@ -599,7 +623,12 @@ a6c2c983-6cd6-4cbb-b402-ba1a18fd1ab2	CNTT	Cơ sở lập trình	2026-03-21 16:33
 -- Data for Name: device_requests; Type: TABLE DATA; Schema: public; Owner: vedura
 --
 
-COPY public.device_requests (id, device_code, device_name, room_id, requested_by, status, reviewed_by, reviewed_at, admin_note, created_at, updated_at) FROM stdin;
+COPY public.device_requests (id, device_code, device_name, room_id, requested_by, status, reviewed_by, reviewed_at, admin_note, created_at, updated_at, deleted_at) FROM stdin;
+1eee364d-6188-4a8e-ac6c-2e8cba2e3b0b	UP1A.231005.007	Thiết bị UP1A.231...	\N	19c0116c-3b56-484e-a567-e0289afcf8a0	REJECTED	19c0116c-3b56-484e-a567-e0289afcf8a0	2026-03-24 15:48:09.733981+00	test	2026-03-24 15:30:15.487898+00	2026-03-24 15:48:09.736296+00	\N
+27d09e96-08eb-4924-aba8-7357cf566226	UP1A.231005.007	Thiết bị UP1A.231...	\N	19c0116c-3b56-484e-a567-e0289afcf8a0	REJECTED	19c0116c-3b56-484e-a567-e0289afcf8a0	2026-03-24 15:48:15.399779+00	test	2026-03-24 15:29:56.629738+00	2026-03-24 15:48:15.400484+00	\N
+78e99424-cba9-4c8d-b3b4-6c2592f11a94	UP1A.231005.007	TABLE01	d7e7c387-5acf-4e4d-b06b-a23467983191	19c0116c-3b56-484e-a567-e0289afcf8a0	APPROVED	19c0116c-3b56-484e-a567-e0289afcf8a0	2026-03-24 15:49:29.870696+00	\N	2026-03-24 15:49:10.865419+00	2026-03-24 15:49:29.871716+00	\N
+ffa82be4-7b22-4651-bf5f-a0139a2f1584	BP2A.250605.031.A3	\N	\N	19c0116c-3b56-484e-a567-e0289afcf8a0	APPROVED	19c0116c-3b56-484e-a567-e0289afcf8a0	2026-03-25 04:15:15.064132+00	\N	2026-03-25 04:14:47.891131+00	2026-03-25 04:15:15.069073+00	\N
+f9368cc0-8627-458a-a701-278b22f6a0c4	BP2A.250605.031.A3	TB3	d7e7c387-5acf-4e4d-b06b-a23467983191	19c0116c-3b56-484e-a567-e0289afcf8a0	APPROVED	19c0116c-3b56-484e-a567-e0289afcf8a0	2026-03-25 04:15:48.04727+00	\N	2026-03-25 04:15:44.493377+00	2026-03-25 04:15:48.04841+00	\N
 \.
 
 
@@ -607,7 +636,9 @@ COPY public.device_requests (id, device_code, device_name, room_id, requested_by
 -- Data for Name: devices; Type: TABLE DATA; Schema: public; Owner: vedura
 --
 
-COPY public.devices (id, device_name, device_type, is_active, created_at, updated_at, last_active_at, ip_address, deleted_at, mac_address, device_code, created_by, updated_by, room_id) FROM stdin;
+COPY public.devices (id, device_name, device_type, is_active, created_at, updated_at, last_active_at, ip_address, deleted_at, mac_address, device_code, created_by, updated_by, room_id, is_global, status) FROM stdin;
+9ff4f26e-6a8f-4f13-9cf1-60a2fd752adc	TABLE01	tablet	t	2026-03-24 15:49:29.883587+00	2026-03-24 15:49:29.883592+00	\N	\N	\N	\N	UP1A.231005.007	\N	\N	d7e7c387-5acf-4e4d-b06b-a23467983191	f	ACTIVE
+bc679a1c-b4bf-41c6-b312-b0bcb0cf9c09	TB3	tablet	t	2026-03-25 04:15:15.106616+00	2026-03-25 04:15:48.070653+00	\N	\N	\N	\N	BP2A.250605.031.A3	\N	\N	d7e7c387-5acf-4e4d-b06b-a23467983191	f	ACTIVE
 \.
 
 
@@ -776,11 +807,34 @@ daf1448f-fdf1-4135-a3d1-a4ca034df497	4cf3005c-9790-4d53-995c-a3121ce6c945	22744d
 5b185568-579d-4515-96e3-78c9c6a1452b	24f7e4a4-3da2-4e50-9702-73e91ebee9f3	219e140b-18f9-46d1-81d1-4dd197b6fb26	\N	2026-03-31 05:59:59+00	t	2026-03-24 05:59:59.91069+00	\N
 edfa0aa6-5fa0-436a-9f12-38a868beb783	d79eb64f-ac88-4e89-b8b5-8e465352c47e	7a599b34-9be7-4573-9ca6-f86aa7aaa551	\N	2026-03-31 06:05:06+00	f	2026-03-24 06:05:06.933842+00	\N
 4e36d1f4-a993-423e-b193-7b7f5305db43	d79eb64f-ac88-4e89-b8b5-8e465352c47e	9eefc985-3f7e-4f1d-8765-00d3ff85d1f1	\N	2026-03-31 08:00:38+00	f	2026-03-24 08:00:38.198511+00	\N
-33969aba-b3ba-4aba-8507-ef01f6b3afdc	19c0116c-3b56-484e-a567-e0289afcf8a0	72f20629-5e54-43f2-90fe-30f02bf3145b	\N	2026-03-31 08:14:57+00	f	2026-03-24 08:14:57.624731+00	\N
-0586704a-bad6-49f5-be0a-97bf0201f92e	19c0116c-3b56-484e-a567-e0289afcf8a0	8ef99357-5df0-46d4-9fac-3778b3ddfa76	\N	2026-03-31 09:05:17+00	f	2026-03-24 09:05:17.678134+00	\N
-162c03cc-041d-4c33-91cb-c7ee3cdbbb3e	19c0116c-3b56-484e-a567-e0289afcf8a0	ed691ae8-1e44-4978-9169-108e4356e89c	\N	2026-03-31 09:05:20+00	f	2026-03-24 09:05:20.840465+00	\N
-9519dedf-243e-4180-adf9-bb61ae0b1dc9	19c0116c-3b56-484e-a567-e0289afcf8a0	600905ee-c5eb-4932-8ef2-fe409b28f5fa	\N	2026-03-31 10:31:58+00	f	2026-03-24 10:31:58.866052+00	\N
-fd543e32-20c3-48a6-9368-07b426dd3e6c	19c0116c-3b56-484e-a567-e0289afcf8a0	5ebf780e-610e-4cd6-ba72-e457e047ca2d	\N	2026-03-31 11:04:45+00	f	2026-03-24 11:04:45.37651+00	\N
+0586704a-bad6-49f5-be0a-97bf0201f92e	19c0116c-3b56-484e-a567-e0289afcf8a0	8ef99357-5df0-46d4-9fac-3778b3ddfa76	\N	2026-03-31 09:05:17+00	t	2026-03-24 09:05:17.678134+00	\N
+09a2373f-2850-41c2-b1d6-8a79f569bffe	19c0116c-3b56-484e-a567-e0289afcf8a0	1e54fb57-528e-4940-9aaf-39e495f07c89	\N	2026-03-31 13:38:13+00	t	2026-03-24 13:38:13.285002+00	\N
+162c03cc-041d-4c33-91cb-c7ee3cdbbb3e	19c0116c-3b56-484e-a567-e0289afcf8a0	ed691ae8-1e44-4978-9169-108e4356e89c	\N	2026-03-31 09:05:20+00	t	2026-03-24 09:05:20.840465+00	\N
+33969aba-b3ba-4aba-8507-ef01f6b3afdc	19c0116c-3b56-484e-a567-e0289afcf8a0	72f20629-5e54-43f2-90fe-30f02bf3145b	\N	2026-03-31 08:14:57+00	t	2026-03-24 08:14:57.624731+00	\N
+44c8cc5a-3b31-4d83-913a-fd8c335025d0	19c0116c-3b56-484e-a567-e0289afcf8a0	9549174b-7acb-4851-bf06-c4f96962c524	\N	2026-03-31 13:38:06+00	t	2026-03-24 13:38:06.928853+00	\N
+9519dedf-243e-4180-adf9-bb61ae0b1dc9	19c0116c-3b56-484e-a567-e0289afcf8a0	600905ee-c5eb-4932-8ef2-fe409b28f5fa	\N	2026-03-31 10:31:58+00	t	2026-03-24 10:31:58.866052+00	\N
+fd543e32-20c3-48a6-9368-07b426dd3e6c	19c0116c-3b56-484e-a567-e0289afcf8a0	5ebf780e-610e-4cd6-ba72-e457e047ca2d	\N	2026-03-31 11:04:45+00	t	2026-03-24 11:04:45.37651+00	\N
+dbb64b8e-467c-419a-87d7-5e5ccac5d4f9	23eb02ba-fc39-44d3-b2fb-db6f8a756395	5a420407-6484-4256-8d1e-8035fd8d158d	\N	2026-03-31 13:41:20+00	t	2026-03-24 13:41:20.053242+00	\N
+1c8a6bb0-e507-4d15-bbd5-5c3e9306c4c9	19c0116c-3b56-484e-a567-e0289afcf8a0	c22101e3-08e7-46aa-af94-2b850171595c	\N	2026-03-31 16:24:51+00	t	2026-03-24 16:24:51.505794+00	\N
+4ff7bb41-b1c1-4792-a931-b60b996d054d	19c0116c-3b56-484e-a567-e0289afcf8a0	874ec4b6-3400-45fb-ba56-809ccb8b5806	\N	2026-03-31 15:08:00+00	t	2026-03-24 15:08:00.547587+00	\N
+685b434a-b03a-409b-a43b-ef3f3764b35a	19c0116c-3b56-484e-a567-e0289afcf8a0	fd36ea13-a36b-4ff2-a327-3cbad9d28f35	\N	2026-03-31 15:47:25+00	t	2026-03-24 15:47:25.449369+00	\N
+69111415-35ec-4856-93e0-50cd61429419	19c0116c-3b56-484e-a567-e0289afcf8a0	5ec8e122-c913-4a2d-84c3-8343dfd98697	\N	2026-03-31 15:46:53+00	t	2026-03-24 15:46:53.087983+00	\N
+73694f48-d157-4f0e-ac97-0b246331c4a4	19c0116c-3b56-484e-a567-e0289afcf8a0	25014ae0-f048-4a38-a39b-f97e610024c3	\N	2026-03-31 13:42:11+00	t	2026-03-24 13:42:11.580664+00	\N
+7ee99e3b-c184-4bff-8991-406b7e44b6a1	19c0116c-3b56-484e-a567-e0289afcf8a0	8447a443-26c0-4fe1-bca7-e4c4180c8590	\N	2026-03-31 16:24:02+00	t	2026-03-24 16:24:02.846748+00	\N
+c8f124a7-9e77-4a87-962b-d2515060d7ad	19c0116c-3b56-484e-a567-e0289afcf8a0	11c6e162-f1e3-4de0-a3e8-371affec85a6	\N	2026-03-31 15:08:14+00	t	2026-03-24 15:08:14.112477+00	\N
+3af6db66-ca1f-44ec-b4e7-61fcd46157d8	19c0116c-3b56-484e-a567-e0289afcf8a0	07ff90c3-b9c8-4823-9e48-c26a4c5ac2ab	\N	2026-03-31 16:31:15+00	f	2026-03-24 16:31:15.627935+00	\N
+fecd85f6-d004-4572-83c4-72e36137aa69	19c0116c-3b56-484e-a567-e0289afcf8a0	05c717cb-35b6-4248-ac5e-4e2420081f82	\N	2026-04-01 02:47:58+00	f	2026-03-25 02:47:58.942361+00	\N
+f52fb868-62d0-4601-bb13-09968e8664e6	19c0116c-3b56-484e-a567-e0289afcf8a0	06af1e9b-295b-4ed6-a4de-44e38e4bad8f	\N	2026-04-01 03:18:44+00	f	2026-03-25 03:18:44.834128+00	\N
+f9be0711-217e-4bd5-8a9b-c13afb1c7ceb	19c0116c-3b56-484e-a567-e0289afcf8a0	7556a93f-d9f3-4bd4-880f-456d92dbac3d	\N	2026-04-01 03:23:20+00	f	2026-03-25 03:23:20.670299+00	\N
+d79c8bce-6adb-41df-97de-c7c01031e8b6	19c0116c-3b56-484e-a567-e0289afcf8a0	10a30e77-d55d-46c0-b1b2-ac54c72ffa54	\N	2026-04-01 04:12:56+00	f	2026-03-25 04:12:56.060549+00	\N
+e449cefd-b152-4166-81d9-267d220daf59	19c0116c-3b56-484e-a567-e0289afcf8a0	336eacc0-49df-4bc6-b9e4-6a46db64e5e1	\N	2026-04-01 04:22:15+00	f	2026-03-25 04:22:15.855573+00	\N
+621eb6a5-d74f-4547-b791-0478fbdd5ed2	19c0116c-3b56-484e-a567-e0289afcf8a0	41a1c393-323e-4d22-b9b8-602566c1433b	\N	2026-04-01 04:23:24+00	f	2026-03-25 04:23:24.196369+00	\N
+69780393-ed88-4370-9fdd-221991e62dc7	19c0116c-3b56-484e-a567-e0289afcf8a0	0ecb53e9-5293-481f-bba3-c2f26b51252a	\N	2026-04-01 04:40:16+00	f	2026-03-25 04:40:16.736921+00	\N
+cc411d7a-4ce5-4d1c-a9f0-b8c1c1108229	19c0116c-3b56-484e-a567-e0289afcf8a0	ab4c50c7-d0fd-44b3-8fe1-ffff2e388767	\N	2026-04-01 04:50:15+00	f	2026-03-25 04:50:15.341237+00	\N
+6035ed30-9c33-4d52-b49a-db1f9e265b2b	19c0116c-3b56-484e-a567-e0289afcf8a0	dde46449-a196-4e30-b24c-2dc1edd47e4f	\N	2026-04-01 05:29:43+00	f	2026-03-25 05:29:43.777931+00	\N
+794b9788-8d6c-46c0-8871-5da0d8cea898	19c0116c-3b56-484e-a567-e0289afcf8a0	5943f4bb-0a62-45c8-8874-edfba0de5098	\N	2026-04-01 05:29:49+00	f	2026-03-25 05:29:49.790216+00	\N
+18a5a90a-1f81-4d12-be32-ddb3f16407ef	19c0116c-3b56-484e-a567-e0289afcf8a0	610ca017-9d55-40d8-a292-d6375ba02dfd	\N	2026-04-01 06:26:05+00	f	2026-03-25 06:26:05.648785+00	\N
+e087b1ee-9660-4d10-9ef2-3aa670771844	19c0116c-3b56-484e-a567-e0289afcf8a0	cd487758-1521-4d49-9b62-529ce7215844	\N	2026-04-01 06:26:11+00	f	2026-03-25 06:26:11.858801+00	\N
 \.
 
 
@@ -823,6 +877,10 @@ a6906feb-9af0-4e6d-9e1a-9ee8e5b0eeb6	f1c71f4d-96f6-4217-ae1c-4530a68b8bb3	4	29	2
 20079479-29d8-4a16-93d8-b708da9032c9	fbe53de1-2e6f-4063-b940-dd49126681ba	4	30	2026-03-23 14:14:03.728323+00	2026-03-23 14:14:03.728327+00	\N	\N	\N
 2836b9f2-62fa-496a-9d90-9d5d878fe570	83c2ae1b-795d-4a4f-94d9-9a8af7079df1	3	27	2026-03-24 05:47:02.109545+00	2026-03-24 05:47:02.109553+00	\N	\N	\N
 b6cca6f6-65c5-460d-b998-7d6e4578a7ec	55a06610-7bfd-4ab3-b277-f6c2ab611754	3	21	2026-03-24 05:47:55.784075+00	2026-03-24 05:47:55.784079+00	\N	\N	\N
+8c8d5b66-3e74-4534-909c-eea949c94ed2	7e61dfb7-e1b7-4cf3-954d-b791d382431c	3	21	2026-03-24 16:15:34.432165+00	2026-03-24 16:15:34.432169+00	\N	\N	\N
+5590dcd0-a76d-408d-b35e-94ad5705264b	d54ea08d-faa5-4742-8481-96ec23277851	6	29	2026-03-24 16:44:36.018337+00	2026-03-24 16:44:36.018343+00	\N	\N	\N
+da0494f3-c7fe-4dca-b26a-8cf572608cdb	7948c125-5861-4bda-9fcc-484b9f26de56	3	24	2026-03-25 02:49:15.801612+00	2026-03-25 02:49:15.801617+00	\N	\N	\N
+9461c081-f11b-4321-b130-a7dd49382d83	d9b5dd11-ef43-4f67-bcf0-8ea251f6cde0	3	25	2026-03-25 03:24:46.593998+00	2026-03-25 03:24:46.594002+00	\N	\N	\N
 \.
 
 
@@ -831,6 +889,11 @@ b6cca6f6-65c5-460d-b998-7d6e4578a7ec	55a06610-7bfd-4ab3-b277-f6c2ab611754	3	21	2
 --
 
 COPY public.sessions (id, course_id, schedule_id, status, created_at, start_time, end_time, checkin_window_start, checkin_window_end, updated_at, deleted_at, session_date) FROM stdin;
+ababa67a-fc27-4941-be95-bb1ceb08d096	79f73d90-afbb-4019-9fde-ee383e4fc686	45d60f62-fa6b-4a3d-affd-1b773bb24450	active	2026-03-25 03:06:11.255773+00	2026-03-25 10:35:00+00	2026-03-25 11:25:00+00	\N	\N	2026-03-25 03:06:11.25578+00	\N	2026-03-25
+8161f50b-a646-43cd-b48d-627acefa1164	83c2ae1b-795d-4a4f-94d9-9a8af7079df1	2836b9f2-62fa-496a-9d90-9d5d878fe570	active	2026-03-25 03:06:11.255791+00	2026-03-25 13:30:00+00	2026-03-25 14:20:00+00	\N	\N	2026-03-25 03:06:11.255793+00	\N	2026-03-25
+5713429f-dbed-4575-9e92-1f37a1e19496	55a06610-7bfd-4ab3-b277-f6c2ab611754	b6cca6f6-65c5-460d-b998-7d6e4578a7ec	active	2026-03-25 03:06:11.255801+00	2026-03-25 07:00:00+00	2026-03-25 07:50:00+00	\N	\N	2026-03-25 03:06:11.255803+00	\N	2026-03-25
+e9ba15cf-27ed-4a6a-8e66-6066f307686e	7e61dfb7-e1b7-4cf3-954d-b791d382431c	8c8d5b66-3e74-4534-909c-eea949c94ed2	active	2026-03-25 03:06:11.255815+00	2026-03-25 07:00:00+00	2026-03-25 07:50:00+00	\N	\N	2026-03-25 03:06:11.255817+00	\N	2026-03-25
+bc3bc02a-1d25-44b9-b050-6144ea1451fb	7948c125-5861-4bda-9fcc-484b9f26de56	da0494f3-c7fe-4dca-b26a-8cf572608cdb	active	2026-03-25 03:06:11.255825+00	2026-03-25 09:45:00+00	2026-03-25 10:35:00+00	\N	\N	2026-03-25 03:06:11.255827+00	\N	2026-03-25
 \.
 
 
@@ -961,22 +1024,6 @@ ALTER TABLE ONLY public.alembic_version
 
 
 --
--- Name: attendance_audit_logs attendance_audit_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: vedura
---
-
-ALTER TABLE ONLY public.attendance_audit_logs
-    ADD CONSTRAINT attendance_audit_logs_pkey PRIMARY KEY (id);
-
-
---
--- Name: attendance_configs attendance_configs_pkey; Type: CONSTRAINT; Schema: public; Owner: vedura
---
-
-ALTER TABLE ONLY public.attendance_configs
-    ADD CONSTRAINT attendance_configs_pkey PRIMARY KEY (id);
-
-
---
 -- Name: attendance attendance_pkey; Type: CONSTRAINT; Schema: public; Owner: vedura
 --
 
@@ -1006,14 +1053,6 @@ ALTER TABLE ONLY public.course_enrollments
 
 ALTER TABLE ONLY public.departments
     ADD CONSTRAINT departments_pkey PRIMARY KEY (id);
-
-
---
--- Name: device_requests device_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: vedura
---
-
-ALTER TABLE ONLY public.device_requests
-    ADD CONSTRAINT device_requests_pkey PRIMARY KEY (id);
 
 
 --
@@ -1152,24 +1191,10 @@ CREATE INDEX ix_attendance_audit_created ON public.attendance_audit_logs USING b
 
 
 --
--- Name: ix_attendance_audit_logs_id; Type: INDEX; Schema: public; Owner: vedura
+-- Name: ix_attendance_audit_id; Type: INDEX; Schema: public; Owner: vedura
 --
 
-CREATE INDEX ix_attendance_audit_logs_id ON public.attendance_audit_logs USING btree (id);
-
-
---
--- Name: ix_attendance_audit_logs_session_id; Type: INDEX; Schema: public; Owner: vedura
---
-
-CREATE INDEX ix_attendance_audit_logs_session_id ON public.attendance_audit_logs USING btree (session_id);
-
-
---
--- Name: ix_attendance_audit_logs_student_id; Type: INDEX; Schema: public; Owner: vedura
---
-
-CREATE INDEX ix_attendance_audit_logs_student_id ON public.attendance_audit_logs USING btree (student_id);
+CREATE INDEX ix_attendance_audit_id ON public.attendance_audit_logs USING btree (id);
 
 
 --
@@ -1233,6 +1258,13 @@ CREATE INDEX ix_attendance_device_id ON public.attendance USING btree (device_id
 --
 
 CREATE INDEX ix_attendance_id ON public.attendance USING btree (id);
+
+
+--
+-- Name: ix_attendance_minutes_diff; Type: INDEX; Schema: public; Owner: vedura
+--
+
+CREATE INDEX ix_attendance_minutes_diff ON public.attendance USING btree (minutes_diff);
 
 
 --
@@ -1338,6 +1370,13 @@ CREATE INDEX ix_departments_id ON public.departments USING btree (id);
 --
 
 CREATE INDEX ix_departments_name ON public.departments USING btree (name);
+
+
+--
+-- Name: ix_device_requests_deleted_at; Type: INDEX; Schema: public; Owner: vedura
+--
+
+CREATE INDEX ix_device_requests_deleted_at ON public.device_requests USING btree (deleted_at);
 
 
 --
@@ -1847,5 +1886,5 @@ REVOKE USAGE ON SCHEMA public FROM PUBLIC;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict MwZMFnkigbLGiqEd5AdiRFKecwcjQLBq393iuvPHU8hLWf2kakSWP5e5sGNVygp
+\unrestrict JIADJaeMut080n4iaIbVM67bt6aEP2YNnoI2EgbwHLCp2PnDtIIfjYfCcZxDDKn
 

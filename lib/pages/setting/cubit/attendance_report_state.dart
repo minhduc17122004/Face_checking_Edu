@@ -5,12 +5,14 @@ class AttendanceReportState {
   final RequestStatus status;
   final String message;
   final DateTime? filterDate;
+  final Map<String, String> roomNameById;
 
   const AttendanceReportState({
     this.checkInOuts = const [],
     this.status = RequestStatus.initial,
     this.message = '',
     this.filterDate,
+    this.roomNameById = const {},
   });
 
   AttendanceReportState copyWith({
@@ -18,12 +20,14 @@ class AttendanceReportState {
     RequestStatus? status,
     String? message,
     DateTime? filterDate,
+    Map<String, String>? roomNameById,
   }) {
     return AttendanceReportState(
       checkInOuts: checkInOuts ?? this.checkInOuts,
       status: status ?? this.status,
       message: message ?? this.message,
       filterDate: filterDate ?? this.filterDate,
+      roomNameById: roomNameById ?? this.roomNameById,
     );
   }
 }

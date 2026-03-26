@@ -115,3 +115,40 @@ class DeviceAuthorizationService:
         device.status = status
         await self.db.flush()
         return device
+
+    async def check_device_room_binding_by_code(
+        self,
+        device_code: str,
+        room_id: uuid.UUID,
+    ) -> tuple[bool, str, uuid.UUID | None]:
+        """Validate device_code can submit attendance for the given room.
+
+        Returns: (is_authorized, message, device_uuid)
+        """
+        result = await self.db.execute(
+            select(Device).where(Device.device_code == device_code)
+        )
+        device = result.scalar_one_or_none()
+        if not device or device.deleted_at is not None:
+            return False, "Device not found", None
+        if device.status != "ACTIVE" or not device.is_active:
+            return False, "Device is inactive", None
+
+        # Room scope validation.
+        if not device.is_global and device.room_id != room_id:
+            return False, "Device room does not match payload room", None
+
+        request_result = await self.db.execute(
+            select(DeviceRequest).where(
+                DeviceRequest.device_code == device.device_code,
+                DeviceRequest.status == "APPROVED",
+                DeviceRequest.deleted_at.is_(None),
+            )
+        )
+        approved_request = request_result.scalar_one_or_none()
+        if not approved_request:
+            return False, "No approved device request found", None
+        if approved_request.room_id is not None and approved_request.room_id != room_id:
+            return False, "Device request does not cover this room", None
+
+        return True, "Authorized", device.id

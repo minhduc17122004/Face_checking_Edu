@@ -34,8 +34,14 @@ class SessionOut(BaseModel):
     checkin_window_start: datetime | None = None
     checkin_window_end: datetime | None = None
     status: str
+    mode: Optional[Literal["preset", "flexible", "custom"]] = None
+    mapped_status: Optional[str] = None
+    can_open: bool = False
+    can_close: bool = False
     created_at: datetime
     updated_at: datetime
+    room_name: Optional[str] = None
+    day_of_week: Optional[int] = None
 
     model_config = {"from_attributes": True}
 

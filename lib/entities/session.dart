@@ -1,3 +1,5 @@
+import 'package:face_time_keeping/common/enums/session_attendance_mode.dart';
+
 enum SessionStatus {
   scheduled,
   active,
@@ -41,6 +43,8 @@ class Session {
   final String id;
   final String courseId;
   final String? courseName;
+  final String? roomName;
+  final int? dayOfWeek;
   final String? scheduleId;
   final DateTime? sessionDate;
   final DateTime startTime;
@@ -48,6 +52,10 @@ class Session {
   final DateTime? checkinWindowStart;
   final DateTime? checkinWindowEnd;
   final SessionStatus status;
+  final String? mappedStatus;
+  final SessionAttendanceMode? attendanceMode;
+  final bool canOpen;
+  final bool canClose;
   final int presentCount;
   final int absentCount;
   final int totalCount;
@@ -57,6 +65,8 @@ class Session {
     required this.id,
     required this.courseId,
     this.courseName,
+    this.roomName,
+    this.dayOfWeek,
     this.scheduleId,
     this.sessionDate,
     required this.startTime,
@@ -64,6 +74,10 @@ class Session {
     this.checkinWindowStart,
     this.checkinWindowEnd,
     this.status = SessionStatus.scheduled,
+    this.mappedStatus,
+    this.attendanceMode,
+    this.canOpen = false,
+    this.canClose = false,
     this.presentCount = 0,
     this.absentCount = 0,
     this.totalCount = 0,
@@ -75,6 +89,8 @@ class Session {
       id: json['id'] as String,
       courseId: json['course_id'] as String,
       courseName: json['course_name'] as String?,
+      roomName: json['room_name'] as String?,
+      dayOfWeek: json['day_of_week'] as int?,
       scheduleId: json['schedule_id'] as String?,
       sessionDate: json['session_date'] != null
           ? DateTime.parse(json['session_date'] as String)
@@ -90,6 +106,11 @@ class Session {
           ? DateTime.parse(json['checkin_window_end'] as String)
           : null,
       status: SessionStatus.fromString(json['status'] as String?),
+      mappedStatus: json['mapped_status'] as String?,
+      attendanceMode: SessionAttendanceModeX.fromString(
+          json['mode'] as String? ?? json['attendance_mode'] as String?),
+      canOpen: json['can_open'] as bool? ?? false,
+      canClose: json['can_close'] as bool? ?? false,
       presentCount: json['present_count'] as int? ?? 0,
       absentCount: json['absent_count'] as int? ?? 0,
       totalCount: json['total_count'] as int? ?? 0,
@@ -119,6 +140,8 @@ class Session {
     String? id,
     String? courseId,
     String? courseName,
+    String? roomName,
+    int? dayOfWeek,
     String? scheduleId,
     DateTime? sessionDate,
     DateTime? startTime,
@@ -126,6 +149,10 @@ class Session {
     DateTime? checkinWindowStart,
     DateTime? checkinWindowEnd,
     SessionStatus? status,
+    String? mappedStatus,
+    SessionAttendanceMode? attendanceMode,
+    bool? canOpen,
+    bool? canClose,
     int? presentCount,
     int? absentCount,
     int? totalCount,
@@ -135,6 +162,8 @@ class Session {
       id: id ?? this.id,
       courseId: courseId ?? this.courseId,
       courseName: courseName ?? this.courseName,
+      roomName: roomName ?? this.roomName,
+      dayOfWeek: dayOfWeek ?? this.dayOfWeek,
       scheduleId: scheduleId ?? this.scheduleId,
       sessionDate: sessionDate ?? this.sessionDate,
       startTime: startTime ?? this.startTime,
@@ -142,6 +171,10 @@ class Session {
       checkinWindowStart: checkinWindowStart ?? this.checkinWindowStart,
       checkinWindowEnd: checkinWindowEnd ?? this.checkinWindowEnd,
       status: status ?? this.status,
+      mappedStatus: mappedStatus ?? this.mappedStatus,
+      attendanceMode: attendanceMode ?? this.attendanceMode,
+      canOpen: canOpen ?? this.canOpen,
+      canClose: canClose ?? this.canClose,
       presentCount: presentCount ?? this.presentCount,
       absentCount: absentCount ?? this.absentCount,
       totalCount: totalCount ?? this.totalCount,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 """Session generator service — auto-generate attendance sessions from schedules."""
 import uuid
-from datetime import date, datetime, time, timezone, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +11,9 @@ from app.models.schedule import Schedule
 from app.models.course import Course
 from app.models.time_slot import TimeSlot
 
+# Vietnam timezone: UTC+7
+VIETNAM_TZ = timezone(timedelta(hours=7))
+
 
 class SessionGeneratorService:
     """Auto-generate attendance sessions for a given date from weekly schedules.
@@ -19,11 +22,11 @@ class SessionGeneratorService:
     1. Compute start_time = target_date + time_slot.start_time
     2. Compute end_time   = target_date + time_slot.end_time
     3. Apply attendance window from course config:
-       - fixed:   checkin_window_start = start - before_minutes
-                  checkin_window_end   = end   + after_minutes
-       - flexible: window = NULL (no time restriction)
-       - custom:   window = NULL (use course's stored values, future extension)
-    4. Check if session already exists for (course_id, schedule_id, date)
+       - preset:   checkin_window = [slot_start, slot_end]
+       - flexible: window = NULL  (teacher opens/closes manually)
+       - custom:   window_start = slot_start + before_minutes
+                   window_end   = window_start + after_minutes  (capped at slot_end)
+    4. Check if session already exists for (schedule_id, date)
     5. If not exists → create
     """
 
@@ -105,24 +108,41 @@ class SessionGeneratorService:
         return created
 
     def _combine_date_time(self, d: date, t: time) -> datetime:
-        """Combine date + time into timezone-aware datetime."""
+        """Combine date + time into timezone-aware datetime (Vietnam UTC+7)."""
         naive = datetime.combine(d, t)
-        if t.tzinfo is not None:
-            return naive
-        return datetime.combine(d, t).replace(tzinfo=timezone.utc)
+        # time_slot times are stored as naive (no tz) — they represent Vietnam local time
+        return naive.replace(tzinfo=VIETNAM_TZ)
 
     def _compute_checkin_window(
         self, course: Course, session_start: datetime, session_end: datetime
     ) -> tuple[datetime | None, datetime | None]:
-        """Compute checkin window based on course attendance mode."""
+        """Compute checkin window based on course attendance mode.
+
+        Modes:
+          preset  — window = [session_start, session_end]  (auto open/close at slot boundaries)
+          flexible — window = None (teacher manually opens/closes)
+          custom  — attendance_before_minutes = offset from slot START to open (minutes)
+                    attendance_after_minutes  = duration the window stays open (minutes)
+                    → window_start = session_start + before_minutes
+                    → window_end   = window_start  + after_minutes
+                    Clamped so window_end <= session_end.
+        """
         mode = getattr(course, "attendance_mode", "preset") or "preset"
 
         if mode == "flexible":
             return None, None
 
-        before = getattr(course, "attendance_before_minutes", 30) or 30
+        before = getattr(course, "attendance_before_minutes", 0) or 0
         after = getattr(course, "attendance_after_minutes", 30) or 30
 
-        window_start = session_start - timedelta(minutes=before)
-        window_end = session_end + timedelta(minutes=after)
-        return window_start, window_end
+        if mode == "custom":
+            # Open the window `before` minutes after the slot starts
+            window_start = session_start + timedelta(minutes=before)
+            # Close the window `after` minutes later (not past slot end)
+            window_end = window_start + timedelta(minutes=after)
+            if window_end > session_end:
+                window_end = session_end
+            return window_start, window_end
+
+        # mode == "preset": open at slot start, close at slot end
+        return session_start, session_end

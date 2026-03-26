@@ -9,7 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
-AttendanceMode = Literal["preset", "flexible", "custom"]
+AttendanceMode = Literal["preset", "flexible"]
 
 if TYPE_CHECKING:
     from app.models.teacher import Teacher

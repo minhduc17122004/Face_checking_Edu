@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import String, Integer, DateTime, ForeignKey, func
+from sqlalchemy import String, Integer, DateTime, ForeignKey, func, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -26,6 +26,9 @@ class AttendanceConfig(Base):
     """
 
     __tablename__ = "attendance_configs"
+    __table_args__ = (
+        CheckConstraint("mode IN ('FIXED', 'FLEXIBLE')", name="ck_attendance_configs_mode"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -41,6 +44,19 @@ class AttendanceConfig(Base):
         nullable=False,
         unique=True,
         index=True,
+    )
+
+    room_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("rooms.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    mode: Mapped[Optional[str]] = mapped_column(
+        String(20),
+        nullable=True,
+        default=None,
     )
 
     # Tolerance in minutes

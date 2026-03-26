@@ -54,7 +54,7 @@ abstract class LocalService {
   void saveRecentDomain(String? domain);
   Future<void> clearServerRelatedData();
   Future<void> initApp();
-  Future<Map<String, dynamic>> checkIn(CheckInOut checkIn);
+  Future<Map<String, dynamic>> checkIn(CheckInOut checkIn, {DateTime? sessionStartTime});
   Future<Map<String, dynamic>> checkOut(CheckOut checkOut, Position location);
   Future<void> saveShiftTimes({
     required TimeOfDay morningStart,
@@ -120,6 +120,10 @@ abstract class LocalService {
   String getUserRole();
   Future<String> getDeviceCode();
   Future<void> saveDeviceCode(String code);
+  Future<void> saveActiveRoomId(String roomId);
+  Future<String?> getActiveRoomId();
+  Future<void> saveActiveRoomName(String roomName);
+  Future<String?> getActiveRoomName();
 
   // --- EDU Pending Check-In (offline queue) ---
   Future<void> savePendingEduCheckIn(PendingEduCheckIn item);
@@ -776,12 +780,22 @@ class LocalServiceImplement with EventBusMixin implements LocalService {
   }
 
   @override
-  Future<Map<String, dynamic>> checkIn(CheckInOut checkIn) async {
+  Future<Map<String, dynamic>> checkIn(CheckInOut checkIn, {DateTime? sessionStartTime}) async {
     // null is false, int is minutes late
     try {
-      await _hiveService.saveCheckInOut(checkIn);
+      final activeRoomId = await _getActiveRoomIdSafely();
+      final normalizedRoomId =
+          (checkIn.roomId != null && checkIn.roomId!.trim().isNotEmpty)
+              ? checkIn.roomId!.trim()
+              : activeRoomId;
+      final checkInToSave =
+          (normalizedRoomId != null && normalizedRoomId.isNotEmpty)
+              ? checkIn.copyWith(roomId: normalizedRoomId)
+              : checkIn;
+
+      await _hiveService.saveCheckInOut(checkInToSave);
       shareEvent(AttendanceChangeEvent());
-      final minutesLate = await _isLate(checkIn);
+      final minutesLate = _isLate(checkInToSave, sessionStartTime: sessionStartTime);
       return {
         'minutesLate': minutesLate,
       };
@@ -801,6 +815,7 @@ class LocalServiceImplement with EventBusMixin implements LocalService {
   Future<Map<String, dynamic>> checkOut(
       CheckOut checkOut, Position location) async {
     try {
+      final activeRoomId = await _getActiveRoomIdSafely();
       CheckInOut checkInOut = CheckInOut(
         pin: checkOut.pin,
         name: checkOut.name,
@@ -809,6 +824,7 @@ class LocalServiceImplement with EventBusMixin implements LocalService {
         studentId: checkOut.studentId,
         latitude: location.latitude,
         longitude: location.longitude,
+        roomId: activeRoomId,
       );
       await _hiveService.saveCheckInOut(checkInOut);
       shareEvent(AttendanceChangeEvent());
@@ -1049,9 +1065,45 @@ class LocalServiceImplement with EventBusMixin implements LocalService {
     }
   }
 
+  Future<String?> _getActiveRoomIdSafely() async {
+    try {
+      final roomId = await getActiveRoomId();
+      if (roomId == null) return null;
+      final normalized = roomId.trim();
+      return normalized.isEmpty ? null : normalized;
+    } catch (e) {
+      await pushLog('Error in _getActiveRoomIdSafely: $e');
+      return null;
+    }
+  }
+
   @override
   Future<void> saveDeviceCode(String code) async {
     await _sharedPreferences.put<String>(SharedPrefsKey.deviceCode, code);
+  }
+
+  @override
+  Future<void> saveActiveRoomId(String roomId) async {
+    final key = await _formatWithTenantId(SharedPrefsKey.activeRoom);
+    await _sharedPreferences.put<String>(key, roomId);
+  }
+
+  @override
+  Future<String?> getActiveRoomId() async {
+    final key = await _formatWithTenantId(SharedPrefsKey.activeRoom);
+    return _sharedPreferences.get<String>(key);
+  }
+
+  @override
+  Future<void> saveActiveRoomName(String roomName) async {
+    final key = await _formatWithTenantId(SharedPrefsKey.activeRoomName);
+    await _sharedPreferences.put<String>(key, roomName);
+  }
+
+  @override
+  Future<String?> getActiveRoomName() async {
+    final key = await _formatWithTenantId(SharedPrefsKey.activeRoomName);
+    return _sharedPreferences.get<String>(key);
   }
 
   @override
@@ -1095,65 +1147,23 @@ class LocalServiceImplement with EventBusMixin implements LocalService {
     }
   }
 
-  Future<int> _isLate(CheckInOut checkIn) async {
+  /// Calculate minutes late based on the current session's start time.
+  /// If [sessionStartTime] is provided, compares check-in time directly
+  /// against it. Returns 0 if no session info is available or if on time.
+  int _isLate(CheckInOut checkIn, {DateTime? sessionStartTime}) {
     try {
-      final shiftTimes = await getShiftTimes();
-      final checkInTime = TimeOfDay.fromDateTime(checkIn.time);
-
-      // Determine which shift this check-in belongs to based on time
-      final morningStart = shiftTimes['morningStart']!;
-      final morningEnd = shiftTimes['morningEnd']!;
-      final afternoonStart = shiftTimes['afternoonStart']!;
-      final afternoonEnd = shiftTimes['afternoonEnd']!;
-      final nightStart = shiftTimes['nightStart']!;
-      final nightEnd = shiftTimes['nightEnd']!;
-
-      // Helper function to calculate minutes difference between two TimeOfDay
-      int getMinutesDifference(TimeOfDay laterTime, TimeOfDay earlierTime) {
-        final laterMinutes = laterTime.hour * 60 + laterTime.minute;
-        final earlierMinutes = earlierTime.hour * 60 + earlierTime.minute;
-        return laterMinutes - earlierMinutes;
+      if (sessionStartTime == null) {
+        // No session info — cannot determine lateness
+        return 0;
       }
 
-      // Helper function to check if time is within a shift range
-      bool isTimeInRange(TimeOfDay time, TimeOfDay start, TimeOfDay end) {
-        final timeMinutes = time.hour * 60 + time.minute;
-        final startMinutes = start.hour * 60 + start.minute;
-        final endMinutes = end.hour * 60 + end.minute;
-
-        // Handle cases where shift spans midnight
-        if (endMinutes < startMinutes) {
-          return timeMinutes >= startMinutes || timeMinutes <= endMinutes;
-        } else {
-          return timeMinutes >= startMinutes && timeMinutes <= endMinutes;
-        }
-      }
-
-      // Check which shift this check-in belongs to and calculate lateness
-      // Morning shift
-      if (isTimeInRange(checkInTime, morningStart, morningEnd)) {
-        final minutesLate = getMinutesDifference(checkInTime, morningStart);
-        return minutesLate > 0 ? minutesLate : 0;
-      }
-
-      // Afternoon shift
-      if (isTimeInRange(checkInTime, afternoonStart, afternoonEnd)) {
-        final minutesLate = getMinutesDifference(checkInTime, afternoonStart);
-        return minutesLate > 0 ? minutesLate : 0;
-      }
-
-      // Night shift
-      if (isTimeInRange(checkInTime, nightStart, nightEnd)) {
-        final minutesLate = getMinutesDifference(checkInTime, nightStart);
-        return minutesLate > 0 ? minutesLate : 0;
-      }
-
-      // Default case: return 0 if no clear shift match
-      return 0;
+      final checkInTime = checkIn.time;
+      final diff = checkInTime.difference(sessionStartTime).inMinutes;
+      return diff > 0 ? diff : 0;
     } catch (e) {
       pushLog('Error checking minutes late: $e');
       log('Error checking minutes late: $e');
-      return 0; // Default to not late if error occurs
+      return 0;
     }
   }
 

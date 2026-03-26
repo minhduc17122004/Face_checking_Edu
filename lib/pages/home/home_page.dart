@@ -16,6 +16,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -505,6 +506,18 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
                 AppNavigator.pushNamed(RouterName.registerFace);
               },
             ),
+            if (_localService.getUserRole().toLowerCase() == 'teacher' ||
+                _localService.getUserRole().toLowerCase() == 'admin')
+              _QuickAccessCard(
+                icon: Icons.checklist_rtl,
+                title: 'Quản lý điểm danh',
+                subtitle: 'Mở/đóng phiên học',
+                iconBg: AppColors.orange50,
+                iconColor: AppColors.orange,
+                onTap: () {
+                  AppNavigator.pushNamed(RouterName.sessionManagement);
+                },
+              ),
           ],
         ),
       ],

@@ -24,6 +24,10 @@ class CheckInOut extends HiveObject {
   double? latitude;
   @HiveField(8)
   double? longitude;
+  @HiveField(9)
+  String? roomId;
+  @HiveField(10)
+  String? deviceId;
 
   CheckInOut({
     this.id,
@@ -36,6 +40,8 @@ class CheckInOut extends HiveObject {
     this.isCheckIn = true,
     required this.latitude,
     required this.longitude,
+    this.roomId,
+    this.deviceId,
   });
   CheckInOut copyWith({
     int? id,
@@ -48,6 +54,8 @@ class CheckInOut extends HiveObject {
     bool? isCheckIn,
     double? latitude,
     double? longitude,
+    String? roomId,
+    String? deviceId,
   }) =>
       CheckInOut(
           id: id ?? this.id,
@@ -59,7 +67,9 @@ class CheckInOut extends HiveObject {
           isSynced: isSynced ?? this.isSynced,
           isCheckIn: isCheckIn ?? this.isCheckIn,
           latitude: latitude ?? this.latitude,
-          longitude: longitude ?? this.longitude);
+          longitude: longitude ?? this.longitude,
+          roomId: roomId ?? this.roomId,
+          deviceId: deviceId ?? this.deviceId);
   Map<String, dynamic> toSmallJson() {
     if (isCheckIn) {
       return {

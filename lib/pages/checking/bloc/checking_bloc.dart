@@ -31,6 +31,9 @@ class CheckingBloc extends Cubit<CheckingState> {
     _faceNative = FaceNative();
   }
 
+  /// The start time of the current session (used for late detection)
+  DateTime? sessionStartTime;
+
   final LocalService _localService;
   static AudioPlayer player = AudioPlayer();
   late final FaceNative _faceNative;
@@ -164,7 +167,10 @@ class CheckingBloc extends Cubit<CheckingState> {
         latitude: _location.latitude,
         longitude: _location.longitude,
       );
-      final Map<String, dynamic> result = await _localService.checkIn(checkIn);
+      final Map<String, dynamic> result = await _localService.checkIn(
+        checkIn,
+        sessionStartTime: sessionStartTime,
+      );
       if (result['errorMessage'] != null) {
         emit(state.copyWith(
             checkingStatus: RequestStatus.failed,

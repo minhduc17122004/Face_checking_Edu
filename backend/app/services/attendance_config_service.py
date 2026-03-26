@@ -52,6 +52,8 @@ class AttendanceConfigService:
 
         config = await self.repo.upsert(
             session_id=req.session_id,
+            room_id=req.room_id,
+            mode=req.mode,
             early_allowance=req.early_allowance,
             late_allowance=req.late_allowance,
         )
@@ -68,6 +70,10 @@ class AttendanceConfigService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"No attendance config found for session {session_id}.",
             )
+        if req.room_id is not None:
+            config.room_id = req.room_id
+        if req.mode is not None:
+            config.mode = req.mode
         if req.early_allowance is not None:
             config.early_allowance = req.early_allowance
         if req.late_allowance is not None:
@@ -87,3 +93,14 @@ class AttendanceConfigService:
         if config:
             return config.early_allowance, config.late_allowance
         return 15, 15  # defaults
+
+    async def get_effective_mode(self, session_id: uuid.UUID) -> str:
+        """Return FIXED/FLEXIBLE with precedence session config > course mode."""
+        config = await self.repo.get_by_session(session_id)
+        if config and config.mode:
+            return config.mode
+
+        session = await self.session_repo.get_by_id(session_id)
+        if session and session.course and getattr(session.course, "attendance_mode", None) == "flexible":
+            return "FLEXIBLE"
+        return "FIXED"

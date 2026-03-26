@@ -114,7 +114,8 @@ class _CourseListViewState extends State<_CourseListView>
           }
 
           if (state.requestStatus == RequestStatus.failed &&
-              state.message != null) {
+              state.message != null &&
+              state.courses.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -130,7 +131,7 @@ class _CourseListViewState extends State<_CourseListView>
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
-                      widget.courseBloc.loadCourses();
+                      widget.courseBloc.loadCourses(mine: !_isAdmin);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
@@ -143,9 +144,11 @@ class _CourseListViewState extends State<_CourseListView>
             );
           }
 
-          if (state.requestStatus == RequestStatus.success) {
+          if (state.requestStatus == RequestStatus.success ||
+              (state.requestStatus == RequestStatus.failed &&
+                  state.courses.isNotEmpty)) {
             if (state.courses.isEmpty) {
-              return EmptyStateWidget(
+              return const EmptyStateWidget(
                 title: 'Chưa có học phần',
                 subtitle: 'Bạn chưa được gán học phần nào',
               );
@@ -357,13 +360,26 @@ class _CourseCard extends StatelessWidget {
                     color: AppColors.slate500,
                   ),
                 ),
+                if (course.roomName != null) ...[
+                  const SizedBox(width: 12),
+                  const Icon(Icons.meeting_room_outlined,
+                      size: 16, color: AppColors.slate500),
+                  const SizedBox(width: 4),
+                  Text(
+                    course.roomName!,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.slate500,
+                    ),
+                  ),
+                ],
               ],
             ),
             if (course.dayOfWeek != null && course.timeSlotName != null) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Icon(Icons.calendar_month,
+                  const Icon(Icons.calendar_month_outlined,
                       size: 16, color: AppColors.slate500),
                   const SizedBox(width: 4),
                   Text(

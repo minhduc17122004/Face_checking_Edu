@@ -17,22 +17,22 @@ enum AttendanceMode {
   String get label {
     switch (this) {
       case AttendanceMode.preset:
-        return '30 phút trước - 30 phút sau giờ học';
+        return 'Tự động mở/đóng theo thời gian tiết học';
       case AttendanceMode.flexible:
-        return 'Luôn cho phép điểm danh';
+        return 'Giáo viên đóng mở thủ công khi tiết đang diễn ra';
       case AttendanceMode.custom:
-        return 'Tự thiết lập thời gian';
+        return 'Mở/đóng theo khoảng thời gian tự thiết lập (trong tiết học)';
     }
   }
 
   String get shortLabel {
     switch (this) {
       case AttendanceMode.preset:
-        return 'Đặt trước';
+        return 'Cố định';
       case AttendanceMode.flexible:
         return 'Linh hoạt';
       case AttendanceMode.custom:
-        return 'Tùy chỉnh';
+        return 'Tự thiết lập';
     }
   }
 

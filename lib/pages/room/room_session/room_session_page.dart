@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:face_time_keeping/common/enums/request_status.dart';
 import 'package:face_time_keeping/common/resources/app_colors.dart';
+import 'package:face_time_keeping/data/local/local_service.dart';
 import 'package:face_time_keeping/di/injection.dart';
 import 'package:face_time_keeping/entities/room.dart';
 import 'package:face_time_keeping/entities/room_session.dart';
 import 'bloc/room_session_bloc.dart';
 import 'bloc/room_session_state.dart';
-import 'package:face_time_keeping/pages/attendance_checkin/attendance_checkin_page.dart';
-import 'package:face_time_keeping/pages/edu_checking/edu_checking_page.dart';
+import 'package:face_time_keeping/pages/checking/checking_page.dart';
 import 'package:face_time_keeping/route/app_route.dart';
 import 'package:face_time_keeping/route/navigator.dart';
 import 'package:collection/collection.dart';
@@ -41,6 +41,25 @@ class _RoomSessionView extends StatefulWidget {
 
 class _RoomSessionViewState extends State<_RoomSessionView> {
   DateTime? _selectedDate;
+  final LocalService _localService = getIt<LocalService>();
+  bool _canManageSessions = false;
+  String? _activeRoomName;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRoomBindingContext();
+  }
+
+  Future<void> _loadRoomBindingContext() async {
+    final role = _localService.getUserRole().toLowerCase();
+    final roomName = await _localService.getActiveRoomName();
+    if (!mounted) return;
+    setState(() {
+      _canManageSessions = role == 'teacher' || role == 'admin';
+      _activeRoomName = roomName;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -123,6 +142,32 @@ class _RoomSessionViewState extends State<_RoomSessionView> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                if (_activeRoomName != null && _activeRoomName!.isNotEmpty)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.blue.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.room_preferences,
+                            size: 16, color: AppColors.blue),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Phòng đang gán trên thiết bị: $_activeRoomName',
+                            style: const TextStyle(
+                              color: AppColors.blue,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 if (_selectedDate != null)
                   Container(
                     padding:
@@ -223,15 +268,18 @@ class _RoomSessionViewState extends State<_RoomSessionView> {
 
   Widget _buildSessionCard(RoomSession session) {
     Color statusColor;
-    switch (session.status.value) {
-      case 'active':
+    switch (session.mappedStatus) {
+      case 'OPEN':
         statusColor = AppColors.green;
         break;
-      case 'closed':
+      case 'CLOSED':
         statusColor = AppColors.slate500;
         break;
-      default:
+      case 'CAN_OPEN':
         statusColor = AppColors.blue;
+        break;
+      default:
+        statusColor = AppColors.slate500;
     }
 
     final canCheckIn = session.isActive && session.canCheckin;
@@ -251,8 +299,8 @@ class _RoomSessionViewState extends State<_RoomSessionView> {
         onTap: canCheckIn
             ? () {
                 AppNavigator.pushNamed(
-                  RouterName.eduChecking,
-                  arguments: EduCheckingArgs(session: session),
+                  RouterName.checking,
+                  arguments: const CheckingArgs(isCheckIn: true),
                 );
               }
             : null,
@@ -281,7 +329,7 @@ class _RoomSessionViewState extends State<_RoomSessionView> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      session.status.label,
+                      _mappedStatusLabel(session.mappedStatus),
                       style: TextStyle(
                         color: statusColor,
                         fontSize: 12,
@@ -369,11 +417,60 @@ class _RoomSessionViewState extends State<_RoomSessionView> {
                   ],
                 ],
               ),
+              if (_canManageSessions) ...[
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    if (session.isScheduled)
+                      OutlinedButton.icon(
+                        onPressed: session.canOpen
+                            ? () {
+                                widget.bloc.activateSession(
+                                  session.id,
+                                  widget.room.id,
+                                  sessionDate: _selectedDate,
+                                );
+                              }
+                            : null,
+                        icon: const Icon(Icons.play_circle_outline, size: 16),
+                        label: const Text('Mở buổi'),
+                      ),
+                    if (session.isActive) ...[
+                      OutlinedButton.icon(
+                        onPressed: session.canClose
+                            ? () {
+                                widget.bloc.closeSession(
+                                  session.id,
+                                  widget.room.id,
+                                  sessionDate: _selectedDate,
+                                );
+                              }
+                            : null,
+                        icon: const Icon(Icons.stop_circle_outlined, size: 16),
+                        label: const Text('Đóng buổi'),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
             ],
           ),
         ),
       ),
     );
+  }
+
+  String _mappedStatusLabel(String status) {
+    switch (status) {
+      case 'OPEN':
+        return 'OPEN';
+      case 'CAN_OPEN':
+        return 'CAN_OPEN';
+      case 'CLOSED':
+        return 'CLOSED';
+      default:
+        return 'NOT_OPEN';
+    }
   }
 
   Widget _buildCourseCard(Course course, RoomSession? activeSession,
@@ -389,8 +486,8 @@ class _RoomSessionViewState extends State<_RoomSessionView> {
         onTap: activeSession != null
             ? () {
                 AppNavigator.pushNamed(
-                  RouterName.eduChecking,
-                  arguments: EduCheckingArgs(session: activeSession),
+                  RouterName.checking,
+                  arguments: const CheckingArgs(isCheckIn: true),
                 );
               }
             : null,
@@ -491,26 +588,28 @@ class _RoomSessionViewState extends State<_RoomSessionView> {
                     ),
                   ),
                 )
-              else if (scheduledSession != null)
+              else if (scheduledSession != null && (scheduledSession.canOpen || scheduledSession.canClose))
                 GestureDetector(
-                  onTap: () {
-                    widget.bloc.activateSession(
-                      scheduledSession.id,
-                      widget.room.id,
-                      sessionDate: _selectedDate,
-                    );
-                  },
+                  onTap: scheduledSession.canOpen
+                      ? () {
+                          widget.bloc.activateSession(
+                            scheduledSession.id,
+                            widget.room.id,
+                            sessionDate: _selectedDate,
+                          );
+                        }
+                      : null,
                   child: Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: AppColors.blue,
+                      color: scheduledSession.canOpen ? AppColors.blue : AppColors.slate200,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text(
-                      'Bắt đầu điểm danh',
+                    child: Text(
+                      scheduledSession.canOpen ? 'Bắt đầu điểm danh' : 'Không thể mở',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: scheduledSession.canOpen ? Colors.white : AppColors.slate500,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),

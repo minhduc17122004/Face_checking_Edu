@@ -275,14 +275,10 @@ class SessionRepository(BaseRepository[Session]):
         skip: int = 0,
         limit: int = 100,
     ) -> tuple[Sequence[Session], int]:
-        """Get sessions for a room with active-first sorting + total count.
-
-        Sorting:
-            1. Currently active sessions (status='active')
-            2. Scheduled/upcoming sessions by start_time ASC
-            3. Closed sessions last
-        """
+        """Get sessions for a room with active-first sorting + total count."""
         from app.models.course import Course as CourseModel
+        from datetime import datetime
+        from sqlalchemy import case
 
         course_subq = (
             select(CourseModel.id)
@@ -312,7 +308,6 @@ class SessionRepository(BaseRepository[Session]):
         )
         total = count_result.scalar_one()
 
-        from sqlalchemy import case
         active_order = case(
             (Session.status == "active", 0),
             (Session.status == "scheduled", 1),
@@ -320,9 +315,112 @@ class SessionRepository(BaseRepository[Session]):
         )
         result = await self.db.execute(
             select(Session)
-            .options(joinedload(Session.course))
+            .options(
+                joinedload(Session.course),
+                joinedload(Session.attendance_config)
+            )
             .where(where_clause)
             .order_by(active_order, Session.start_time.asc())
+            .offset(skip)
+            .limit(limit)
+        )
+        return result.unique().scalars().all(), total
+
+    async def get_upcoming_sessions_by_teacher(
+        self,
+        teacher_id: int,
+        limit: int = 10,
+    ) -> Sequence[Session]:
+        """Return currently active or upcoming sessions for a specific teacher.
+        Sorted: active first, then closest upcoming.
+        """
+        from app.models.course import Course as CourseModel
+        from sqlalchemy import case
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+
+        # Find courses for this teacher
+        course_subq = (
+            select(CourseModel.id)
+            .where(
+                and_(
+                    CourseModel.teacher_id == teacher_id,
+                    CourseModel.deleted_at.is_(None),
+                )
+            )
+            .subquery()
+        )
+
+        conditions = [
+            Session.course_id.in_(select(course_subq)),
+            Session.deleted_at.is_(None),
+            # Filter sessions that haven't ended yet
+            Session.end_time > now,
+            Session.status != "closed",
+        ]
+
+        active_order = case(
+            (Session.status == "active", 0),
+            (Session.status == "scheduled", 1),
+            else_=2,
+        )
+
+        result = await self.db.execute(
+            select(Session)
+            .options(joinedload(Session.course))
+            .where(and_(*conditions))
+            .order_by(active_order, Session.start_time.asc())
+            .limit(limit)
+        )
+        return result.unique().scalars().all()
+
+    async def get_sessions_by_teacher(
+        self,
+        teacher_id: int,
+        session_date: date | None = None,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> tuple[Sequence[Session], int]:
+        """Return all sessions for a specific teacher's courses."""
+        from app.models.course import Course as CourseModel
+
+        # Base query for courses owned by teacher
+        course_stmt = select(CourseModel.id).where(
+            and_(
+                CourseModel.teacher_id == teacher_id,
+                CourseModel.deleted_at.is_(None),
+            )
+        )
+
+        conditions = [
+            Session.course_id.in_(course_stmt),
+            Session.deleted_at.is_(None),
+        ]
+        if session_date:
+            from datetime import datetime
+            start = datetime.combine(session_date, datetime.min.time())
+            end = datetime.combine(session_date, datetime.max.time())
+            conditions.append(Session.start_time >= start)
+            conditions.append(Session.start_time <= end)
+
+        where_clause = and_(*conditions)
+
+        # Count
+        count_result = await self.db.execute(
+            select(func.count()).select_from(Session).where(where_clause)
+        )
+        total = count_result.scalar_one()
+
+        # Data
+        result = await self.db.execute(
+            select(Session)
+            .options(
+                joinedload(Session.course).joinedload(CourseModel.room),
+                joinedload(Session.schedule)
+            )
+            .where(where_clause)
+            .order_by(Session.start_time.desc())
             .offset(skip)
             .limit(limit)
         )

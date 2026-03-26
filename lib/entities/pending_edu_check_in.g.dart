@@ -27,13 +27,15 @@ class PendingEduCheckInAdapter extends TypeAdapter<PendingEduCheckIn> {
       latitude: fields[7] as double?,
       longitude: fields[8] as double?,
       studentName: fields[9] as String?,
+      roomId: fields[10] as String?,
+      deviceId: fields[11] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, PendingEduCheckIn obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.localId)
       ..writeByte(1)
@@ -53,7 +55,11 @@ class PendingEduCheckInAdapter extends TypeAdapter<PendingEduCheckIn> {
       ..writeByte(8)
       ..write(obj.longitude)
       ..writeByte(9)
-      ..write(obj.studentName);
+      ..write(obj.studentName)
+      ..writeByte(10)
+      ..write(obj.roomId)
+      ..writeByte(11)
+      ..write(obj.deviceId);
   }
 
   @override

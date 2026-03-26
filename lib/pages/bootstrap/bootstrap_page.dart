@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../common/resources/index.dart';
 import '../../common/utils/widgets/spacing.dart';
+import '../../data/local/local_service.dart';
 import '../../di/injection.dart';
 import '../../route/app_route.dart';
 import '../../route/navigator.dart';
@@ -18,6 +19,28 @@ class BootstrapPage extends StatefulWidget {
 
 class _BootstrapPageState extends State<BootstrapPage> {
   final BootstrapCubit _bloc = getIt<BootstrapCubit>();
+
+  Future<String> _resolvePostAuthRoute() async {
+    final localService = getIt<LocalService>();
+    final role = localService.getUserRole().toUpperCase();
+    final activeRoomId = await localService.getActiveRoomId();
+
+    final needsRoomBinding = (role == 'ADMIN' || role == 'TEACHER') &&
+        (activeRoomId == null || activeRoomId.isEmpty);
+
+    if (needsRoomBinding) {
+      return RouterName.roomSelection;
+    }
+
+    return RouterName.home;
+  }
+
+  void _navigateAfterAuth() {
+    Future.delayed(const Duration(seconds: 1)).then((_) async {
+      final targetRoute = await _resolvePostAuthRoute();
+      AppNavigator.pushNamedAndRemoveUntil(targetRoute, (_) => false);
+    });
+  }
 
   @override
   void initState() {
@@ -72,9 +95,7 @@ class _BootstrapPageState extends State<BootstrapPage> {
     switch (state.status) {
       case BootstrapStatus.authenticated:
       case BootstrapStatus.offlineMode:
-        Future.delayed(const Duration(seconds: 1)).then((value) {
-          AppNavigator.pushNamedAndRemoveUntil(RouterName.home, (_) => false);
-        });
+        _navigateAfterAuth();
         break;
       case BootstrapStatus.unauthenticated:
         Future.delayed(const Duration(seconds: 4)).then((value) {

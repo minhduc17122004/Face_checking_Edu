@@ -38,8 +38,7 @@ const _eduCheckinPeriodicUniqueName = 'sync-edu-checkin-periodic';
 const _iosFaceDataPeriodicUniqueName =
     'com.example.face_time_keeping.syncCheckInOut1';
 const _iosCheckInOutUniqueName = 'com.example.face_time_keeping.syncCheckFace1';
-const _iosStudentDataUniqueName =
-    'com.example.face_time_keeping.syncStudent1';
+const _iosStudentDataUniqueName = 'com.example.face_time_keeping.syncStudent1';
 const sendPortSyncStudentType = 'sync_student';
 
 @pragma('vm:entry-point')
@@ -137,13 +136,19 @@ void callbackDispatcher() {
           final deviceCode = await localService.getDeviceCode();
           final pending = await localService.getPendingEduCheckIns();
           for (final item in pending) {
-            if (item.retryCount >= 5 || item.sessionId == null) continue;
+            if (item.retryCount >= 5) continue;
+            if ((item.roomId == null || item.roomId!.isEmpty) &&
+                item.sessionId == null) {
+              await localService.incrementEduRetryCount(item.localId);
+              continue;
+            }
             try {
               final result = await checkinService.manualCheckin(
-                sessionId: item.sessionId!,
+                sessionId: item.sessionId,
                 studentId: item.studentId,
-                checkinTime: item.timestamp,
-                deviceId: deviceCode,
+                roomId: item.roomId,
+                timestamp: item.timestamp,
+                deviceId: item.deviceId ?? deviceCode,
               );
               if (result.isSuccess) {
                 await localService.markEduCheckInSynced(item.localId);

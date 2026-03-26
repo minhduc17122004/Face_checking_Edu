@@ -22,11 +22,24 @@ class _AttendanceReportState extends State<AttendanceReport> {
   NavigatorState? _navigator;
   ScaffoldMessengerState? _scaffoldMessenger;
   late final AttendanceReportCubit _cubit;
+
   @override
   void initState() {
     super.initState();
     _cubit = getIt<AttendanceReportCubit>();
     _cubit.loadAttendanceReport();
+  }
+
+  String _displayRoomName(String? roomId, Map<String, String> roomNameById) {
+    final normalizedRoomId = roomId?.trim() ?? '';
+    if (normalizedRoomId.isEmpty) return '--';
+
+    final roomName = roomNameById[normalizedRoomId]?.trim() ?? '';
+    if (roomName.isNotEmpty) {
+      return roomName;
+    }
+
+    return '--';
   }
 
   @override
@@ -224,8 +237,8 @@ class _AttendanceReportState extends State<AttendanceReport> {
     return Column(
       children: [
         _buildTableHeader(isWideScreen),
-        ...state.checkInOuts
-            .map((checkInOut) => _buildTableRow(checkInOut, isWideScreen)),
+        ...state.checkInOuts.map((checkInOut) =>
+            _buildTableRow(checkInOut, isWideScreen, state.roomNameById)),
       ],
     );
   }
@@ -267,6 +280,14 @@ class _AttendanceReportState extends State<AttendanceReport> {
               textAlign: TextAlign.center,
             ),
           ),
+          const Expanded(
+            flex: 2,
+            child: Text(
+              'Phòng học',
+              style: headerStyle,
+              textAlign: TextAlign.center,
+            ),
+          ),
           if (isWideScreen)
             const Expanded(
               flex: 1,
@@ -289,7 +310,8 @@ class _AttendanceReportState extends State<AttendanceReport> {
     );
   }
 
-  Widget _buildTableRow(CheckInOut checkInOut, bool isWideScreen) {
+  Widget _buildTableRow(CheckInOut checkInOut, bool isWideScreen,
+      Map<String, String> roomNameById) {
     return Container(
       decoration: BoxDecoration(
         border: Border(
@@ -343,6 +365,24 @@ class _AttendanceReportState extends State<AttendanceReport> {
                       ? Colors.green.shade700
                       : Colors.red.shade700,
                 ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+
+          // Phòng học
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Text(
+                _displayRoomName(checkInOut.roomId, roomNameById),
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.black87,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
               ),
             ),

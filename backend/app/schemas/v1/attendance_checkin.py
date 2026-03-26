@@ -3,16 +3,24 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ManualCheckinRequest(BaseModel):
     """POST /api/v1/attendance/check-in — device/admin manual check-in."""
-    session_id: uuid.UUID
+    session_id: Optional[uuid.UUID] = None
     student_id: int
-    checkin_time: Optional[datetime] = None  # defaults to server now
+    room_id: Optional[uuid.UUID] = None
+    timestamp: Optional[datetime] = None
+    checkin_time: Optional[datetime] = None  # legacy alias, defaults to server now
     status: str = "present"
-    device_id: Optional[uuid.UUID] = None
+    device_id: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_target(self) -> "ManualCheckinRequest":
+        if self.session_id is None and self.room_id is None:
+            raise ValueError("Either session_id or room_id must be provided")
+        return self
 
 
 class ManualCheckinResponse(BaseModel):

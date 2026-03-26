@@ -52,10 +52,10 @@ import 'package:face_time_keeping/pages/course/bloc/course_bloc.dart' as _i995;
 import 'package:face_time_keeping/pages/department/bloc/department_bloc.dart'
     as _i858;
 import 'package:face_time_keeping/pages/domain/bloc/domain_bloc.dart' as _i981;
-import 'package:face_time_keeping/pages/edu_checking/bloc/edu_checking_bloc.dart'
-    as _i667;
 import 'package:face_time_keeping/pages/history/bloc/attendance_history_bloc.dart'
     as _i496;
+import 'package:face_time_keeping/pages/home/session_management/bloc/session_management_cubit.dart'
+    as _i542;
 import 'package:face_time_keeping/pages/login/bloc/login_bloc.dart' as _i128;
 import 'package:face_time_keeping/pages/register_face/bloc/register_face_bloc.dart'
     as _i734;
@@ -64,8 +64,6 @@ import 'package:face_time_keeping/pages/room/room_session/bloc/room_session_bloc
     as _i905;
 import 'package:face_time_keeping/pages/schedule/bloc/schedule_bloc.dart'
     as _i836;
-import 'package:face_time_keeping/pages/session/bloc/session_bloc.dart'
-    as _i179;
 import 'package:face_time_keeping/pages/setting/cubit/attendance_report_cubit.dart'
     as _i664;
 import 'package:face_time_keeping/pages/setting/cubit/device_permission/device_permission_cubit.dart'
@@ -185,11 +183,6 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i440.SessionServiceImplement(gh<_i644.ApiClient>()));
     gh.lazySingleton<_i995.CourseBloc>(
         () => _i995.CourseBloc(gh<_i256.CourseService>()));
-    gh.factory<_i667.EduCheckingBloc>(() => _i667.EduCheckingBloc(
-          gh<_i840.LocalService>(),
-          gh<_i549.AttendanceCheckinService>(),
-          gh<_i578.AppBloc>(),
-        ));
     gh.factory<_i836.ScheduleBloc>(
         () => _i836.ScheduleBloc(gh<_i566.ScheduleService>()));
     gh.factory<_i309.CheckingBloc>(() => _i309.CheckingBloc(
@@ -206,8 +199,8 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i687.UserService>(),
           gh<_i106.HiveService>(),
         ));
-    gh.factory<_i179.SessionBloc>(
-        () => _i179.SessionBloc(gh<_i440.SessionService>()));
+    gh.factory<_i542.SessionManagementCubit>(
+        () => _i542.SessionManagementCubit(gh<_i440.SessionService>()));
     gh.factory<_i496.AttendanceHistoryBloc>(() =>
         _i496.AttendanceHistoryBloc(gh<_i102.AttendanceHistoryService>()));
     gh.factory<_i905.RoomSessionBloc>(() => _i905.RoomSessionBloc(

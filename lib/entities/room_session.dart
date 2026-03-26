@@ -1,3 +1,4 @@
+import 'package:face_time_keeping/common/enums/session_attendance_mode.dart';
 import 'package:face_time_keeping/entities/session.dart';
 
 class RoomSession {
@@ -8,9 +9,15 @@ class RoomSession {
   final DateTime startTime;
   final DateTime? endTime;
   final SessionStatus status;
+  final String mappedStatus;
+  final SessionAttendanceMode? attendanceMode;
+  final DateTime? checkinWindowStart;
+  final DateTime? checkinWindowEnd;
   final int attendanceCount;
   final int totalEnrolled;
   final bool canCheckin;
+  final bool canOpen;
+  final bool canClose;
 
   const RoomSession({
     required this.id,
@@ -20,9 +27,15 @@ class RoomSession {
     required this.startTime,
     this.endTime,
     this.status = SessionStatus.scheduled,
+    this.mappedStatus = 'NOT_OPEN',
+    this.attendanceMode,
+    this.checkinWindowStart,
+    this.checkinWindowEnd,
     this.attendanceCount = 0,
     this.totalEnrolled = 0,
     this.canCheckin = false,
+    this.canOpen = false,
+    this.canClose = false,
   });
 
   factory RoomSession.fromJson(Map<String, dynamic> json) {
@@ -36,9 +49,20 @@ class RoomSession {
           ? DateTime.parse(json['end_time'] as String)
           : null,
       status: SessionStatus.fromString(json['status'] as String?),
+      mappedStatus: (json['mapped_status'] as String?) ?? (json['status_label'] as String?) ?? 'NOT_OPEN',
+      attendanceMode: SessionAttendanceModeX.fromString(
+          json['mode'] as String? ?? json['attendance_mode'] as String?),
+      checkinWindowStart: json['checkin_window_start'] != null
+          ? DateTime.parse(json['checkin_window_start'] as String)
+          : null,
+      checkinWindowEnd: json['checkin_window_end'] != null
+          ? DateTime.parse(json['checkin_window_end'] as String)
+          : null,
       attendanceCount: json['attendance_count'] as int? ?? 0,
       totalEnrolled: json['total_enrolled'] as int? ?? 0,
       canCheckin: json['can_checkin'] as bool? ?? false,
+      canOpen: json['can_open'] as bool? ?? false,
+      canClose: json['can_close'] as bool? ?? false,
     );
   }
 

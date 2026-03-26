@@ -18,10 +18,12 @@ import 'widgets/face_detector_view.dart';
 class CheckingArgs {
   final bool isCheckIn;
   final String? sessionId;
+  final DateTime? sessionStartTime;
 
   const CheckingArgs({
     required this.isCheckIn,
     this.sessionId,
+    this.sessionStartTime,
   });
 }
 
@@ -100,6 +102,7 @@ class _CheckingPageState extends State<CheckingPage> {
             ),
           );
         }
+        _bloc.sessionStartTime = args?.sessionStartTime;
         return BlocProvider<CheckingBloc>(
           create: (_) => _bloc,
           child: BlocConsumer<CheckingBloc, CheckingState>(

@@ -22,8 +22,8 @@ class TimeSlot(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     period_number: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
-    start_time: Mapped[time] = mapped_column(Time(timezone=True), nullable=False)
-    end_time: Mapped[time] = mapped_column(Time(timezone=True), nullable=False)
+    start_time: Mapped[time] = mapped_column(Time, nullable=False)
+    end_time: Mapped[time] = mapped_column(Time, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

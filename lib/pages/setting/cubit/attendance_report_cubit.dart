@@ -47,8 +47,11 @@ class AttendanceReportCubit extends Cubit<AttendanceReportState>
       emit(state.copyWith(
           status: RequestStatus.requesting, filterDate: filterDate));
       final checkInOuts = await _localService.getCheckInOutByDate(filterDate);
+      final roomNameById = await _buildRoomNameByIdMap();
       emit(state.copyWith(
-          checkInOuts: checkInOuts, status: RequestStatus.success));
+          checkInOuts: checkInOuts,
+          roomNameById: roomNameById,
+          status: RequestStatus.success));
     } catch (e) {
       await pushLog('Error in loadAttendanceReport: $e');
       emit(state.copyWith(status: RequestStatus.failed, message: e.toString()));
@@ -59,13 +62,35 @@ class AttendanceReportCubit extends Cubit<AttendanceReportState>
     try {
       emit(state.copyWith(status: RequestStatus.requesting));
       final checkInOuts = await _localService.getCheckInOutByDate(date);
+      final roomNameById = await _buildRoomNameByIdMap();
       emit(state.copyWith(
           checkInOuts: checkInOuts,
+          roomNameById: roomNameById,
           status: RequestStatus.success,
           filterDate: date));
     } catch (e) {
       await pushLog('Error in filterCheckInOuts: $e');
       emit(state.copyWith(status: RequestStatus.failed, message: e.toString()));
     }
+  }
+
+  Future<Map<String, String>> _buildRoomNameByIdMap() async {
+    final merged = Map<String, String>.from(state.roomNameById);
+
+    try {
+      final activeRoomId = await _localService.getActiveRoomId();
+      final activeRoomName = await _localService.getActiveRoomName();
+
+      final normalizedId = activeRoomId?.trim() ?? '';
+      final normalizedName = activeRoomName?.trim() ?? '';
+
+      if (normalizedId.isNotEmpty && normalizedName.isNotEmpty) {
+        merged[normalizedId] = normalizedName;
+      }
+    } catch (e) {
+      await pushLog('Error in _buildRoomNameByIdMap: $e');
+    }
+
+    return merged;
   }
 }

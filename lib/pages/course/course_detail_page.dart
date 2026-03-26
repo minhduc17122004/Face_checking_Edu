@@ -6,13 +6,10 @@ import 'package:face_time_keeping/di/injection.dart';
 import 'package:face_time_keeping/entities/course.dart';
 import 'package:face_time_keeping/entities/course_student.dart';
 import 'package:face_time_keeping/entities/schedule.dart';
-import 'package:face_time_keeping/entities/session.dart';
 import 'package:face_time_keeping/pages/course/bloc/course_bloc.dart';
 import 'package:face_time_keeping/pages/course/bloc/course_state.dart';
 import 'package:face_time_keeping/pages/schedule/bloc/schedule_bloc.dart';
 import 'package:face_time_keeping/pages/schedule/bloc/schedule_state.dart';
-import 'package:face_time_keeping/pages/session/bloc/session_bloc.dart';
-import 'package:face_time_keeping/pages/session/bloc/session_state.dart';
 import 'package:face_time_keeping/pages/widgets/empty_state_widget.dart';
 import 'package:face_time_keeping/data/local/local_service.dart';
 import 'package:face_time_keeping/route/navigator.dart';
@@ -30,20 +27,18 @@ class _CourseDetailPageState extends State<CourseDetailPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   late final CourseBloc _courseBloc;
-  late final SessionBloc _sessionBloc;
   late final ScheduleBloc _scheduleBloc;
   bool _isAdmin = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     _courseBloc = getIt<CourseBloc>();
-    _sessionBloc = getIt<SessionBloc>();
     _scheduleBloc = getIt<ScheduleBloc>();
 
+    _courseBloc.loadCourseDetail(widget.course.id);
     _courseBloc.loadCourseStudents(widget.course.id);
-    _sessionBloc.loadSessions(courseId: widget.course.id);
     _scheduleBloc.loadSchedules(courseId: widget.course.id);
 
     final role = getIt<LocalService>().getUserRole();
@@ -95,7 +90,6 @@ class _CourseDetailPageState extends State<CourseDetailPage>
           tabs: const [
             Tab(text: 'Thông tin'),
             Tab(text: 'Học sinh'),
-            Tab(text: 'Phiên điểm danh'),
           ],
         ),
       ),
@@ -104,30 +98,34 @@ class _CourseDetailPageState extends State<CourseDetailPage>
         children: [
           _buildInfoTab(),
           _buildStudentsTab(),
-          _buildSessionsTab(),
         ],
       ),
     );
   }
 
   Widget _buildInfoTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildInfoCard(),
-          const SizedBox(height: 16),
-          _buildAttendanceConfigCard(),
-          const SizedBox(height: 16),
-          _buildScheduleSection(),
-        ],
-      ),
+    return BlocBuilder<CourseBloc, CourseState>(
+      bloc: _courseBloc,
+      builder: (context, state) {
+        final course = state.selectedCourse ?? widget.course;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildInfoCard(course),
+              const SizedBox(height: 16),
+              _buildAttendanceConfigCard(course),
+              const SizedBox(height: 16),
+              _buildScheduleSection(),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildInfoCard() {
-    final course = widget.course;
+  Widget _buildInfoCard(Course course) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -177,8 +175,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
     );
   }
 
-  Widget _buildAttendanceConfigCard() {
-    final course = widget.course;
+  Widget _buildAttendanceConfigCard(Course course) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -198,15 +195,42 @@ class _CourseDetailPageState extends State<CourseDetailPage>
           _buildInfoHeader('Cấu hình điểm danh'),
           const SizedBox(height: 12),
           _buildInfoRow('Chế độ', course.attendanceMode.label),
-          if (course.attendanceMode == AttendanceMode.preset ||
-              course.attendanceMode == AttendanceMode.custom) ...[
-            _buildInfoRow(
-              'Cho phép trước',
-              '${course.attendanceBeforeMinutes} phút',
-            ),
-            _buildInfoRow(
-              'Cho phép sau',
-              '${course.attendanceAfterMinutes} phút',
+          _buildInfoRow(
+              'Sau khi bắt đầu tiết', '${course.attendanceBeforeMinutes} phút'),
+          _buildInfoRow(
+              'Thời gian điểm danh', '${course.attendanceAfterMinutes} phút'),
+          if (course.attendanceMode == AttendanceMode.custom) ...[
+            BlocBuilder<ScheduleBloc, ScheduleState>(
+              bloc: _scheduleBloc,
+              builder: (context, state) {
+                if (state.schedules.isEmpty) return const SizedBox.shrink();
+                final schedule = state.schedules.first;
+                final ts = schedule.timeSlot;
+                if (ts == null) return const SizedBox.shrink();
+
+                int p(String t) {
+                  final parts = t.split(':');
+                  if (parts.length < 2) return 0;
+                  return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+                }
+
+                String f(int totalMinutes) {
+                  final h = totalMinutes ~/ 60;
+                  final m = totalMinutes % 60;
+                  return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+                }
+
+                final slotStart = p(ts.startTime);
+                final slotEnd = p(ts.endTime);
+                final openMin = slotStart + course.attendanceBeforeMinutes;
+                final closeMin = (openMin + course.attendanceAfterMinutes)
+                    .clamp(openMin, slotEnd);
+
+                return _buildInfoRow(
+                  'Khung giờ tùy chỉnh',
+                  '${f(openMin)} - ${f(closeMin)}',
+                );
+              },
             ),
           ],
         ],
@@ -617,239 +641,6 @@ class _CourseDetailPageState extends State<CourseDetailPage>
               backgroundColor: AppColors.red,
             ),
             child: const Text('Xóa'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSessionsTab() {
-    return BlocBuilder<SessionBloc, SessionState>(
-      bloc: _sessionBloc,
-      builder: (context, state) {
-        if (state.requestStatus == RequestStatus.requesting) {
-          return const Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: AppColors.primary,
-            ),
-          );
-        }
-        if (state.requestStatus == RequestStatus.success) {
-          if (state.sessions.isEmpty) {
-            return const EmptyStateWidget(
-              title: 'Chưa có phiên điểm danh',
-              subtitle: 'Các phiên điểm danh sẽ hiển thị tại đây',
-            );
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: state.sessions.length,
-            itemBuilder: (context, index) {
-              return _buildSessionItem(state.sessions[index]);
-            },
-          );
-        }
-        if (state.requestStatus == RequestStatus.failed) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SelectableText.rich(
-                  TextSpan(
-                    text: state.message ?? 'Có lỗi xảy ra',
-                    style: const TextStyle(color: AppColors.red),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () =>
-                      _sessionBloc.loadSessions(courseId: widget.course.id),
-                  child: const Text('Thử lại'),
-                ),
-              ],
-            ),
-          );
-        }
-        return const SizedBox.shrink();
-      },
-    );
-  }
-
-  Widget _buildSessionItem(Session session) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.calendar_today,
-                    size: 16,
-                    color: AppColors.slate500,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    session.sessionDate != null
-                        ? _formatDate(session.sessionDate!)
-                        : 'Chưa có ngày',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.slate900,
-                    ),
-                  ),
-                ],
-              ),
-              _buildSessionStatusBadge(session.status),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _buildSessionTimeChip(
-                Icons.play_arrow,
-                session.formattedStartTime,
-                AppColors.green,
-              ),
-              if (session.formattedEndTime.isNotEmpty) ...[
-                const SizedBox(width: 8),
-                _buildSessionTimeChip(
-                  Icons.stop,
-                  session.formattedEndTime,
-                  AppColors.red,
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _buildAttendanceStatChip(
-                Icons.check,
-                '${session.presentCount}',
-                AppColors.green,
-              ),
-              const SizedBox(width: 8),
-              _buildAttendanceStatChip(
-                Icons.close,
-                '${session.absentCount}',
-                AppColors.red,
-              ),
-              const SizedBox(width: 8),
-              _buildAttendanceStatChip(
-                Icons.group,
-                '${session.totalCount}',
-                AppColors.slate500,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSessionStatusBadge(SessionStatus status) {
-    Color bgColor;
-    Color textColor;
-    String label;
-
-    switch (status) {
-      case SessionStatus.active:
-        bgColor = AppColors.green100;
-        textColor = AppColors.green600;
-        label = 'Đang diễn ra';
-        break;
-      case SessionStatus.closed:
-        bgColor = AppColors.slate200;
-        textColor = AppColors.slate500;
-        label = 'Đã kết thúc';
-        break;
-      case SessionStatus.scheduled:
-      default:
-        bgColor = AppColors.blue50;
-        textColor = AppColors.blue600;
-        label = 'Đã lên lịch';
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: textColor,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSessionTimeChip(IconData icon, String time, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(
-            time,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAttendanceStatChip(IconData icon, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
           ),
         ],
       ),

@@ -188,6 +188,50 @@ class _CourseFormViewState extends State<_CourseFormView> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if ((_selectedDayOfWeek == null) != (_selectedTimeSlotId == null)) {
+      showTopAlert(
+        context,
+        title: 'Vui lòng chọn đầy đủ cả Thứ và Tiết học.',
+        type: AlertType.error,
+      );
+      return;
+    }
+
+    if (_selectedMode == AttendanceMode.custom) {
+      if (_selectedTimeSlotId == null) {
+        showTopAlert(
+          context,
+          title:
+              'Chế độ Tự thiết lập yêu cầu chọn Tiết học để xác định giới hạn.',
+          type: AlertType.error,
+        );
+        return;
+      }
+      final before = int.tryParse(_beforeMinutesController.text) ?? 0;
+      final after = int.tryParse(_afterMinutesController.text) ?? 0;
+      // Find selected time slot and compute its duration from "HH:mm" strings
+      final slot = _timeSlots.firstWhere(
+        (s) => s.id == _selectedTimeSlotId,
+        orElse: () => _timeSlots.first,
+      );
+      int _parseMinutes(String t) {
+        final parts = t.split(':');
+        return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+      }
+
+      final slotDuration =
+          _parseMinutes(slot.endTime) - _parseMinutes(slot.startTime);
+      if (before + after > slotDuration) {
+        showTopAlert(
+          context,
+          title:
+              'Tổng thời gian trước ($before phút) + sau ($after phút) vượt quá thời lượng tiết học ($slotDuration phút).',
+          type: AlertType.error,
+        );
+        return;
+      }
+    }
+
     setState(() => _isLoading = true);
 
     final beforeMinutes = int.tryParse(_beforeMinutesController.text) ?? 30;
@@ -242,12 +286,20 @@ class _CourseFormViewState extends State<_CourseFormView> {
         }
       } else {
         setState(() => _isLoading = false);
-        showTopAlert(
-          context,
-          title: widget.courseBloc.state.message ??
-              'Có lỗi xảy ra, vui lòng thử lại!',
-          type: AlertType.error,
-        );
+        final errorMessage = widget.courseBloc.state.message ??
+            'Có lỗi xảy ra, vui lòng thử lại!';
+        final isScheduleConflict = errorMessage.contains('đã có học phần') ||
+            errorMessage.contains('Phòng học đã được dùng');
+
+        // Conflict errors are already surfaced by the shared course list listener.
+        // Skip top alert here to avoid duplicated notifications.
+        if (!isScheduleConflict) {
+          showTopAlert(
+            context,
+            title: errorMessage,
+            type: AlertType.error,
+          );
+        }
       }
     }
   }
@@ -274,23 +326,23 @@ class _CourseFormViewState extends State<_CourseFormView> {
         ),
       ),
       body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildBasicInfoCard(),
-                const SizedBox(height: 16),
-                _buildAssignmentCard(),
-                const SizedBox(height: 16),
-                _buildAttendanceModeCard(),
-                const SizedBox(height: 24),
-                _buildSubmitButton(),
-              ],
-            ),
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildBasicInfoCard(),
+              const SizedBox(height: 16),
+              _buildAssignmentCard(),
+              const SizedBox(height: 16),
+              _buildAttendanceModeCard(),
+              const SizedBox(height: 24),
+              _buildSubmitButton(),
+            ],
           ),
         ),
+      ),
     );
   }
 
@@ -454,7 +506,13 @@ class _CourseFormViewState extends State<_CourseFormView> {
                                 overflow: TextOverflow.ellipsis),
                           ))
                       .toList(),
-                  onChanged: (val) => setState(() => _selectedTimeSlotId = val),
+                  onChanged: (val) => setState(() {
+                    _selectedTimeSlotId = val;
+                    // If time slot cleared while custom mode is active → fallback to preset
+                    if (val == null && _selectedMode == AttendanceMode.custom) {
+                      _selectedMode = AttendanceMode.preset;
+                    }
+                  }),
                   isLoading: _loadingTimeSlots,
                 ),
               ),
@@ -575,11 +633,16 @@ class _CourseFormViewState extends State<_CourseFormView> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 8),
+          Text(
+            'Chọn cách hệ thống quản lý thời gian điểm danh cho học phần.',
+            style: const TextStyle(fontSize: 13, color: AppColors.slate500),
+          ),
+          const SizedBox(height: 16),
           _buildAttendanceModeOption(
             mode: AttendanceMode.preset,
-            title: 'Đặt trước',
-            description: '30 phút trước - 30 phút sau giờ học',
+            title: 'Cố định',
+            description: 'Tự động mở/đóng trong khoảng thời gian tiết học',
             icon: Icons.timer,
             color: AppColors.blue600,
           ),
@@ -587,20 +650,23 @@ class _CourseFormViewState extends State<_CourseFormView> {
           _buildAttendanceModeOption(
             mode: AttendanceMode.flexible,
             title: 'Linh hoạt',
-            description: 'Luôn cho phép điểm danh (không giới hạn)',
+            description:
+                'Giáo viên được phép đóng mở thủ công khi tiết đang diễn ra',
             icon: Icons.all_inclusive,
             color: AppColors.purple600,
           ),
           const SizedBox(height: 12),
           _buildAttendanceModeOption(
             mode: AttendanceMode.custom,
-            title: 'Tùy chỉnh',
-            description: 'Tự thiết lập thời gian',
+            title: 'Tự thiết lập',
+            description: ' Tự động mở/đóng trong khoảng thời gian của tiết học',
             icon: Icons.tune,
             color: AppColors.teal600,
+            disabled: _selectedTimeSlotId == null,
+            disabledHint: 'Vui lòng chọn Tiết học trước',
           ),
           if (_selectedMode == AttendanceMode.custom) ...[
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             _buildCustomTimeInputs(),
           ],
         ],
@@ -614,74 +680,148 @@ class _CourseFormViewState extends State<_CourseFormView> {
     required String description,
     required IconData icon,
     required Color color,
+    bool disabled = false,
+    String? disabledHint,
   }) {
     final isSelected = _selectedMode == mode;
+    final effectiveColor = disabled ? AppColors.slate400 : color;
 
-    return GestureDetector(
-      onTap: () => setState(() => _selectedMode = mode),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color:
-              isSelected ? color.withOpacity(0.1) : AppColors.backgroundLight,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? color : AppColors.slate300,
-            width: isSelected ? 2 : 1,
+    Widget option = GestureDetector(
+      onTap: disabled
+          ? () {
+              showTopAlert(
+                context,
+                title: disabledHint ?? 'Không khả dụng',
+                type: AlertType.error,
+              );
+            }
+          : () => setState(() => _selectedMode = mode),
+      child: Opacity(
+        opacity: disabled ? 0.5 : 1.0,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: disabled
+                ? AppColors.backgroundLight
+                : isSelected
+                    ? effectiveColor.withOpacity(0.1)
+                    : AppColors.backgroundLight,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color:
+                  isSelected && !disabled ? effectiveColor : AppColors.slate300,
+              width: isSelected && !disabled ? 2 : 1,
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: isSelected ? color : AppColors.slate200,
-                borderRadius: BorderRadius.circular(10),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: isSelected && !disabled
+                      ? effectiveColor
+                      : AppColors.slate200,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon,
+                    color: isSelected && !disabled
+                        ? Colors.white
+                        : AppColors.slate500,
+                    size: 20),
               ),
-              child: Icon(icon,
-                  color: isSelected ? Colors.white : AppColors.slate500,
-                  size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected ? color : AppColors.slate900,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: disabled
+                            ? AppColors.slate400
+                            : isSelected
+                                ? effectiveColor
+                                : AppColors.slate900,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    description,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.slate500,
+                    const SizedBox(height: 2),
+                    Text(
+                      disabled ? (disabledHint ?? description) : description,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color:
+                            disabled ? AppColors.slate400 : AppColors.slate500,
+                        fontStyle:
+                            disabled ? FontStyle.italic : FontStyle.normal,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Radio<AttendanceMode>(
-              value: mode,
-              groupValue: _selectedMode,
-              onChanged: (value) {
-                if (value != null) setState(() => _selectedMode = value);
-              },
-              activeColor: color,
-            ),
-          ],
+              Radio<AttendanceMode>(
+                value: mode,
+                groupValue: disabled ? null : _selectedMode,
+                onChanged: disabled
+                    ? null
+                    : (value) {
+                        if (value != null)
+                          setState(() => _selectedMode = value);
+                      },
+                activeColor: effectiveColor,
+              ),
+            ],
+          ),
         ),
       ),
     );
+
+    return option;
   }
 
   Widget _buildCustomTimeInputs() {
+    // Compute live preview from selected time slot + current field values
+    String _previewText() {
+      if (_selectedTimeSlotId == null || _timeSlots.isEmpty) {
+        return 'Chọn Tiết học để xem khoảng thời gian';
+      }
+      final slot = _timeSlots.firstWhere(
+        (s) => s.id == _selectedTimeSlotId,
+        orElse: () => _timeSlots.first,
+      );
+      int parseMinutes(String t) {
+        final parts = t.split(':');
+        if (parts.length < 2) return 0;
+        return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+      }
+
+      String formatMinutes(int totalMinutes) {
+        final h = totalMinutes ~/ 60;
+        final m = totalMinutes % 60;
+        return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+      }
+
+      final slotStartMin = parseMinutes(slot.startTime);
+      final slotEndMin = parseMinutes(slot.endTime);
+      final slotDuration = slotEndMin - slotStartMin;
+
+      final before = int.tryParse(_beforeMinutesController.text) ?? 0;
+      final after = int.tryParse(_afterMinutesController.text) ?? 0;
+
+      final openMin = slotStartMin + before;
+      final closeMin = (openMin + after).clamp(openMin, slotEndMin);
+
+      final openStr = formatMinutes(openMin);
+      final closeStr = formatMinutes(closeMin);
+
+      if (before + after > slotDuration) {
+        return '⚠️ Vượt thời lượng tiết ($slotDuration phút) — Mở: $openStr → Đóng: $closeStr (bị cắt)';
+      }
+      return '🕐 Mở: $openStr  →  Đóng: $closeStr  (trong tiết ${slot.startTime}–${slot.endTime})';
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -705,25 +845,54 @@ class _CourseFormViewState extends State<_CourseFormView> {
               Expanded(
                 child: _buildNumberField(
                   controller: _beforeMinutesController,
-                  label: 'Trước giờ học',
+                  label: 'Sau thời gian bắt đầu',
                   color: AppColors.teal600,
+                  onChanged: (_) => setState(() {}),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: _buildNumberField(
                   controller: _afterMinutesController,
-                  label: 'Sau giờ học',
+                  label: 'Khoảng thời gian',
                   color: AppColors.teal600,
+                  onChanged: (_) => setState(() {}),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Khoảng: 0 - 120 phút',
-            style: TextStyles.greyExtraSmallRegular.copyWith(
-              color: AppColors.slate500,
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.teal600.withOpacity(0.4)),
+            ),
+            child: Text(
+              _previewText(),
+              style: TextStyle(
+                fontSize: 13,
+                color: (int.tryParse(_beforeMinutesController.text) ?? 0) +
+                            (int.tryParse(_afterMinutesController.text) ?? 0) >
+                        (_selectedTimeSlotId != null && _timeSlots.isNotEmpty
+                            ? () {
+                                final s = _timeSlots.firstWhere(
+                                    (s) => s.id == _selectedTimeSlotId,
+                                    orElse: () => _timeSlots.first);
+                                int p(String t) {
+                                  final parts = t.split(':');
+                                  return int.parse(parts[0]) * 60 +
+                                      int.parse(parts[1]);
+                                }
+
+                                return p(s.endTime) - p(s.startTime);
+                              }()
+                            : 9999)
+                    ? AppColors.red600
+                    : AppColors.teal600,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -807,6 +976,7 @@ class _CourseFormViewState extends State<_CourseFormView> {
     required TextEditingController controller,
     required String label,
     required Color color,
+    void Function(String)? onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -822,6 +992,7 @@ class _CourseFormViewState extends State<_CourseFormView> {
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
+          onChanged: onChanged,
           keyboardType: TextInputType.number,
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,

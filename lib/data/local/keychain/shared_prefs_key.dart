@@ -27,4 +27,6 @@ class SharedPrefsKey {
   static const String savedCookied = 'savedCookied';
   static const String avatarPath = 'avatarPath';
   static const String userRole = 'userRole';
+  static const String activeRoom = 'active_room';
+  static const String activeRoomName = 'active_room_name';
 }

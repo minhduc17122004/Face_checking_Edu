@@ -64,6 +64,15 @@ class CourseBloc extends Cubit<CourseState> with EventBusMixin {
     }
   }
 
+  Future<void> loadCourseDetail(String courseId) async {
+    final result = await _courseService.getCourse(courseId);
+    if (result.isSuccess) {
+      emit(state.copyWith(
+        selectedCourse: result.data,
+      ));
+    }
+  }
+
   Future<void> createCourse({
     required String courseName,
     String? courseCode,

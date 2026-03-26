@@ -46,7 +46,7 @@ class AttendanceCheckinBloc extends Cubit<AttendanceCheckinState> {
     final result = await _checkinService.manualCheckin(
       sessionId: sessionId,
       studentId: studentId,
-      checkinTime: checkinTime,
+      timestamp: checkinTime,
       status: status,
       deviceId: deviceId,
     );

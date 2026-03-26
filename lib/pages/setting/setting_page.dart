@@ -26,28 +26,23 @@ class SettingPage extends StatefulWidget {
 }
 
 class _SettingPageState extends State<SettingPage> {
-  // Work shift times
-  TimeOfDay _morningStart = const TimeOfDay(hour: 7, minute: 0);
-  TimeOfDay _morningEnd = const TimeOfDay(hour: 15, minute: 0);
-  TimeOfDay _afternoonStart = const TimeOfDay(hour: 15, minute: 0);
-  TimeOfDay _afternoonEnd = const TimeOfDay(hour: 23, minute: 0);
-  TimeOfDay _nightStart = const TimeOfDay(hour: 23, minute: 0);
-  TimeOfDay _nightEnd = const TimeOfDay(hour: 7, minute: 0);
   late final SettingCubit _settingCubit = getIt();
   bool _isAdmin = false;
+  bool _isTeacherOrAdmin = false;
 
   @override
   void initState() {
     super.initState();
-    _loadShiftTimes();
     _loadUserRole();
   }
 
   Future<void> _loadUserRole() async {
     final role = await _settingCubit.getUserRole();
     if (mounted) {
+      final roleLower = role.toLowerCase();
       setState(() {
-        _isAdmin = role.toLowerCase() == 'admin';
+        _isAdmin = roleLower == 'admin';
+        _isTeacherOrAdmin = roleLower == 'admin' || roleLower == 'teacher';
       });
     }
   }
@@ -718,18 +713,7 @@ class _SettingPageState extends State<SettingPage> {
     return true;
   }
 
-  // Load saved shift times from SharedPrefs
-  Future<void> _loadShiftTimes() async {
-    final shiftTimes = await _settingCubit.getShiftTimes();
-    setState(() {
-      _morningStart = shiftTimes['morningStart']!;
-      _morningEnd = shiftTimes['morningEnd']!;
-      _afternoonStart = shiftTimes['afternoonStart']!;
-      _afternoonEnd = shiftTimes['afternoonEnd']!;
-      _nightStart = shiftTimes['nightStart']!;
-      _nightEnd = shiftTimes['nightEnd']!;
-    });
-  }
+
 
   Future<void> _syncData() async {
     try {
@@ -823,305 +807,6 @@ class _SettingPageState extends State<SettingPage> {
     }
   }
 
-  void _showWorkShiftDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        // Local copies for dialog state
-        TimeOfDay morningStart = _morningStart;
-        TimeOfDay morningEnd = _morningEnd;
-        TimeOfDay afternoonStart = _afternoonStart;
-        TimeOfDay afternoonEnd = _afternoonEnd;
-        TimeOfDay nightStart = _nightStart;
-        TimeOfDay nightEnd = _nightEnd;
-
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            // ignore: no_leading_underscores_for_local_identifiers
-            Future<void> _selectTime(TimeOfDay initialTime,
-                Function(TimeOfDay) onTimeSelected) async {
-              final TimeOfDay? picked = await showTimePicker(
-                context: context,
-                initialTime: initialTime,
-              );
-              if (picked != null) {
-                setDialogState(() {
-                  onTimeSelected(picked);
-                });
-              }
-            }
-
-            // ignore: no_leading_underscores_for_local_identifiers
-            Widget _buildTimeCell(
-                TimeOfDay time, Function(TimeOfDay) onTimeSelected) {
-              return InkWell(
-                onTap: () => _selectTime(time, onTimeSelected),
-                child: Container(
-                  height: 40,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.blue.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: AppColors.blue.withOpacity(0.2),
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      time.format(context),
-                      style: TextStyles.blackNormalBold.copyWith(
-                        color: AppColors.black,
-                        fontSize: 12,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              );
-            }
-
-            return AppDialog(
-              title: 'Thiết lập thời gian tiết học',
-              icon: Icons.schedule_rounded,
-              accentColor: AppColors.blue,
-              content: SizedBox(
-                width: MediaQuery.of(context).size.width * 0.9,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Chọn thời gian cho từng tiết học:',
-                        style: TextStyles.blackNormalRegular,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Header row
-                      Table(
-                        columnWidths: const {
-                          0: FlexColumnWidth(1.5),
-                          1: FlexColumnWidth(2.5),
-                          2: FlexColumnWidth(2.5),
-                        },
-                        children: [
-                          TableRow(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.all(4.0),
-                                child: Container(
-                                  height: 40,
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    'Buổi',
-                                    style: TextStyles.blackNormalBold.copyWith(
-                                      color: AppColors.black,
-                                      fontSize: 14,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(4.0),
-                                child: Container(
-                                  height: 40,
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    'Bắt đầu',
-                                    style: TextStyles.blackNormalBold.copyWith(
-                                      color: AppColors.blue,
-                                      fontSize: 14,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(4.0),
-                                child: Container(
-                                  height: 40,
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    'Kết thúc',
-                                    style: TextStyles.blackNormalBold.copyWith(
-                                      color: AppColors.red,
-                                      fontSize: 14,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          // Morning shift
-                          TableRow(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.all(4.0),
-                                child: Container(
-                                  height: 40,
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 8, horizontal: 4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.yellow.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      'Sáng',
-                                      style: TextStyles.blackNormalBold
-                                          .copyWith(fontSize: 12),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(4.0),
-                                child: _buildTimeCell(morningStart,
-                                    (time) => morningStart = time),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(4.0),
-                                child: _buildTimeCell(
-                                    morningEnd, (time) => morningEnd = time),
-                              ),
-                            ],
-                          ),
-                          // Afternoon shift
-                          TableRow(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.all(4.0),
-                                child: Container(
-                                  height: 40,
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 8, horizontal: 4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.orange.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      'Chiều',
-                                      style: TextStyles.blackNormalBold
-                                          .copyWith(fontSize: 12),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(4.0),
-                                child: _buildTimeCell(afternoonStart,
-                                    (time) => afternoonStart = time),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(4.0),
-                                child: _buildTimeCell(afternoonEnd,
-                                    (time) => afternoonEnd = time),
-                              ),
-                            ],
-                          ),
-                          // Night shift
-                          TableRow(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.all(4.0),
-                                child: Container(
-                                  height: 40,
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 8, horizontal: 4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.blue.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      'Tối',
-                                      style: TextStyles.blackNormalBold
-                                          .copyWith(fontSize: 12),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(4.0),
-                                child: _buildTimeCell(
-                                    nightStart, (time) => nightStart = time),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(4.0),
-                                child: _buildTimeCell(
-                                    nightEnd, (time) => nightEnd = time),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.gray200,
-                  ),
-                  child: const Text('Hủy'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    // Save to SharedPrefs via WorkShiftService
-                    await _settingCubit.saveShiftTimes(
-                      morningStart: morningStart,
-                      morningEnd: morningEnd,
-                      afternoonStart: afternoonStart,
-                      afternoonEnd: afternoonEnd,
-                      nightStart: nightStart,
-                      nightEnd: nightEnd,
-                    );
-
-                    setState(() {
-                      _morningStart = morningStart;
-                      _morningEnd = morningEnd;
-                      _afternoonStart = afternoonStart;
-                      _afternoonEnd = afternoonEnd;
-                      _nightStart = nightStart;
-                      _nightEnd = nightEnd;
-                    });
-                    Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('Đã lưu thiết lập buổi học'),
-                        backgroundColor: AppColors.green,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.blue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Lưu'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
 
   @override
   void dispose() {
@@ -1193,7 +878,7 @@ class _SettingPageState extends State<SettingPage> {
                     _buildSettingItem(
                       icon: Icons.schedule_rounded,
                       title: "Thiết lập tiết học",
-                      subtitle: "Thiết lập thời gian từng tiết học",
+                      subtitle: "Thiết lập thời gian học phần",
                       onTap: () {
                         AppNavigator.pushNamed(RouterName.timeSlot);
                       },
@@ -1237,6 +922,8 @@ class _SettingPageState extends State<SettingPage> {
                           AppNavigator.pushNamed(RouterName.roomList);
                         },
                       ),
+                    ],
+                    if (_isAdmin || _isTeacherOrAdmin) ...[
                       _buildSettingItem(
                         icon: Icons.checklist_rtl,
                         title: "Điểm danh theo phòng",
@@ -1245,6 +932,8 @@ class _SettingPageState extends State<SettingPage> {
                           AppNavigator.pushNamed(RouterName.roomSelection);
                         },
                       ),
+                    ],
+                    if (_isAdmin) ...[
                       _buildSettingItem(
                         icon: Icons.class_,
                         title: "Quản lý lớp học",

@@ -17,8 +17,12 @@ abstract class RoomSessionService {
     int skip = 0,
     int limit = 100,
   });
+  /// Returns the single active session for [roomId], or null if none.
+  Future<DataState<RoomSession?>> getActiveRoomSession(String roomId);
   Future<DataState<List<Course>>> getRoomCourses(String roomId);
   Future<DataState<void>> activateSession(String sessionId);
+  Future<DataState<void>> closeSession(String sessionId);
+  Future<DataState<Map<String, dynamic>>> getSessionStatus(String sessionId);
 }
 
 @LazySingleton(as: RoomSessionService)
@@ -80,7 +84,9 @@ class RoomSessionServiceImplement implements RoomSessionService {
         final json = response.data as Map<String, dynamic>;
         final items = json['items'] as List<dynamic>? ?? [];
         return DataSuccess<List<RoomSession>>(
-          items.map((e) => RoomSession.fromJson(e as Map<String, dynamic>)).toList(),
+          items
+              .map((e) => RoomSession.fromJson(e as Map<String, dynamic>))
+              .toList(),
         );
       }
       return DataFailed<List<RoomSession>>(response.error);
@@ -90,6 +96,31 @@ class RoomSessionServiceImplement implements RoomSessionService {
     } on Exception catch (e) {
       await pushLog('Error in getRoomSessions: $e');
       return DataFailed<List<RoomSession>>(e.toString());
+    }
+  }
+
+  @override
+  Future<DataState<RoomSession?>> getActiveRoomSession(String roomId) async {
+    try {
+      final path = ApiEndpoint.roomActiveSession.replaceAll('{id}', roomId);
+      final response = await _apiClient.get(path: path);
+      if (response.isSuccess()) {
+        final json = response.data as Map<String, dynamic>;
+        final sessionJson = json['session'];
+        if (sessionJson == null) {
+          return const DataSuccess<RoomSession?>(null);
+        }
+        return DataSuccess<RoomSession?>(
+          RoomSession.fromJson(sessionJson as Map<String, dynamic>),
+        );
+      }
+      return DataFailed<RoomSession?>(response.error);
+    } on DioError catch (e) {
+      await pushLog('Error in getActiveRoomSession: $e');
+      return DataFailed<RoomSession?>(e.message);
+    } on Exception catch (e) {
+      await pushLog('Error in getActiveRoomSession: $e');
+      return DataFailed<RoomSession?>(e.toString());
     }
   }
 
@@ -117,11 +148,8 @@ class RoomSessionServiceImplement implements RoomSessionService {
   @override
   Future<DataState<void>> activateSession(String sessionId) async {
     try {
-      final path = '${ApiEndpoint.sessions}$sessionId';
-      final response = await _apiClient.put(
-        path: path,
-        data: {'status': 'active'},
-      );
+      final path = ApiEndpoint.sessionActivate.replaceAll('{id}', sessionId);
+      final response = await _apiClient.post(path: path);
       if (response.isSuccess()) {
         return const DataSuccess<void>(null);
       }
@@ -132,6 +160,45 @@ class RoomSessionServiceImplement implements RoomSessionService {
     } on Exception catch (e) {
       await pushLog('Error in activateSession: $e');
       return DataFailed<void>(e.toString());
+    }
+  }
+
+  @override
+  Future<DataState<void>> closeSession(String sessionId) async {
+    try {
+      final path = ApiEndpoint.sessionClose.replaceAll('{id}', sessionId);
+      final response = await _apiClient.post(path: path);
+      if (response.isSuccess()) {
+        return const DataSuccess<void>(null);
+      }
+      return DataFailed<void>(response.error);
+    } on DioError catch (e) {
+      await pushLog('Error in closeSession: $e');
+      return DataFailed<void>(e.message);
+    } on Exception catch (e) {
+      await pushLog('Error in closeSession: $e');
+      return DataFailed<void>(e.toString());
+    }
+  }
+
+  @override
+  Future<DataState<Map<String, dynamic>>> getSessionStatus(
+      String sessionId) async {
+    try {
+      final path = ApiEndpoint.sessionStatus.replaceAll('{id}', sessionId);
+      final response = await _apiClient.get(path: path);
+      if (response.isSuccess()) {
+        return DataSuccess<Map<String, dynamic>>(
+          (response.data as Map<String, dynamic>),
+        );
+      }
+      return DataFailed<Map<String, dynamic>>(response.error);
+    } on DioError catch (e) {
+      await pushLog('Error in getSessionStatus: $e');
+      return DataFailed<Map<String, dynamic>>(e.message);
+    } on Exception catch (e) {
+      await pushLog('Error in getSessionStatus: $e');
+      return DataFailed<Map<String, dynamic>>(e.toString());
     }
   }
 }

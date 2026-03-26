@@ -6,10 +6,12 @@ import 'package:face_time_keeping/common/utils/isolate_listen_util.dart';
 import 'package:face_time_keeping/common/utils/log_util.dart';
 import 'package:face_time_keeping/data/local/hive_service.dart';
 import 'package:face_time_keeping/data/models/logging_model.dart';
+import 'package:face_time_keeping/data/remote/attendance_checkin_service.dart';
 import 'package:face_time_keeping/data/remote/logging_service.dart';
 import 'package:face_time_keeping/data/remote/user_service.dart';
 import 'package:face_time_keeping/di/injection.dart';
 import 'package:face_time_keeping/entities/check_in_out.dart';
+import 'package:face_time_keeping/entities/pending_edu_check_in.dart';
 import 'package:face_time_keeping/entities/person.dart';
 import 'package:face_time_keeping/entities/sync_face_schedule.dart';
 import 'package:face_time_keeping/entities/sync_schedule.dart';
@@ -32,6 +34,7 @@ const _uniqueName = 'sync-data';
 const _periodicUniqueName = 'sync-data-periodic';
 const _faceDataPeriodicUniqueName = 'sync-face-data-periodic';
 const _studentDataPeriodicUniqueName = 'sync-student-data-periodic';
+const _eduCheckinPeriodicUniqueName = 'sync-edu-checkin-periodic';
 const _iosFaceDataPeriodicUniqueName =
     'com.example.face_time_keeping.syncCheckInOut1';
 const _iosCheckInOutUniqueName = 'com.example.face_time_keeping.syncCheckFace1';
@@ -53,6 +56,9 @@ void callbackDispatcher() {
           ..registerAdapter(CheckInOutAdapter())
           ..registerAdapter(PersonAdapter())
           ..registerAdapter(TenantAdapter());
+      }
+      if (!Hive.isAdapterRegistered(PendingEduCheckInAdapter().typeId)) {
+        Hive.registerAdapter(PendingEduCheckInAdapter());
       }
 
       const String environment = String.fromEnvironment(
@@ -99,6 +105,7 @@ void callbackDispatcher() {
           // );
           debugPrint('sync face data done');
         } else if (taskName.contains(_studentDataPeriodicUniqueName)) {
+          // --- Student data sync ---
           // Send sync started message
           var sendPort = IsolateNameServer.lookupPortByName(
               IsolateListenUtil.bgToUiPortName);
@@ -124,6 +131,31 @@ void callbackDispatcher() {
             });
           }
           debugPrint('sync student data done');
+        } else if (taskName.contains(_eduCheckinPeriodicUniqueName)) {
+          // --- EDU pending check-in sync ---
+          final checkinService = getIt<AttendanceCheckinService>();
+          final deviceCode = await localService.getDeviceCode();
+          final pending = await localService.getPendingEduCheckIns();
+          for (final item in pending) {
+            if (item.retryCount >= 5 || item.sessionId == null) continue;
+            try {
+              final result = await checkinService.manualCheckin(
+                sessionId: item.sessionId!,
+                studentId: item.studentId,
+                checkinTime: item.timestamp,
+                deviceId: deviceCode,
+              );
+              if (result.isSuccess) {
+                await localService.markEduCheckInSynced(item.localId);
+              } else {
+                await localService.incrementEduRetryCount(item.localId);
+              }
+            } catch (_) {
+              await localService.incrementEduRetryCount(item.localId);
+            }
+          }
+          await localService.clearSyncedEduCheckIns();
+          debugPrint('sync edu check-in done');
         }
       } else if (Platform.isIOS) {
         if (taskName == "com.example.face_time_keeping.processing1") {

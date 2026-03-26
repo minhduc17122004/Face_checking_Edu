@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from app.models.course import Course
     from app.models.schedule import Schedule
     from app.models.attendance import Attendance
+    from app.models.attendance_config import AttendanceConfig
 
 
 class Session(Base):
@@ -117,6 +118,9 @@ class Session(Base):
     attendance_records: Mapped[List["Attendance"]] = relationship(
         "Attendance", back_populates="session", cascade="all, delete-orphan"
     )
+    attendance_config: Mapped[Optional["AttendanceConfig"]] = relationship(
+        "AttendanceConfig", back_populates="session", uselist=False
+    )
 
     def __repr__(self) -> str:
         return (
@@ -149,11 +153,4 @@ class Session(Base):
         if self.course and getattr(self.course, "attendance_mode", None) == "flexible":
             return None
         return self.checkin_window_end
-
-    @property
-    def attendance_mode(self) -> str:
-        """Delegates to course's attendance_mode for session-level check."""
-        if self.course and hasattr(self.course, "attendance_mode"):
-            return getattr(self.course, "attendance_mode", "preset") or "preset"
-        return "preset"
 

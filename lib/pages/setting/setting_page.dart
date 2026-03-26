@@ -1154,6 +1154,14 @@ class _SettingPageState extends State<SettingPage> {
                       subtitle: "Đồng bộ dữ liệu điểm danh hàng ngày",
                       onTap: _syncData,
                     ),
+                    _buildSettingItem(
+                      icon: Icons.history,
+                      title: "Báo cáo điểm danh",
+                      subtitle: "Xem báo cáo điểm danh của học sinh",
+                      onTap: () {
+                        AppNavigator.pushNamed(RouterName.attendanceReport);
+                      },
+                    ),
                     // _buildSettingItem(
                     //   icon: Icons.cloud,
                     //   title: "Chọn Server",
@@ -1196,7 +1204,23 @@ class _SettingPageState extends State<SettingPage> {
                       subtitle: "Đồng bộ dữ liệu đăng ký khuôn mặt",
                       onTap: _syncFaceData,
                     ),
+                    _buildSettingItem(
+                      icon: Icons.card_membership,
+                      title: "Quản lý điểm danh thiết bị",
+                      subtitle: "Gửi và xem yêu cầu duyệt thiết bị",
+                      onTap: () {
+                        AppNavigator.pushNamed(RouterName.deviceRequestSubmit);
+                      },
+                    ),
                     if (_isAdmin) ...[
+                      _buildSettingItem(
+                        icon: Icons.phonelink_setup,
+                        title: "Yêu cầu quyền thiết bị",
+                        subtitle: "Duyệt/từ chối yêu cầu thiết bị",
+                        onTap: () {
+                          AppNavigator.pushNamed(RouterName.devicePermission);
+                        },
+                      ),
                       _buildSettingItem(
                         icon: Icons.business,
                         title: "Quản lý phòng ban",
@@ -1211,6 +1235,14 @@ class _SettingPageState extends State<SettingPage> {
                         subtitle: "Thêm, sửa, xóa phòng học",
                         onTap: () {
                           AppNavigator.pushNamed(RouterName.roomList);
+                        },
+                      ),
+                      _buildSettingItem(
+                        icon: Icons.checklist_rtl,
+                        title: "Điểm danh theo phòng",
+                        subtitle: "Chọn phòng và buổi học để điểm danh",
+                        onTap: () {
+                          AppNavigator.pushNamed(RouterName.roomSelection);
                         },
                       ),
                       _buildSettingItem(

@@ -59,6 +59,24 @@ class ApiEndpoint {
   static const String deviceAssignRoom = "/api/v1/devices/{id}/assign-room";
   static const String deviceBulkAttendance = "/api/v1/devices/bulk-attendance";
 
+  // Phase 9: Device Requests
+  static const String deviceRequests = "/api/v1/device-requests/";
+  static const String deviceRequestsMe = "/api/v1/device-requests/me";
+
+  // Phase 9: Attendance Configs
+  static const String attendanceConfigs = "/api/v1/attendance-configs/";
+
+  // Phase 9: Room Sessions
+  static const String roomSessions = "/api/v1/rooms/{id}/sessions";
+
+  // Phase 9: Attendance Check-in
+  static const String attendanceCheckin = "/api/v1/attendance/check-in";
+  static const String attendanceSessionCheckins = "/api/v1/attendance/session/{id}/checkins";
+  static const String attendanceSessionSummary = "/api/v1/attendance/session/{id}/summary";
+
+  // Phase 10: Attendance History
+  static const String attendanceHistory = "/api/v1/attendance/history";
+
   // Metrics
   static const String metrics = "/api/v1/metrics";
 }

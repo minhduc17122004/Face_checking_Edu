@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:face_time_keeping/common/utils/log_util.dart';
 import 'package:face_time_keeping/data/local/local_service.dart';
 import 'package:face_time_keeping/di/injection.dart';
+import 'package:face_time_keeping/entities/pending_edu_check_in.dart';
 import 'package:face_time_keeping/entities/person.dart';
 import 'package:face_time_keeping/entities/tenant.dart';
 import 'package:hive/hive.dart';
@@ -32,6 +33,13 @@ abstract class HiveService {
   Future<void> refreshPersonBox();
   Future<void> updatePersonSynced(int studentId, bool isSynced);
   Future<void> cloneDataFromOldTenant(String oldTenantKey, String newTenantKey);
+
+  // --- EDU Pending Check-In (offline queue) ---
+  Future<int> savePendingEduCheckIn(PendingEduCheckIn item);
+  Future<List<PendingEduCheckIn>> getPendingEduCheckIns();
+  Future<void> markEduCheckInSynced(String localId);
+  Future<void> incrementEduRetryCount(String localId);
+  Future<void> clearSyncedEduCheckIns();
 }
 
 @LazySingleton(as: HiveService)
@@ -39,8 +47,10 @@ class HiveServiceImplement implements HiveService {
   static const String _checkInOutBoxName = 'checkIO_box';
   static const String _personBoxName = 'person_box';
   static const String _tenantBoxName = 'tenant_box';
+  static const String _pendingEduBoxName = 'pending_edu_checkin_box';
   Box<CheckInOut>? _checkInOutBox;
   Box<Person>? _personBox;
+  Box<PendingEduCheckIn>? _pendingEduBox;
   late final Future<Box<Tenant>> _tenantBox;
   String? _tenantKey;
 
@@ -320,6 +330,55 @@ class HiveServiceImplement implements HiveService {
   Future<void> dispose() async {
     await _checkInOutBox?.close();
     await _personBox?.close();
+    await _pendingEduBox?.close();
+  }
+
+  // --- EDU Pending Check-In ---
+
+  Future<Box<PendingEduCheckIn>> _getPendingEduBox() async {
+    await checkTenantKey();
+    _pendingEduBox ??= await Hive.openBox<PendingEduCheckIn>('$_pendingEduBoxName-$_tenantKey');
+    return _pendingEduBox!;
+  }
+
+  @override
+  Future<int> savePendingEduCheckIn(PendingEduCheckIn item) async {
+    final box = await _getPendingEduBox();
+    return box.add(item);
+  }
+
+  @override
+  Future<List<PendingEduCheckIn>> getPendingEduCheckIns() async {
+    final box = await _getPendingEduBox();
+    return box.values.where((e) => !e.isSynced).toList();
+  }
+
+  @override
+  Future<void> markEduCheckInSynced(String localId) async {
+    final box = await _getPendingEduBox();
+    final entry = box.values.firstWhereOrNull((e) => e.localId == localId);
+    if (entry != null) {
+      await box.put(entry.key, entry.copyWith(isSynced: true));
+    }
+  }
+
+  @override
+  Future<void> incrementEduRetryCount(String localId) async {
+    final box = await _getPendingEduBox();
+    final entry = box.values.firstWhereOrNull((e) => e.localId == localId);
+    if (entry != null) {
+      await box.put(entry.key, entry.copyWith(retryCount: entry.retryCount + 1));
+    }
+  }
+
+  @override
+  Future<void> clearSyncedEduCheckIns() async {
+    final box = await _getPendingEduBox();
+    final syncedKeys = box.toMap().entries
+        .where((e) => e.value.isSynced)
+        .map((e) => e.key)
+        .toList();
+    await box.deleteAll(syncedKeys);
   }
 
   @override

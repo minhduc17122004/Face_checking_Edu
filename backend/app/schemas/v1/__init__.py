@@ -88,6 +88,30 @@ from app.schemas.v1.room import (
     RoomList,
     AssignRoomRequest,
 )
+from app.schemas.v1.device_request import (
+    DeviceRequestCreate,
+    DeviceRequestSubmit,
+    ApproveRequest,
+    RejectRequest,
+    DeviceRequestResponse,
+    DeviceRequestList,
+)
+from app.schemas.v1.attendance_config import (
+    AttendanceConfigCreate,
+    AttendanceConfigUpdate,
+    AttendanceConfigResponse,
+)
+from app.schemas.v1.room_session import (
+    RoomSessionResponse,
+    RoomSessionList,
+)
+from app.schemas.v1.attendance_checkin import (
+    ManualCheckinRequest,
+    ManualCheckinResponse,
+    AttendanceRecordResponse,
+    AttendanceCheckinList,
+    AttendanceSummaryResponse,
+)
 
 __all__ = [
     # Auth
@@ -166,4 +190,24 @@ __all__ = [
     "RoomOut",
     "RoomList",
     "AssignRoomRequest",
+    # DeviceRequest (Phase 9)
+    "DeviceRequestCreate",
+    "DeviceRequestSubmit",
+    "ApproveRequest",
+    "RejectRequest",
+    "DeviceRequestResponse",
+    "DeviceRequestList",
+    # AttendanceConfig (Phase 9)
+    "AttendanceConfigCreate",
+    "AttendanceConfigUpdate",
+    "AttendanceConfigResponse",
+    # RoomSession (Phase 9)
+    "RoomSessionResponse",
+    "RoomSessionList",
+    # AttendanceCheckin (Phase 9)
+    "ManualCheckinRequest",
+    "ManualCheckinResponse",
+    "AttendanceRecordResponse",
+    "AttendanceCheckinList",
+    "AttendanceSummaryResponse",
 ]

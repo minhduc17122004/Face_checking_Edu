@@ -14,6 +14,7 @@ import 'package:face_time_keeping/pages/schedule/bloc/schedule_state.dart';
 import 'package:face_time_keeping/pages/session/bloc/session_bloc.dart';
 import 'package:face_time_keeping/pages/session/bloc/session_state.dart';
 import 'package:face_time_keeping/pages/widgets/empty_state_widget.dart';
+import 'package:face_time_keeping/data/local/local_service.dart';
 import 'package:face_time_keeping/route/navigator.dart';
 
 class CourseDetailPage extends StatefulWidget {
@@ -31,6 +32,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
   late final CourseBloc _courseBloc;
   late final SessionBloc _sessionBloc;
   late final ScheduleBloc _scheduleBloc;
+  bool _isAdmin = false;
 
   @override
   void initState() {
@@ -43,6 +45,9 @@ class _CourseDetailPageState extends State<CourseDetailPage>
     _courseBloc.loadCourseStudents(widget.course.id);
     _sessionBloc.loadSessions(courseId: widget.course.id);
     _scheduleBloc.loadSchedules(courseId: widget.course.id);
+
+    final role = getIt<LocalService>().getUserRole();
+    _isAdmin = role.toLowerCase() == 'admin';
   }
 
   @override
@@ -500,31 +505,32 @@ class _CourseDetailPageState extends State<CourseDetailPage>
             const SizedBox(width: 6),
             _buildEmbeddingBadge(student),
             const SizedBox(width: 8),
-            PopupMenuButton<String>(
-              icon: const Icon(
-                Icons.more_vert,
-                color: AppColors.slate500,
-                size: 20,
-              ),
-              onSelected: (value) {
-                if (value == 'unenroll') {
-                  _confirmUnenrollStudent(student);
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'unenroll',
-                  child: Row(
-                    children: [
-                      Icon(Icons.remove_circle_outline,
-                          color: AppColors.red, size: 18),
-                      SizedBox(width: 8),
-                      Text('Xóa khỏi học phần'),
-                    ],
-                  ),
+            if (_isAdmin)
+              PopupMenuButton<String>(
+                icon: const Icon(
+                  Icons.more_vert,
+                  color: AppColors.slate500,
+                  size: 20,
                 ),
-              ],
-            ),
+                onSelected: (value) {
+                  if (value == 'unenroll') {
+                    _confirmUnenrollStudent(student);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'unenroll',
+                    child: Row(
+                      children: [
+                        Icon(Icons.remove_circle_outline,
+                            color: AppColors.red, size: 18),
+                        SizedBox(width: 8),
+                        Text('Xóa khỏi học phần'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
       ),

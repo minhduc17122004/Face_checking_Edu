@@ -17,12 +17,21 @@ import 'package:face_time_keeping/data/local/hive_service.dart' as _i106;
 import 'package:face_time_keeping/data/local/keychain/shared_prefs.dart'
     as _i340;
 import 'package:face_time_keeping/data/local/local_service.dart' as _i840;
+import 'package:face_time_keeping/data/remote/attendance_checkin_service.dart'
+    as _i549;
+import 'package:face_time_keeping/data/remote/attendance_history_service.dart'
+    as _i102;
 import 'package:face_time_keeping/data/remote/authentication_service.dart'
     as _i368;
 import 'package:face_time_keeping/data/remote/course_service.dart' as _i256;
 import 'package:face_time_keeping/data/remote/department_service.dart' as _i276;
+import 'package:face_time_keeping/data/remote/device_request_service.dart'
+    as _i141;
+import 'package:face_time_keeping/data/remote/device_service.dart' as _i607;
 import 'package:face_time_keeping/data/remote/logging_service.dart' as _i513;
 import 'package:face_time_keeping/data/remote/room_service.dart' as _i492;
+import 'package:face_time_keeping/data/remote/room_session_service.dart'
+    as _i1001;
 import 'package:face_time_keeping/data/remote/schedule_service.dart' as _i566;
 import 'package:face_time_keeping/data/remote/session_service.dart' as _i440;
 import 'package:face_time_keeping/data/remote/student_group_service.dart'
@@ -32,6 +41,8 @@ import 'package:face_time_keeping/data/remote/time_slot_service.dart' as _i148;
 import 'package:face_time_keeping/data/remote/user_service.dart' as _i687;
 import 'package:face_time_keeping/di/modules.dart' as _i754;
 import 'package:face_time_keeping/pages/account/account_cubit.dart' as _i607;
+import 'package:face_time_keeping/pages/attendance_checkin/bloc/attendance_checkin_bloc.dart'
+    as _i586;
 import 'package:face_time_keeping/pages/bloc/app_bloc.dart' as _i578;
 import 'package:face_time_keeping/pages/bootstrap/bootstrap_cubit.dart'
     as _i806;
@@ -41,16 +52,24 @@ import 'package:face_time_keeping/pages/course/bloc/course_bloc.dart' as _i995;
 import 'package:face_time_keeping/pages/department/bloc/department_bloc.dart'
     as _i858;
 import 'package:face_time_keeping/pages/domain/bloc/domain_bloc.dart' as _i981;
+import 'package:face_time_keeping/pages/edu_checking/bloc/edu_checking_bloc.dart'
+    as _i667;
+import 'package:face_time_keeping/pages/history/bloc/attendance_history_bloc.dart'
+    as _i496;
 import 'package:face_time_keeping/pages/login/bloc/login_bloc.dart' as _i128;
 import 'package:face_time_keeping/pages/register_face/bloc/register_face_bloc.dart'
     as _i734;
 import 'package:face_time_keeping/pages/room/bloc/room_bloc.dart' as _i257;
+import 'package:face_time_keeping/pages/room/room_session/bloc/room_session_bloc.dart'
+    as _i905;
 import 'package:face_time_keeping/pages/schedule/bloc/schedule_bloc.dart'
     as _i836;
 import 'package:face_time_keeping/pages/session/bloc/session_bloc.dart'
     as _i179;
 import 'package:face_time_keeping/pages/setting/cubit/attendance_report_cubit.dart'
     as _i664;
+import 'package:face_time_keeping/pages/setting/cubit/device_permission/device_permission_cubit.dart'
+    as _i762;
 import 'package:face_time_keeping/pages/setting/cubit/server_setting/server_setting_cubit.dart'
     as _i447;
 import 'package:face_time_keeping/pages/setting/cubit/setting/setting_cubit.dart'
@@ -100,6 +119,8 @@ extension GetItInjectableX on _i174.GetIt {
           dio: gh<_i361.Dio>(),
           authInterceptor: gh<_i464.AuthInterceptor>(),
         ));
+    gh.lazySingleton<_i549.AttendanceCheckinService>(
+        () => _i549.AttendanceCheckinServiceImplement(gh<_i644.ApiClient>()));
     gh.lazySingleton<_i256.CourseService>(
         () => _i256.CourseServiceImplement(gh<_i644.ApiClient>()));
     gh.lazySingleton<_i840.LocalService>(() => _i840.LocalServiceImplement(
@@ -108,6 +129,8 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i106.HiveService>(),
           gh<_i1018.CsvUtil>(),
         ));
+    gh.factory<_i586.AttendanceCheckinBloc>(() =>
+        _i586.AttendanceCheckinBloc(gh<_i549.AttendanceCheckinService>()));
     gh.factory<_i607.AccountCubit>(() => _i607.AccountCubit(
           gh<_i840.LocalService>(),
           gh<_i644.ApiClient>(),
@@ -126,8 +149,14 @@ extension GetItInjectableX on _i174.GetIt {
         ));
     gh.lazySingleton<_i276.DepartmentService>(
         () => _i276.DepartmentServiceImplement(gh<_i644.ApiClient>()));
+    gh.lazySingleton<_i607.DeviceService>(
+        () => _i607.DeviceServiceImplement(gh<_i644.ApiClient>()));
     gh.lazySingleton<_i148.TimeSlotService>(
         () => _i148.TimeSlotServiceImplement(gh<_i644.ApiClient>()));
+    gh.lazySingleton<_i1001.RoomSessionService>(
+        () => _i1001.RoomSessionServiceImplement(gh<_i644.ApiClient>()));
+    gh.lazySingleton<_i141.DeviceRequestService>(
+        () => _i141.DeviceRequestServiceImplement(gh<_i644.ApiClient>()));
     gh.factory<_i371.TeacherBloc>(
         () => _i371.TeacherBloc(gh<_i169.TeacherService>()));
     gh.lazySingleton<_i368.AuthenticationService>(
@@ -150,10 +179,17 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i644.ApiClient>(),
           gh<_i840.LocalService>(),
         ));
+    gh.lazySingleton<_i102.AttendanceHistoryService>(
+        () => _i102.AttendanceHistoryServiceImpl(gh<_i644.ApiClient>()));
     gh.lazySingleton<_i440.SessionService>(
         () => _i440.SessionServiceImplement(gh<_i644.ApiClient>()));
-    gh.factory<_i995.CourseBloc>(
+    gh.lazySingleton<_i995.CourseBloc>(
         () => _i995.CourseBloc(gh<_i256.CourseService>()));
+    gh.factory<_i667.EduCheckingBloc>(() => _i667.EduCheckingBloc(
+          gh<_i840.LocalService>(),
+          gh<_i549.AttendanceCheckinService>(),
+          gh<_i578.AppBloc>(),
+        ));
     gh.factory<_i836.ScheduleBloc>(
         () => _i836.ScheduleBloc(gh<_i566.ScheduleService>()));
     gh.factory<_i309.CheckingBloc>(() => _i309.CheckingBloc(
@@ -172,6 +208,13 @@ extension GetItInjectableX on _i174.GetIt {
         ));
     gh.factory<_i179.SessionBloc>(
         () => _i179.SessionBloc(gh<_i440.SessionService>()));
+    gh.factory<_i496.AttendanceHistoryBloc>(() =>
+        _i496.AttendanceHistoryBloc(gh<_i102.AttendanceHistoryService>()));
+    gh.factory<_i905.RoomSessionBloc>(() => _i905.RoomSessionBloc(
+          gh<_i1001.RoomSessionService>(),
+          gh<_i141.DeviceRequestService>(),
+          gh<_i840.LocalService>(),
+        ));
     gh.factory<_i850.StudentGroupCubit>(() => _i850.StudentGroupCubit(
           gh<_i691.StudentGroupService>(),
           gh<_i276.DepartmentService>(),
@@ -180,6 +223,10 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i257.RoomBloc>(() => _i257.RoomBloc(gh<_i492.RoomService>()));
     gh.factory<_i128.LoginBloc>(() => _i128.LoginBloc(
           gh<_i368.AuthenticationService>(),
+          gh<_i840.LocalService>(),
+        ));
+    gh.factory<_i762.DevicePermissionCubit>(() => _i762.DevicePermissionCubit(
+          gh<_i141.DeviceRequestService>(),
           gh<_i840.LocalService>(),
         ));
     return this;

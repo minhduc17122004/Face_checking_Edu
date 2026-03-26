@@ -47,8 +47,7 @@ class CheckingBloc extends Cubit<CheckingState> {
       debugPrint('Failed to reinitialize FaceNative: $e');
       if (!isClosed) {
         emit(state.copyWith(
-            requestStatus: RequestStatus.failed,
-            message: e.toString()));
+            requestStatus: RequestStatus.failed, message: e.toString()));
       }
     }
   }

@@ -96,12 +96,31 @@ async def list_room_courses(
     await svc.get_room(room_id)
 
     from sqlalchemy import select, and_
+    from sqlalchemy.orm import selectinload
     from app.models.course import Course
-    stmt = select(Course).where(
-        and_(
-            Course.room_id == room_id,
-            Course.deleted_at.is_(None),
+    from app.models.teacher import Teacher
+    from app.models.schedule import Schedule
+
+    stmt = (
+        select(Course)
+        .where(
+            and_(
+                Course.room_id == room_id,
+                Course.deleted_at.is_(None),
+            )
         )
-    ).offset(skip).limit(limit)
+        .options(
+            selectinload(Course.teacher).selectinload(Teacher.user),
+            selectinload(Course.department),
+            selectinload(Course.room),
+            selectinload(Course.enrollments),
+            selectinload(Course.schedules).joinedload(Schedule.time_slot),
+        )
+        .offset(skip)
+        .limit(limit)
+    )
     result = await db.execute(stmt)
-    return [CourseOut.model_validate(c) for c in result.scalars().all()]
+    courses = result.scalars().all()
+    from app.services.course_service import CourseService
+    course_svc = CourseService(db)
+    return [await course_svc._build_course_out(c) for c in courses]

@@ -1,3 +1,5 @@
+import 'package:face_time_keeping/pages/attendance_checkin/attendance_checkin_page.dart';
+import 'package:face_time_keeping/pages/edu_checking/edu_checking_page.dart';
 import 'package:face_time_keeping/pages/checking/checking_page.dart';
 import 'package:face_time_keeping/pages/course/course_detail_page.dart';
 import 'package:face_time_keeping/pages/course/course_form_page.dart';
@@ -5,10 +7,14 @@ import 'package:face_time_keeping/pages/course/course_list_page.dart';
 import 'package:face_time_keeping/pages/department/department_detail_page.dart';
 import 'package:face_time_keeping/pages/department/department_form_page.dart';
 import 'package:face_time_keeping/pages/department/department_list_page.dart';
+import 'package:face_time_keeping/pages/setting/device_permission_page.dart';
+import 'package:face_time_keeping/pages/setting/device_request_submit_page.dart';
 import 'package:face_time_keeping/pages/domain/choose_db.dart';
 import 'package:face_time_keeping/pages/domain/domain_page.dart';
 import 'package:face_time_keeping/pages/room/room_form_page.dart';
 import 'package:face_time_keeping/pages/room/room_list_page.dart';
+import 'package:face_time_keeping/pages/room/room_selection_page.dart';
+import 'package:face_time_keeping/pages/room/room_session/room_session_page.dart';
 import 'package:face_time_keeping/pages/schedule/schedule_page.dart';
 import 'package:face_time_keeping/pages/session/session_detail_page.dart';
 import 'package:face_time_keeping/pages/session/session_list_page.dart';
@@ -59,6 +65,8 @@ class RouterName {
   static const String departmentDetail = '/departments/detail';
   static const String roomList = '/rooms';
   static const String roomForm = '/rooms/form';
+  static const String roomSessions = '/rooms/sessions';
+  static const String roomSelection = '/rooms/selection';
   static const String courseForm = '/courses/form';
   static const String courseDetail = '/courses/detail';
   static const String schedule = '/schedule';
@@ -66,6 +74,10 @@ class RouterName {
   static const String sessionDetail = '/sessions/detail';
   static const String teacherAssignment = '/teachers/assignment';
   static const String timeSlot = '/settings/time-slots';
+  static const String devicePermission = '/settings/device-permission';
+  static const String deviceRequestSubmit = '/settings/device-request-submit';
+  static const String attendanceCheckin = '/attendance-checkin';
+  static const String eduChecking = '/edu-checking';
 }
 
 class AppRoutes {
@@ -135,6 +147,13 @@ class AppRoutes {
           settings,
           RoomFormPage(room: settings.arguments as dynamic),
         );
+      case RouterName.roomSessions:
+        return _materialRoute(
+          settings,
+          RoomSessionPage(room: settings.arguments as dynamic),
+        );
+      case RouterName.roomSelection:
+        return _materialRoute(settings, const RoomSelectionPage());
       case RouterName.courseForm:
         return _materialRoute(
           settings,
@@ -164,6 +183,24 @@ class AppRoutes {
         return _materialRoute(settings, const TeacherAssignmentPage());
       case RouterName.timeSlot:
         return _materialRoute(settings, const TimeSlotPage());
+      case RouterName.devicePermission:
+        return _materialRoute(settings, const DevicePermissionPage());
+      case RouterName.deviceRequestSubmit:
+        return _materialRoute(settings, const DeviceRequestSubmitPage());
+      case RouterName.attendanceCheckin:
+        return _materialRoute(
+          settings,
+          AttendanceCheckinPage(
+            args: settings.arguments as AttendanceCheckinArgs,
+          ),
+        );
+      case RouterName.eduChecking:
+        return _materialRoute(
+          settings,
+          EduCheckingPage(
+            args: settings.arguments as EduCheckingArgs,
+          ),
+        );
     }
     return null;
   }

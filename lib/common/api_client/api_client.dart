@@ -216,11 +216,25 @@ class ApiClient {
       if (response.statusCode == 204 || response.data == null || response.data.toString().trim().isEmpty) {
         return ApiResponse(success: true, data: {});
       }
+      if (response.data is List) {
+        return ApiResponse(success: true, data: response.data);
+      }
+
       Map<String?, dynamic>? decode;
 
-      decode = (response.data is Map<String, dynamic>)
-          ? response.data
-          : json.decode(response.data);
+      if (response.data is Map<String, dynamic>) {
+        decode = response.data as Map<String?, dynamic>;
+      } else {
+        try {
+          decode = json.decode(response.data.toString()) as Map<String?, dynamic>;
+        } catch (_) {
+          return ApiResponse(
+            success: true,
+            data: response.data,
+          );
+        }
+      }
+
       if (decode is Map<String?, dynamic>) {
         return ApiResponse.fromJson(decode);
       }

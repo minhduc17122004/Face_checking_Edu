@@ -58,5 +58,22 @@ class DeviceRepository(BaseRepository[Device]):
         )
         return result.scalars().all()
 
+    async def get_by_room_or_global(self, room_id: uuid.UUID) -> Sequence[Device]:
+        """Get devices that have access to a specific room.
+
+        Phase 9: is_global=true → access all rooms.
+        is_global=false → must match room_id.
+        """
+        result = await self.db.execute(
+            select(Device).where(
+                and_(
+                    Device.deleted_at.is_(None),
+                    Device.is_active == True,
+                    (Device.room_id == room_id) | (Device.is_global == True),
+                )
+            )
+        )
+        return result.scalars().all()
+
     async def soft_delete(self, device: Device) -> None:
         await super().soft_delete(device)

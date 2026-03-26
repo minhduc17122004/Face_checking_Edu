@@ -22,6 +22,10 @@ class LoggingEvent {
 
 class SyncDataEvent {}
 
+class AttendanceChangeEvent {}
+
+class CourseChangeEvent {}
+
 class SyncStudentEvent {
   SyncStudentEvent({
     required this.status,

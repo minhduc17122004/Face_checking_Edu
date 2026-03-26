@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:face_time_keeping/pages/home/home_page.dart';
 import 'package:face_time_keeping/pages/account/account_page.dart';
 import 'package:face_time_keeping/pages/course/course_list_page.dart';
+import 'package:face_time_keeping/pages/history/attendance_history_page.dart';
 
 class TabPage extends StatefulWidget {
   const TabPage({super.key});
@@ -16,7 +17,7 @@ class _TabPageState extends State<TabPage> {
   final List<Widget> _pages = [
     const HomePage(),
     const CourseListPage(),
-    const Center(child: Text("Cập nhật sau")),
+    const AttendanceHistoryPage(),
     const AccountPage(),
   ];
 

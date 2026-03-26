@@ -3,7 +3,9 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional
+
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Dedicated audit logger — writes to app_log.audit channel
 audit_logger = logging.getLogger("audit")
@@ -15,10 +17,17 @@ class AuditService:
     All events are emitted via the 'audit' logger at INFO level with structured
     extra fields for searchable log aggregation (e.g. ELK / Datadog).
 
+    Phase 9: Can also write to the attendance_audit_logs DB table when a
+    db session is provided.
+
     Usage:
-        svc = AuditService()
-        svc.log_attendance_created(attendance_id, student_id, session_id, device_id)
+        svc = AuditService(db)          # DB-backed (preferred for attendance)
+        svc = AuditService()            # Logger-only (fallback)
+        svc.log_attendance_created(...)
     """
+
+    def __init__(self, db: Optional[AsyncSession] = None) -> None:
+        self._db = db
 
     @staticmethod
     def _now() -> datetime:
@@ -26,6 +35,33 @@ class AuditService:
 
     def _emit(self, event: str, **extra: Any) -> None:
         audit_logger.info(event, extra={"event": event, **extra})
+
+    # ── Attendance DB write (Phase 9) ─────────────────────────────────────────
+    async def write_attendance_audit(
+        self,
+        student_id: int,
+        session_id: uuid.UUID,
+        action: str,
+        new_status: Optional[str] = None,
+        old_status: Optional[str] = None,
+        device_id: uuid.UUID | None = None,
+        minutes_diff: int | None = None,
+    ) -> None:
+        """Write an attendance audit record to the DB table."""
+        if not self._db:
+            return
+        from app.models.attendance_audit_log import AttendanceAuditLog
+        record = AttendanceAuditLog(
+            student_id=student_id,
+            session_id=session_id,
+            action=action,
+            old_status=old_status,
+            new_status=new_status,
+            device_id=device_id,
+            minutes_diff=minutes_diff,
+        )
+        self._db.add(record)
+        await self._db.flush()
 
     # ── Attendance ───────────────────────────────────────────────────────────
     def log_attendance_created(
@@ -35,6 +71,7 @@ class AuditService:
         session_id: uuid.UUID,
         device_id: uuid.UUID | None = None,
         status: str = "present",
+        minutes_diff: int | None = None,
     ) -> None:
         self._emit(
             "attendance_created",
@@ -43,6 +80,7 @@ class AuditService:
             session_id=str(session_id),
             device_id=str(device_id) if device_id else None,
             status=status,
+            minutes_diff=minutes_diff,
         )
 
     def log_attendance_deleted(

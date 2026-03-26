@@ -1,0 +1,136 @@
+# EDU Checking Flow — Implementation Plan
+
+## Background
+
+The existing app has two separate attendance systems:
+
+1. **HRM Checking** (old, offline-first): Face recognition → [CheckInOut](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/entities/check_in_out.dart#5-81) → Hive → Workmanager syncs to server. Uses shift-based time slots. Files at `lib/pages/checking/`.
+2. **EDU Attendance** (partially built): `Session` + `Course` model → `AttendanceCheckinService` API (manual checkin via `POST /api/v1/attendance/check-in`). Currently has a view-only `AttendanceCheckinPage` (polling results from server).
+
+**Goal:** Build a **new EDU checking flow** that:
+- Uses the camera + face recognition to **auto-identify students** (like HRM checking)
+- But sends the check-in **directly to the backend** via `AttendanceCheckinService.manualCheckin()` (like EDU attendance)
+- Is tied to a specific **Session** (session-aware, not shift-based)
+- Is implemented in **completely new files** — existing HRM checking files remain untouched
+
+---
+
+## Proposed Changes
+
+### 1. Entity Layer
+
+#### [NEW] [edu_check_in.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/entities/edu_check_in.dart)
+
+Simple UI model for displaying the result of an EDU check-in:
+
+```dart
+class EduCheckIn {
+  final String studentName;
+  final int studentId;
+  final DateTime checkinTime;
+  final String status;       // 'early', 'on_time', 'late', 'present'
+  final int? minutesDiff;
+  final String message;      // e.g. "Nguyễn Văn A đã điểm danh thành công"
+  final String? imagePath;
+}
+```
+
+---
+
+### 2. BLoC Layer
+
+#### [NEW] [edu_checking_state.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/edu_checking/bloc/edu_checking_state.dart)
+
+```dart
+class EduCheckingState {
+  RequestStatus faceStatus;     // face recognition status
+  RequestStatus checkinStatus;  // API check-in status
+  String? errorMessage;
+  EduCheckIn? lastCheckIn;
+  bool isAllowCapture;
+  List<AttendanceRecordUI> sessionRecords;   // live list of who checked in
+  AttendanceCheckinSummary? summary;
+}
+```
+
+#### [NEW] [edu_checking_bloc.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/edu_checking/bloc/edu_checking_bloc.dart)
+
+Key flow:
+1. `init(sessionId)` → load session checkins + summary from API
+2. `verify(XFile, sessionId)` → FaceNative recognition → get `studentId` → call `AttendanceCheckinService.manualCheckin(sessionId, studentId)` → emit result
+3. Polling timer (every 5s) to refresh records from server
+4. Reuses `FaceNative` for face recognition (same as HRM checking)
+5. Does **NOT** save to Hive — directly calls backend API
+
+Dependencies: `AttendanceCheckinService`, `LocalService` (for tenantId/FaceNative init), `AppBloc` (for GPS)
+
+---
+
+### 3. Page + Widget Layer
+
+#### [NEW] [edu_checking_page.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/edu_checking/edu_checking_page.dart)
+
+- Navigation args: `EduCheckingArgs { RoomSession session }` (same session type the room session page already provides)
+- Layout: Split-screen with Camera (reuses `FaceDetectorView`) + Result panel
+- Shows session header info (course name, date, time)
+- Shows latest check-in result
+- Shows live summary (early/on-time/late/absent) with poll refresh
+
+#### [NEW] [edu_check_in_result_widget.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/edu_checking/widgets/edu_check_in_result_widget.dart)
+
+Card widget showing student name, status icon (✓ on_time, ⏰ late, 🔵 early), time, and message.
+
+---
+
+### 4. Route Registration
+
+#### [MODIFY] [app_route.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/route/app_route.dart)
+
+- Add `static const String eduChecking = '/edu-checking';` to `RouterName`
+- Add case in `onGenerateRoutes` to map route to `EduCheckingPage`
+
+---
+
+### 5. DI Registration
+
+- `EduCheckingBloc` uses `@Injectable()` annotation → auto-registered by `build_runner`
+- Dependencies (`AttendanceCheckinService`, `LocalService`, `AppBloc`) are already registered as singletons
+
+> [!NOTE]
+> After adding new files, need to run `flutter pub run build_runner build` to regenerate DI code.
+
+---
+
+## Key Design Decisions
+
+| Aspect | HRM Checking (old) | EDU Checking (new) |
+|---|---|---|
+| Storage | Offline-first (Hive) | Online-first (API) |
+| Sync | Background Workmanager | Direct API call |
+| Context | Shift-based (morning/afternoon/night) | Session-based (specific course + time) |
+| Late detection | Based on local shift times | Backend calculates based on session window |
+| Entity | `CheckInOut` (Hive) | `EduCheckIn` (UI-only) + `ManualCheckinResult` (API) |
+| Face recognition | Same | Same (reuses `FaceNative`) |
+
+> [!IMPORTANT]
+> The existing HRM checking files (`lib/pages/checking/*`) are **not modified**. The new EDU checking flow is a completely separate module.
+
+---
+
+## Verification Plan
+
+### Automated
+- Run `flutter analyze` from the project root to verify no compile/lint errors:
+  ```
+  cd c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping
+  flutter analyze
+  ```
+
+### Manual Testing
+Since the EDU checking flow requires a real camera and face recognition hardware, and a running backend server, full testing must be done by the user:
+
+1. Navigate to **Rooms** → select a room → select a session → tap the new **"Điểm danh EDU"** action
+2. Camera should open with the face detector overlay
+3. When a face is recognized, the student's name and check-in status should appear
+4. The session summary (early/on-time/late/absent) should update in real-time
+5. The check-in record should appear on the `AttendanceCheckinPage` for the same session

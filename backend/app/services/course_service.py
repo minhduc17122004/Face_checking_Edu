@@ -75,6 +75,22 @@ class CourseService:
             self._db, teacher_id, user_id, required=required
         )
 
+    async def _resolve_student_id(self, user_id: str) -> int | None:
+        """Resolve student_id from user_id."""
+        from app.repositories.student_repository import StudentRepository
+        from sqlalchemy import select
+        from app.models.student import Student
+        import uuid
+        
+        result = await self._db.execute(
+            select(Student).where(
+                Student.user_id == uuid.UUID(user_id),
+                Student.deleted_at.is_(None)
+            )
+        )
+        student = result.scalar_one_or_none()
+        return student.id if student else None
+
     # ── CRUD ────────────────────────────────────────────────────
 
     async def create_course(
@@ -171,17 +187,38 @@ class CourseService:
         teacher_id: int | None,
         user_id: str,
     ) -> CourseList:
-        """List courses owned by the current teacher."""
+        """List courses relevant to the current user (Teacher, Creator, or Student)."""
+        all_courses = []
+        seen_ids = set()
+
+        def add_unique(courses):
+            for c in courses:
+                if c.id not in seen_ids:
+                    all_courses.append(c)
+                    seen_ids.add(c.id)
+
+        # 1. As Teacher (resolved from teacher_id or user_id)
         resolved_teacher_id = await self._resolve_teacher_id(
             teacher_id, user_id, required=False
         )
-        if resolved_teacher_id is None:
-            return CourseList(total=0, items=[])
+        if resolved_teacher_id is not None:
+            teacher_courses = await self.repo.get_by_teacher(resolved_teacher_id)
+            add_unique(teacher_courses)
 
-        courses = await self.repo.get_by_teacher(resolved_teacher_id)
+        # 2. As Creator (independent of teacher profile)
+        import uuid
+        creator_courses = await self.repo.get_by_creator(uuid.UUID(user_id))
+        add_unique(creator_courses)
+
+        # 3. As Student (enrolled in course)
+        resolved_student_id = await self._resolve_student_id(user_id)
+        if resolved_student_id is not None:
+            student_courses = await self.repo.get_by_student(resolved_student_id)
+            add_unique(student_courses)
+
         return CourseList(
-            total=len(courses),
-            items=[await self._build_course_out(c) for c in courses],
+            total=len(all_courses),
+            items=[await self._build_course_out(c) for c in all_courses],
         )
 
     async def update_course(

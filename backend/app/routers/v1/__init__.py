@@ -17,6 +17,9 @@ from app.routers.v1.faces import router as faces_router
 from app.routers.v1.departments import router as departments_router
 from app.routers.v1.teachers import router as teachers_router
 from app.routers.v1.rooms import router as rooms_router
+from app.routers.v1.room_sessions import router as room_sessions_router
+from app.routers.v1.device_requests import router as device_requests_router
+from app.routers.v1.attendance_configs import router as attendance_configs_router
 from app.routers.v1.metrics import router as metrics_router
 
 api_v1_router = APIRouter(prefix="/api/v1")
@@ -35,6 +38,9 @@ api_v1_router.include_router(faces_router)
 api_v1_router.include_router(departments_router)
 api_v1_router.include_router(teachers_router)
 api_v1_router.include_router(rooms_router)
+api_v1_router.include_router(room_sessions_router)
+api_v1_router.include_router(device_requests_router)
+api_v1_router.include_router(attendance_configs_router)
 api_v1_router.include_router(metrics_router)
 
 __all__ = [
@@ -54,5 +60,8 @@ __all__ = [
     "departments_router",
     "teachers_router",
     "rooms_router",
+    "room_sessions_router",
+    "device_requests_router",
+    "attendance_configs_router",
     "metrics_router",
 ]

@@ -16,6 +16,7 @@ class AttendanceReportCubit extends Cubit<AttendanceReportState>
   AttendanceReportCubit(this._localService)
       : super(const AttendanceReportState()) {
     listenEvent<SyncDataEvent>((e) => _refreshData());
+    listenEvent<AttendanceChangeEvent>((e) => _refreshData());
   }
 
   final LocalService _localService;

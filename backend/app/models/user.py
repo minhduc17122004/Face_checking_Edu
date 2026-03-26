@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from app.models.course import Course
     from app.models.student_group import StudentGroup
     from app.models.refresh_token import RefreshToken
+    from app.models.device_request import DeviceRequest
 
 
 class User(Base):
@@ -101,6 +102,18 @@ class User(Base):
         "RefreshToken",
         back_populates="user",
         cascade="all, delete-orphan",
+        lazy="select",
+    )
+    device_requests: Mapped[List["DeviceRequest"]] = relationship(
+        "DeviceRequest",
+        foreign_keys="DeviceRequest.requested_by",
+        back_populates="requester",
+        lazy="select",
+    )
+    device_reviewed_requests: Mapped[List["DeviceRequest"]] = relationship(
+        "DeviceRequest",
+        foreign_keys="DeviceRequest.reviewed_by",
+        back_populates="reviewer",
         lazy="select",
     )
 

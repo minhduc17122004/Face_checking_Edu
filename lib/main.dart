@@ -18,6 +18,7 @@ import 'app.dart';
 import 'configs/build_config.dart';
 import 'di/injection.dart';
 import 'package:hive/hive.dart';
+import 'package:face_time_keeping/entities/pending_edu_check_in.dart';
 
 void main() async {
   runZonedGuarded(
@@ -33,13 +34,14 @@ void main() async {
       Hive.registerAdapter(CheckInOutAdapter());
       Hive.registerAdapter(PersonAdapter());
       Hive.registerAdapter(TenantAdapter());
+      Hive.registerAdapter(PendingEduCheckInAdapter());
 
       await configureDependencies(environment);
       IsolateListenUtil.listen((msg) {
         if (msg is Map && msg['type'] == sendPortSyncStudentType) {
           EventBusMixin.shareStaticEvent(SyncStudentEvent(
-            status: msg['status'] as String? ?? 
-                   (msg['success'] == true ? 'success' : 'failed'),
+            status: msg['status'] as String? ??
+                (msg['success'] == true ? 'success' : 'failed'),
             success: msg['success'] as bool?,
             message: msg['message'] as String?,
           ));

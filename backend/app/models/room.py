@@ -12,6 +12,8 @@ from app.core.database import Base
 if TYPE_CHECKING:
     from app.models.course import Course
     from app.models.device import Device
+    from app.models.device_request import DeviceRequest
+    from app.models.attendance import Attendance
 
 
 class Room(Base):
@@ -72,6 +74,9 @@ class Room(Base):
     )
     devices: Mapped[List["Device"]] = relationship(
         "Device", back_populates="room"
+    )
+    device_requests: Mapped[List["DeviceRequest"]] = relationship(
+        "DeviceRequest", back_populates="room"
     )
 
     # ── Accessors ───────────────────────────────────────────────

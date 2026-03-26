@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
+
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:collection/collection.dart';
 import 'package:face_native/face_native.dart';
 import 'package:face_time_keeping/common/utils/log_util.dart';
@@ -13,12 +15,16 @@ import 'package:face_time_keeping/entities/check_in_out.dart';
 import 'package:face_time_keeping/entities/check_out.dart';
 import 'package:face_time_keeping/entities/student.dart';
 import 'package:face_time_keeping/entities/face_data.dart';
+import 'package:face_time_keeping/entities/pending_edu_check_in.dart';
 import 'package:face_time_keeping/entities/person.dart';
 import 'package:face_time_keeping/entities/sync_face_schedule.dart';
 import 'package:face_time_keeping/entities/sync_response.dart';
 import 'package:face_time_keeping/entities/sync_schedule.dart';
 import 'package:face_time_keeping/entities/tenant.dart';
 import 'package:face_time_keeping/utils/csv_util.dart';
+import 'package:face_time_keeping/common/event/event_bus_event.dart'
+    hide Student;
+import 'package:face_time_keeping/common/event/event_bus_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:injectable/injectable.dart';
@@ -112,10 +118,19 @@ abstract class LocalService {
   String getAvatarPath();
   void saveUserRole(String? role);
   String getUserRole();
+  Future<String> getDeviceCode();
+  Future<void> saveDeviceCode(String code);
+
+  // --- EDU Pending Check-In (offline queue) ---
+  Future<void> savePendingEduCheckIn(PendingEduCheckIn item);
+  Future<List<PendingEduCheckIn>> getPendingEduCheckIns();
+  Future<void> markEduCheckInSynced(String localId);
+  Future<void> incrementEduRetryCount(String localId);
+  Future<void> clearSyncedEduCheckIns();
 }
 
 @LazySingleton(as: LocalService)
-class LocalServiceImplement implements LocalService {
+class LocalServiceImplement with EventBusMixin implements LocalService {
   LocalServiceImplement(this._sharedPreferences, this._apiClient,
       this._hiveService, this._csvUtil) {
     _faceNative = FaceNative();
@@ -380,7 +395,6 @@ class LocalServiceImplement implements LocalService {
   Future<void> saveDatabaseName(String dbName) async {
     await _sharedPreferences.put(SharedPrefsKey.dbName, dbName);
   }
-
 
   @override
   Future<File> exportModelToJsonFile({List<Person>? persons}) async {
@@ -766,6 +780,7 @@ class LocalServiceImplement implements LocalService {
     // null is false, int is minutes late
     try {
       await _hiveService.saveCheckInOut(checkIn);
+      shareEvent(AttendanceChangeEvent());
       final minutesLate = await _isLate(checkIn);
       return {
         'minutesLate': minutesLate,
@@ -796,6 +811,7 @@ class LocalServiceImplement implements LocalService {
         longitude: location.longitude,
       );
       await _hiveService.saveCheckInOut(checkInOut);
+      shareEvent(AttendanceChangeEvent());
       return {};
     } catch (e, s) {
       await pushLog('Error in checkOut: $e\n$s');
@@ -1009,6 +1025,33 @@ class LocalServiceImplement implements LocalService {
       pushLog('Error in getUserRole: $e');
       return "";
     }
+  }
+
+  @override
+  Future<String> getDeviceCode() async {
+    try {
+      final stored = _sharedPreferences.get<String>(SharedPrefsKey.deviceCode);
+      if (stored != null && stored.isNotEmpty) {
+        return stored;
+      }
+      // Generate and persist device code from ANDROID_ID
+      final deviceInfo = DeviceInfoPlugin();
+      final androidInfo = await deviceInfo.androidInfo;
+      final code = androidInfo.id;
+      await _sharedPreferences.put<String>(SharedPrefsKey.deviceCode, code);
+      return code;
+    } catch (e) {
+      pushLog('Error in getDeviceCode: $e');
+      // Fallback: generate a random ID
+      final fallback = 'DEVICE-${DateTime.now().millisecondsSinceEpoch}';
+      await _sharedPreferences.put<String>(SharedPrefsKey.deviceCode, fallback);
+      return fallback;
+    }
+  }
+
+  @override
+  Future<void> saveDeviceCode(String code) async {
+    await _sharedPreferences.put<String>(SharedPrefsKey.deviceCode, code);
   }
 
   @override
@@ -1323,6 +1366,55 @@ class LocalServiceImplement implements LocalService {
     } catch (e, stackTrace) {
       await pushLog('Error clearing all local data: $e\n$stackTrace');
       rethrow;
+    }
+  }
+
+  // --- EDU Pending Check-In (offline queue) ---
+
+  @override
+  Future<void> savePendingEduCheckIn(PendingEduCheckIn item) async {
+    try {
+      await _hiveService.savePendingEduCheckIn(item);
+    } catch (e) {
+      await pushLog('Error in savePendingEduCheckIn: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<PendingEduCheckIn>> getPendingEduCheckIns() async {
+    try {
+      return await _hiveService.getPendingEduCheckIns();
+    } catch (e) {
+      await pushLog('Error in getPendingEduCheckIns: $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<void> markEduCheckInSynced(String localId) async {
+    try {
+      await _hiveService.markEduCheckInSynced(localId);
+    } catch (e) {
+      await pushLog('Error in markEduCheckInSynced: $e');
+    }
+  }
+
+  @override
+  Future<void> incrementEduRetryCount(String localId) async {
+    try {
+      await _hiveService.incrementEduRetryCount(localId);
+    } catch (e) {
+      await pushLog('Error in incrementEduRetryCount: $e');
+    }
+  }
+
+  @override
+  Future<void> clearSyncedEduCheckIns() async {
+    try {
+      await _hiveService.clearSyncedEduCheckIns();
+    } catch (e) {
+      await pushLog('Error in clearSyncedEduCheckIns: $e');
     }
   }
 }

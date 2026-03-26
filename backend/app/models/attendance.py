@@ -33,7 +33,7 @@ class Attendance(Base):
             "session_id", "student_id", name="uq_attendance_session_student"
         ),
         CheckConstraint(
-            "status IN ('present', 'late', 'absent')",
+            "status IN ('present', 'late', 'absent', 'early', 'on_time')",
             name="ck_attendance_status",
         ),
         Index("ix_attendance_session_student", "session_id", "student_id"),
@@ -81,6 +81,9 @@ class Attendance(Base):
         nullable=True,
         index=True,
     )
+
+    # Phase 9: minutes difference from start_time (room derived from session → course)
+    minutes_diff: Mapped[Optional[int]] = mapped_column(nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

@@ -37,16 +37,16 @@ class StudentGroupCubit extends Cubit<StudentGroupState> {
 
   Future<void> loadFormData({String? departmentId}) async {
     emit(state.copyWith(requestStatus: RequestStatus.requesting));
-    
+
     // Load departments
     final deptResult = await _departmentService.getDepartments();
-    
+
     // Load teachers (optionally filtered by department)
     final teacherResult = await _teacherService.getTeachers(
       limit: 500,
       departmentId: departmentId,
     );
-    
+
     emit(state.copyWith(
       requestStatus: RequestStatus.success,
       departments: deptResult.data ?? [],
@@ -65,7 +65,7 @@ class StudentGroupCubit extends Cubit<StudentGroupState> {
       limit: 500,
       departmentId: departmentId,
     );
-    
+
     if (result.isSuccess) {
       emit(state.copyWith(
         teachers: result.data ?? [],

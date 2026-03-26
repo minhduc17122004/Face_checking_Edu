@@ -219,3 +219,111 @@ class SessionRepository(BaseRepository[Session]):
             )
         )
         return result.scalar_one()
+
+    # ── Room-based queries (Phase 9) ──────────────────────────────────────
+    async def get_by_room(
+        self,
+        room_id: uuid.UUID,
+        session_date: date | None = None,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> Sequence[Session]:
+        """Get sessions for courses in a specific room.
+
+        Phase 9: room-based session lookup.
+        Finds courses assigned to the room, then returns their sessions.
+        Sorted: currently active first, then upcoming by start_time.
+        """
+        from app.models.course import Course as CourseModel
+        # Subquery: find courses in the given room
+        course_subq = (
+            select(CourseModel.id)
+            .where(
+                and_(
+                    CourseModel.room_id == room_id,
+                    CourseModel.deleted_at.is_(None),
+                )
+            )
+            .subquery()
+        )
+
+        conditions = [
+            Session.course_id.in_(select(course_subq)),
+            Session.deleted_at.is_(None),
+        ]
+        if session_date:
+            from datetime import datetime
+            start = datetime.combine(session_date, datetime.min.time())
+            end = datetime.combine(session_date, datetime.max.time())
+            conditions.append(Session.start_time >= start)
+            conditions.append(Session.start_time <= end)
+
+        result = await self.db.execute(
+            select(Session)
+            .options(joinedload(Session.course))
+            .where(and_(*conditions))
+            .offset(skip)
+            .limit(limit)
+            .order_by(Session.start_time.asc())
+        )
+        return result.unique().scalars().all()
+
+    async def get_by_room_sorted(
+        self,
+        room_id: uuid.UUID,
+        session_date: date | None = None,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> tuple[Sequence[Session], int]:
+        """Get sessions for a room with active-first sorting + total count.
+
+        Sorting:
+            1. Currently active sessions (status='active')
+            2. Scheduled/upcoming sessions by start_time ASC
+            3. Closed sessions last
+        """
+        from app.models.course import Course as CourseModel
+
+        course_subq = (
+            select(CourseModel.id)
+            .where(
+                and_(
+                    CourseModel.room_id == room_id,
+                    CourseModel.deleted_at.is_(None),
+                )
+            )
+            .subquery()
+        )
+
+        conditions = [
+            Session.course_id.in_(select(course_subq)),
+            Session.deleted_at.is_(None),
+        ]
+        if session_date:
+            start = datetime.combine(session_date, datetime.min.time())
+            end = datetime.combine(session_date, datetime.max.time())
+            conditions.append(Session.start_time >= start)
+            conditions.append(Session.start_time <= end)
+
+        where_clause = and_(*conditions)
+
+        count_result = await self.db.execute(
+            select(func.count()).select_from(Session).where(where_clause)
+        )
+        total = count_result.scalar_one()
+
+        from sqlalchemy import case
+        active_order = case(
+            (Session.status == "active", 0),
+            (Session.status == "scheduled", 1),
+            else_=2,
+        )
+        result = await self.db.execute(
+            select(Session)
+            .options(joinedload(Session.course))
+            .where(where_clause)
+            .order_by(active_order, Session.start_time.asc())
+            .offset(skip)
+            .limit(limit)
+        )
+        return result.unique().scalars().all(), total

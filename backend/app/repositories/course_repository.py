@@ -200,3 +200,41 @@ class CourseRepository:
             )
         )
         return result.scalar_one()
+
+    async def get_by_student(self, student_id: int) -> Sequence[Course]:
+        """Return all courses a student is enrolled in."""
+        from app.models.course_enrollment import CourseEnrollment
+        result = await self.db.execute(
+            select(Course)
+            .join(CourseEnrollment, Course.id == CourseEnrollment.course_id)
+            .options(
+                joinedload(Course.teacher).joinedload(Teacher.user),
+                joinedload(Course.department),
+                joinedload(Course.room),
+                selectinload(Course.schedules).joinedload(Schedule.time_slot)
+            )
+            .where(
+                CourseEnrollment.student_id == student_id,
+                Course.deleted_at.is_(None),
+            )
+            .order_by(Course.created_at.desc())
+        )
+        return result.unique().scalars().all()
+
+    async def get_by_creator(self, user_id: uuid.UUID) -> Sequence[Course]:
+        """Return courses created by a specific user UUID."""
+        result = await self.db.execute(
+            select(Course)
+            .options(
+                joinedload(Course.teacher).joinedload(Teacher.user),
+                joinedload(Course.department),
+                joinedload(Course.room),
+                selectinload(Course.schedules).joinedload(Schedule.time_slot)
+            )
+            .where(
+                Course.created_by == user_id,
+                Course.deleted_at.is_(None),
+            )
+            .order_by(Course.created_at.desc())
+        )
+        return result.unique().scalars().all()

@@ -62,4 +62,3 @@ echo.
 echo Tien hanh chay migration:
 echo   docker compose exec api alembic upgrade head
 echo ============================================
-pause

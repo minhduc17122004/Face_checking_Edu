@@ -1,5 +1,7 @@
 import 'package:face_time_keeping/common/api_client/data_state.dart';
 import 'package:face_time_keeping/common/enums/request_status.dart';
+import 'package:face_time_keeping/common/event/event_bus_event.dart';
+import 'package:face_time_keeping/common/event/event_bus_mixin.dart';
 import 'package:face_time_keeping/data/remote/course_service.dart';
 import 'package:face_time_keeping/entities/course.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -7,16 +9,27 @@ import 'package:injectable/injectable.dart';
 
 import 'course_state.dart';
 
-@injectable
-class CourseBloc extends Cubit<CourseState> {
-  CourseBloc(this._courseService) : super(CourseState());
+@lazySingleton
+class CourseBloc extends Cubit<CourseState> with EventBusMixin {
+  CourseBloc(this._courseService) : super(CourseState()) {
+    listenEvent<CourseChangeEvent>((event) {
+      loadCourses(
+        departmentId: _lastDepartmentId,
+        mine: _lastMine,
+      );
+    });
+  }
 
   final CourseService _courseService;
+  String? _lastDepartmentId;
+  bool _lastMine = false;
 
   Future<void> loadCourses({
     String? departmentId,
     bool mine = false,
   }) async {
+    _lastDepartmentId = departmentId;
+    _lastMine = mine;
     emit(state.copyWith(requestStatus: RequestStatus.requesting));
     final result = await _courseService.getCourses(
       departmentId: departmentId,
@@ -83,6 +96,7 @@ class CourseBloc extends Cubit<CourseState> {
         message: 'Success',
       ));
       await loadCourses();
+      shareEvent(CourseChangeEvent());
     } else {
       emit(state.copyWith(
         requestStatus: RequestStatus.failed,
@@ -125,6 +139,7 @@ class CourseBloc extends Cubit<CourseState> {
         message: 'Success',
       ));
       await loadCourses();
+      shareEvent(CourseChangeEvent());
     } else {
       emit(state.copyWith(
         requestStatus: RequestStatus.failed,
@@ -207,6 +222,7 @@ class CourseBloc extends Cubit<CourseState> {
     if (result.isSuccess) {
       emit(state.copyWith(requestStatus: RequestStatus.success));
       await loadCourses();
+      shareEvent(CourseChangeEvent());
     } else {
       emit(state.copyWith(
         requestStatus: RequestStatus.failed,

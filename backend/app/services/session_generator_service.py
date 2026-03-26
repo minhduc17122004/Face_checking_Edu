@@ -46,62 +46,61 @@ class SessionGeneratorService:
 
         created: list[Session] = []
 
-        # All session creation in a single transaction — atomic batch
-        async with self.db.begin():
-            for schedule in schedules:
-                course_result = await self.db.execute(
-                    select(Course).where(
-                        and_(
-                            Course.id == schedule.course_id,
-                            Course.deleted_at.is_(None),
-                        )
+        # Use the already active transaction from get_db dependency
+        for schedule in schedules:
+            course_result = await self.db.execute(
+                select(Course).where(
+                    and_(
+                        Course.id == schedule.course_id,
+                        Course.deleted_at.is_(None),
                     )
                 )
-                course = course_result.scalar_one_or_none()
-                if not course:
-                    continue
+            )
+            course = course_result.scalar_one_or_none()
+            if not course:
+                continue
 
-                slot_result = await self.db.execute(
-                    select(TimeSlot).where(TimeSlot.id == schedule.time_slot_id)
-                )
-                time_slot = slot_result.scalar_one_or_none()
-                if not time_slot:
-                    continue
+            slot_result = await self.db.execute(
+                select(TimeSlot).where(TimeSlot.id == schedule.time_slot_id)
+            )
+            time_slot = slot_result.scalar_one_or_none()
+            if not time_slot:
+                continue
 
-                existing_result = await self.db.execute(
-                    select(Session).where(
-                        and_(
-                            Session.schedule_id == schedule.id,
-                            Session.session_date == target_date,
-                            Session.deleted_at.is_(None),
-                        )
+            existing_result = await self.db.execute(
+                select(Session).where(
+                    and_(
+                        Session.schedule_id == schedule.id,
+                        Session.session_date == target_date,
+                        Session.deleted_at.is_(None),
                     )
                 )
-                if existing_result.scalar_one_or_none():
-                    continue
+            )
+            if existing_result.scalar_one_or_none():
+                continue
 
-                session_start = self._combine_date_time(target_date, time_slot.start_time)
-                session_end = self._combine_date_time(target_date, time_slot.end_time)
+            session_start = self._combine_date_time(target_date, time_slot.start_time)
+            session_end = self._combine_date_time(target_date, time_slot.end_time)
 
-                checkin_window_start, checkin_window_end = self._compute_checkin_window(
-                    course, session_start, session_end
-                )
+            checkin_window_start, checkin_window_end = self._compute_checkin_window(
+                course, session_start, session_end
+            )
 
-                session = Session(
-                    course_id=course.id,
-                    schedule_id=schedule.id,
-                    session_date=target_date,
-                    start_time=session_start,
-                    end_time=session_end,
-                    checkin_window_start=checkin_window_start,
-                    checkin_window_end=checkin_window_end,
-                    status="scheduled",
-                )
-                self.db.add(session)
-                created.append(session)
+            session = Session(
+                course_id=course.id,
+                schedule_id=schedule.id,
+                session_date=target_date,
+                start_time=session_start,
+                end_time=session_end,
+                checkin_window_start=checkin_window_start,
+                checkin_window_end=checkin_window_end,
+                status="scheduled",
+            )
+            self.db.add(session)
+            created.append(session)
 
-            if created:
-                await self.db.flush()
+        if created:
+            await self.db.flush()
 
         return created
 

@@ -101,6 +101,8 @@ async def register_device(
         device_code=req.device_code,
         room_id=req.room_id,
         is_active=req.is_active,
+        is_global=req.is_global,
+        status="ACTIVE",
         device_type=req.device_type,
         ip_address=req.ip_address,
     )
@@ -141,6 +143,10 @@ async def update_device(
         device.room_id = req.room_id
     if req.is_active is not None:
         device.is_active = req.is_active
+    if req.is_global is not None:
+        device.is_global = req.is_global
+    if req.status is not None:
+        device.status = req.status
     if req.device_type is not None:
         device.device_type = req.device_type
     if req.ip_address is not None:

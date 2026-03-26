@@ -19,9 +19,12 @@ from app.models.session import Session  # noqa: F401
 from app.models.attendance import Attendance  # noqa: F401
 from app.models.department import Department  # noqa: F401
 from app.models.device import Device  # noqa: F401
+from app.models.device_request import DeviceRequest  # noqa: F401
 from app.models.room import Room  # noqa: F401
 from app.models.face_embedding import FaceEmbedding  # noqa: F401
 from app.models.refresh_token import RefreshToken  # noqa: F401
+from app.models.attendance_config import AttendanceConfig  # noqa: F401
+from app.models.attendance_audit_log import AttendanceAuditLog  # noqa: F401
 
 __all__ = [
     # Base
@@ -31,10 +34,13 @@ __all__ = [
     "AuditMixin",
     # Models - Alphabetically sorted
     "Attendance",
+    "AttendanceAuditLog",
+    "AttendanceConfig",
     "Course",
     "CourseEnrollment",
     "Department",
     "Device",
+    "DeviceRequest",
     "FaceEmbedding",
     "RefreshToken",
     "Room",

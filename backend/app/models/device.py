@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from app.models.attendance import Attendance
     from app.models.face_embedding import FaceEmbedding
     from app.models.room import Room
+    from app.models.device_request import DeviceRequest
 
 
 class Device(Base):
@@ -51,6 +52,13 @@ class Device(Base):
         String(50), default="tablet", nullable=False
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    # Phase 9: global access flag + explicit status
+    # is_global=true → device can attend in any room
+    # is_global=false → device is scoped to room_id
+    is_global: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Status: ACTIVE, INACTIVE (soft-disable by admin)
+    status: Mapped[str] = mapped_column(String(20), default="ACTIVE", nullable=False)
 
     # Network information
     ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)

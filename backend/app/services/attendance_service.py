@@ -13,7 +13,15 @@ from app.models.student import Student
 from app.repositories.attendance_repository import AttendanceRepository
 from app.repositories.student_repository import StudentRepository
 from app.repositories.session_repository import SessionRepository
+from app.repositories.course_enrollment_repository import CourseEnrollmentRepository
 from app.schemas.v1.attendance import CheckinRequest, CheckinResponse
+from app.schemas.v1.attendance_checkin import (
+    ManualCheckinRequest,
+    ManualCheckinResponse,
+    AttendanceRecordResponse,
+    AttendanceCheckinList,
+    AttendanceSummaryResponse,
+)
 from app.schemas.attendance_new_schema import (
     AttendanceCreate,
     AttendanceOut,
@@ -24,6 +32,8 @@ from app.schemas.attendance_new_schema import (
 from app.services.anti_cheat_service import AntiCheatService
 from app.services.audit_service import AuditService
 from app.services.attendance_validator import AttendanceValidator
+from app.services.attendance_config_service import AttendanceConfigService
+from app.services.device_authorization_service import DeviceAuthorizationService
 from app.core.distributed_lock import checkin_lock, LockAcquisitionError
 
 
@@ -40,9 +50,190 @@ class AttendanceService:
         self.repo = AttendanceRepository(db)
         self.student_repo = StudentRepository(db)
         self.session_repo = SessionRepository(db)
+        self.enrollment_repo = CourseEnrollmentRepository(db)
         self.anti_cheat = AntiCheatService(db)
         self.validator = AttendanceValidator(db)
-        self.audit = AuditService()
+        self.audit = AuditService(db)
+        self.config_svc = AttendanceConfigService(db)
+        self.device_auth = DeviceAuthorizationService(db)
+
+    # ── Phase 9: Time Window Validation ─────────────────────────────────────
+    async def _validate_checkin_window(
+        self,
+        session_id: uuid.UUID,
+        checkin_time: datetime,
+    ) -> tuple[bool, str]:
+        """Check if check-in is within the effective time window.
+
+        Phase 9: Uses AttendanceConfig for early/late allowance if available,
+        otherwise falls back to session's checkin_window_start/end.
+        """
+        session = await self.session_repo.get_by_id(session_id)
+        if not session:
+            return False, "Session not found"
+
+        if session.status != "active":
+            return False, f"Session is not active (status: {session.status})"
+
+        # flexible mode: no window restriction
+        if session.attendance_mode == "flexible":
+            return True, "OK"
+
+        # Get effective window from config or session
+        if session.attendance_config:
+            early_min = session.attendance_config.early_allowance
+            late_min = session.attendance_config.late_allowance
+        else:
+            early_min = 15
+            late_min = 15
+
+        effective_start = session.start_time - timedelta(minutes=early_min)
+        effective_end = session.end_time + timedelta(minutes=late_min) if session.end_time else None
+
+        if checkin_time < effective_start:
+            return False, f"Too early — allowed from {effective_start.isoformat()}"
+        if effective_end and checkin_time > effective_end:
+            return False, f"Too late — window closed at {effective_end.isoformat()}"
+
+        return True, "OK"
+
+    # ── Phase 9: Manual Check-in ─────────────────────────────────────────────
+    async def manual_checkin(
+        self, req: ManualCheckinRequest
+    ) -> ManualCheckinResponse:
+        """POST /api/v1/attendance/check-in — device/admin manual check-in.
+
+        Wrapped with distributed lock to prevent race conditions.
+        """
+        now = datetime.now(timezone.utc)
+        checkin_time = req.checkin_time or now
+
+        try:
+            async with checkin_lock(req.session_id, req.student_id):
+                # Delegate to create_attendance for full validation pipeline
+                # skip_audit=True because we write our own "manual" audit record
+                record = await self.create_attendance(
+                    session_id=req.session_id,
+                    student_id=req.student_id,
+                    checkin_time=checkin_time,
+                    status=req.status,
+                    device_id=req.device_id,
+                    skip_audit=True,
+                )
+                # Log manual check-in separately with "manual" action
+                session_ref = await self.session_repo.get_by_id(req.session_id)
+                mins_diff = None
+                if session_ref and record.checkin_time:
+                    mins_diff = int((record.checkin_time - session_ref.start_time).total_seconds() / 60)
+                await self.audit.write_attendance_audit(
+                    student_id=req.student_id,
+                    session_id=req.session_id,
+                    action="manual",
+                    new_status=record.status,
+                    old_status=None,
+                    device_id=req.device_id,
+                    minutes_diff=mins_diff,
+                )
+        except LockAcquisitionError:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many requests for this student. Please try again.",
+            )
+
+        # Get session for response
+        session = await self.session_repo.get_by_id(req.session_id)
+        minutes_diff = None
+        if session and record.checkin_time:
+            delta = record.checkin_time - session.start_time
+            minutes_diff = int(delta.total_seconds() / 60)
+
+        return ManualCheckinResponse(
+            attendance_id=record.id,
+            student_id=record.student_id,
+            session_id=record.session_id,
+            status=record.status,
+            checkin_time=record.checkin_time,
+            minutes_diff=minutes_diff,
+            message=f"Check-in recorded as '{record.status}'.",
+        )
+
+    # ── Phase 9: Session Check-in Records ─────────────────────────────────────
+    async def get_session_checkins(
+        self, session_id: uuid.UUID, skip: int = 0, limit: int = 1000
+    ) -> AttendanceCheckinList:
+        """GET /api/v1/attendance/session/{id}/checkins — attendance records with student info."""
+        # JOIN query: attendance + student
+        from sqlalchemy import select
+        from app.models.student import Student
+        stmt = (
+            select(Attendance, Student)
+            .join(Student, Attendance.student_id == Student.id)
+            .where(
+                Attendance.session_id == session_id,
+                Attendance.deleted_at.is_(None),
+            )
+            .offset(skip)
+            .limit(limit)
+            .order_by(Attendance.checkin_time.asc())
+        )
+        result = await self.db.execute(stmt)
+        rows = result.all()
+        return AttendanceCheckinList(
+            total=len(rows),
+            items=[
+                AttendanceRecordResponse(
+                    id=att.id,
+                    student_id=att.student_id,
+                    student_name=student.name if student else None,
+                    student_code=student.student_code if student else None,
+                    checkin_time=att.checkin_time,
+                    status=att.status,
+                    minutes_diff=att.minutes_diff,
+                    device_id=att.device_id,
+                )
+                for att, student in rows
+            ],
+        )
+
+    # ── Phase 9: Enhanced Session Summary ────────────────────────────────────
+    async def get_enhanced_summary(
+        self, session_id: uuid.UUID
+    ) -> AttendanceSummaryResponse:
+        """GET /api/v1/attendance/session/{id}/summary — enhanced summary."""
+        session = await self.session_repo.get_by_id(session_id)
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Session {session_id} not found.",
+            )
+
+        course_name = session.course.course_name if session.course else "Unknown"
+        total = await self.repo.count_by_session(session_id)
+        early = await self.repo.count_by_status(session_id, "early")
+        on_time = await self.repo.count_by_status(session_id, "on_time")
+        present = await self.repo.count_by_status(session_id, "present")
+        late = await self.repo.count_by_status(session_id, "late")
+        # Legacy "present" records count as on_time for display purposes
+        on_time += present
+        total_checked_in = early + on_time + late
+        absent = max(0, total - total_checked_in)
+
+        # Get total enrolled
+        enrollments = await self.enrollment_repo.get_by_course(session.course_id)
+        total_enrolled = len(enrollments)
+
+        return AttendanceSummaryResponse(
+            session_id=session_id,
+            course_name=course_name,
+            total_enrolled=total_enrolled,
+            total_checked_in=total_checked_in,
+            present=on_time,   # "present" field = on_time count (legacy compat)
+            early=early,
+            on_time=on_time,
+            late=late,
+            absent=absent,
+            attendance_rate=round(total_checked_in / total_enrolled * 100, 1) if total_enrolled > 0 else 0.0,
+        )
 
     # ── Session lifecycle ─────────────────────────────────────────────────────
     async def _ensure_session_active(self, session_id: uuid.UUID) -> None:
@@ -84,6 +275,8 @@ class AttendanceService:
         confidence: float | None = None,
         device_id: uuid.UUID | None = None,
         sync_time: datetime | None = None,
+        minutes_diff: int | None = None,
+        skip_audit: bool = False,
     ) -> AttendanceOut: ...
 
     async def create_attendance(  # type: ignore[overload]
@@ -100,9 +293,14 @@ class AttendanceService:
         2. Session exists and is active
         3. Student exists
         4. Student enrolled in course
-        5. Device belongs to session's course
-        6. Check-in is within allowed time window (respects attendance_mode)
+        5. Device is authorized via DeviceAuthorizationService (Phase 9)
+        6. Check-in is within allowed time window (respects attendance_mode + Phase 9 config)
         7. No duplicate attendance — idempotent: returns existing record
+
+        Phase 9 enhancements:
+        - minutes_diff: signed diff from start_time in minutes
+        - status: auto-detected as early / on_time / late
+        - DB-backed audit log via AttendanceAuditLog table
         """
         # Normalize arguments
         if req is not None:
@@ -113,6 +311,8 @@ class AttendanceService:
             confidence = req.confidence
             device_id = req.device_id
             sync_time = req.sync_time
+            minutes_diff = None
+            skip_audit = False
         else:
             session_id = kwargs["session_id"]
             student_id = kwargs["student_id"]
@@ -121,6 +321,8 @@ class AttendanceService:
             confidence = kwargs.get("confidence")
             device_id = kwargs.get("device_id")
             sync_time = kwargs.get("sync_time")
+            minutes_diff = kwargs.get("minutes_diff")
+            skip_audit = kwargs.get("skip_audit", False)
 
         # 0. Auto-transition session status
         await self._ensure_session_active(session_id)
@@ -130,7 +332,7 @@ class AttendanceService:
         if not ok:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
 
-        # Get session for late detection
+        # Get session for late detection and room_id
         session = await self.session_repo.get_by_id(session_id)
 
         # 2. Validate student
@@ -151,22 +353,18 @@ class AttendanceService:
                 detail=f"Enrollment validation failed: {msg}",
             )
 
-        # 4. Validate device (if provided)
+        # 4. Validate device authorization (Phase 9: use DeviceAuthorizationService)
         if device_id:
-            ok, msg = await self.anti_cheat.validate_device_for_session(
-                device_id, session_id
-            )
+            ok, msg = await self.device_auth.check_device_access(device_id, session_id)
             if not ok:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Device validation failed: {msg}",
+                    detail=f"Device authorization failed: {msg}",
                 )
             await self.anti_cheat.update_device_last_active(device_id)
 
-        # 5. Validate check-in window (respects attendance_mode)
-        ok, msg = await self.anti_cheat.validate_checkin_window(
-            session_id, checkin_time
-        )
+        # 5. Validate check-in window (Phase 9: uses AttendanceConfig)
+        ok, msg = await self._validate_checkin_window(session_id, checkin_time)
         if not ok:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -178,11 +376,18 @@ class AttendanceService:
         if existing:
             return AttendanceOut.model_validate(existing)
 
-        # Auto-detect late status
+        # Phase 9: Calculate minutes_diff and auto-detect status
+        calculated_minutes_diff = minutes_diff
         auto_status = attendance_status
-        if session and session.effective_checkin_window_end:
-            late_threshold = session.start_time + timedelta(minutes=15)
-            if checkin_time > late_threshold:
+        if session:
+            delta = checkin_time - session.start_time
+            calculated_minutes_diff = int(delta.total_seconds() / 60)
+            # Phase 9: early / on_time / late based on minutes difference
+            if calculated_minutes_diff < 0:
+                auto_status = "early"
+            elif calculated_minutes_diff == 0:
+                auto_status = "on_time"
+            else:
                 auto_status = "late"
 
         # Create record
@@ -194,6 +399,7 @@ class AttendanceService:
             status=auto_status,
             confidence=confidence,
             device_id=device_id,
+            minutes_diff=calculated_minutes_diff,
         )
         self.audit.log_attendance_created(
             attendance_id=record.id,
@@ -201,7 +407,18 @@ class AttendanceService:
             session_id=session_id,
             device_id=device_id,
             status=auto_status,
+            minutes_diff=calculated_minutes_diff,
         )
+        if not skip_audit:
+            await self.audit.write_attendance_audit(
+                student_id=student_id,
+                session_id=session_id,
+                action="checkin",
+                new_status=auto_status,
+                old_status=None,
+                device_id=device_id,
+                minutes_diff=calculated_minutes_diff,
+            )
         await self.db.commit()
         return AttendanceOut.model_validate(record)
 
@@ -319,13 +536,118 @@ class AttendanceService:
             items=[AttendanceOut.model_validate(r) for r in records],
         )
 
-    async def get_history(self, skip: int = 0, limit: int = 200) -> AttendanceList:
-        records = await self.repo.get_all(skip=skip, limit=limit)
-        total = await self.repo.count()
-        return AttendanceList(
-            total=total,
-            items=[AttendanceOut.model_validate(r) for r in records],
-        )
+    async def get_role_based_history(
+        self,
+        role: str,
+        user_id: str,
+        course_id: uuid.UUID | None = None,
+        skip: int = 0,
+        limit: int = 50,
+    ):
+        """GET /api/v1/attendance/history — role-based attendance history.
+
+        - admin: all records (optionally filtered by course_id)
+        - teacher: records from courses owned by the teacher
+        - student: only the student's own records
+        """
+        try:
+            from sqlalchemy import select, func
+            from app.models.session import Session as SessionModel
+            from app.models.course import Course as CourseModel
+            from app.models.room import Room as RoomModel
+            from app.models.student import Student as StudentModel
+            from app.models.user import User as UserModel
+            from app.schemas.v1.attendance_checkin import (
+                AttendanceHistoryItem,
+                AttendanceHistoryList,
+            )
+            from sqlalchemy.orm import selectinload
+
+            # Base query with JOINs
+            # Room is associated with Course (Phase 9), not directly with Session
+            base_stmt = (
+                select(Attendance, StudentModel, SessionModel, CourseModel, RoomModel, UserModel)
+                .join(StudentModel, Attendance.student_id == StudentModel.id)
+                .join(UserModel, StudentModel.user_id == UserModel.id)
+                .join(SessionModel, Attendance.session_id == SessionModel.id)
+                .join(CourseModel, SessionModel.course_id == CourseModel.id)
+                .outerjoin(RoomModel, CourseModel.room_id == RoomModel.id)
+                .where(Attendance.deleted_at.is_(None))
+            )
+
+            # Optional: ensure user_id is a UUID object
+            if isinstance(user_id, str):
+                user_uuid = uuid.UUID(user_id)
+            else:
+                user_uuid = user_id
+
+            # Role-based filtering
+            if role == "student":
+                # Get student profile for this user
+                user_res = await self.db.execute(
+                    select(UserModel)
+                    .options(selectinload(UserModel.student_profile))
+                    .where(UserModel.id == user_uuid)
+                )
+                user_obj = user_res.scalar_one_or_none()
+                if not user_obj or not user_obj.student_profile:
+                    return AttendanceHistoryList(total=0, items=[])
+                student_id = user_obj.student_profile.id
+                base_stmt = base_stmt.where(Attendance.student_id == student_id)
+            elif role == "teacher":
+                # Get teacher profile for this user
+                user_res = await self.db.execute(
+                    select(UserModel)
+                    .options(selectinload(UserModel.teacher_profile))
+                    .where(UserModel.id == user_uuid)
+                )
+                user_obj = user_res.scalar_one_or_none()
+                if not user_obj or not user_obj.teacher_profile:
+                    return AttendanceHistoryList(total=0, items=[])
+                teacher_id = user_obj.teacher_profile.id
+                base_stmt = base_stmt.where(CourseModel.teacher_id == teacher_id)
+            # admin: no additional filter
+
+            # Optional course filter
+            if course_id:
+                base_stmt = base_stmt.where(CourseModel.id == course_id)
+
+            # Count
+            count_stmt = select(func.count(Attendance.id)).select_from(base_stmt.subquery())
+            count_result = await self.db.execute(count_stmt)
+            total = count_result.scalar_one()
+
+            # Paginated data
+            data_stmt = (
+                base_stmt
+                .order_by(Attendance.checkin_time.desc())
+                .offset(skip)
+                .limit(limit)
+            )
+            result = await self.db.execute(data_stmt)
+            rows = result.all()
+
+            items = []
+            for att, student, session, course, room, user_item in rows:
+                items.append(AttendanceHistoryItem(
+                    id=att.id,
+                    student_id=att.student_id,
+                    student_name=user_item.full_name if user_item else None,
+                    student_code=student.student_code if student else None,
+                    session_id=att.session_id,
+                    session_date=session.start_time if session else None,
+                    course_name=course.course_name if course else None,
+                    course_id=course.id if course else None,
+                    room_name=room.name if room else None,
+                    checkin_time=att.checkin_time,
+                    status=att.status,
+                    minutes_diff=att.minutes_diff,
+                ))
+
+            return AttendanceHistoryList(total=total, items=items)
+        except Exception as e:
+            # Fallback to base exception to ensure 500 contains some info
+            raise e
 
     # ── Summary ────────────────────────────────────────────────────────────────
     async def get_session_summary(self, session_id: uuid.UUID) -> AttendanceSummary:
@@ -359,4 +681,10 @@ class AttendanceService:
                 detail=f"Attendance {attendance_id} not found.",
             )
         self.audit.log_attendance_deleted(attendance_id=attendance_id, deleted_by=deleted_by)
+        await self.audit.write_attendance_audit(
+            student_id=record.student_id,
+            session_id=record.session_id,
+            action="delete",
+            old_status=record.status,
+        )
         await self.repo.soft_delete(record)

@@ -6,6 +6,7 @@ class SharedPrefsKey {
   static const String userEmail = 'userEmail';
   static const String userFullName = 'userFullName';
   static const String devices = 'devices';
+  static const String deviceCode = 'deviceCode';
   static const String logs = 'logs';
   static const String domain = 'domain';
   static const String recentDomains = 'recentDomains';

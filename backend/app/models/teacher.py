@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 import uuid
 from datetime import datetime, timezone
 
@@ -12,6 +12,7 @@ from app.core.database import Base
 if TYPE_CHECKING:
     from app.models.user import User
     from app.models.department import Department
+    from app.models.course import Course
 
 
 class Teacher(Base):
@@ -68,7 +69,7 @@ class Teacher(Base):
         "Department",
         back_populates="teachers",
     )
-    courses: Mapped[list["Course"]] = relationship(
+    courses: Mapped[List["Course"]] = relationship(
         "Course",
         back_populates="teacher",
     )

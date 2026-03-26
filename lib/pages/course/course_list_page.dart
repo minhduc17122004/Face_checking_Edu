@@ -86,7 +86,8 @@ class _CourseListViewState extends State<_CourseListView>
       floatingActionButton: _isAdmin
           ? FloatingActionButton(
               onPressed: () async {
-                final result = await AppNavigator.pushNamed(RouterName.courseForm);
+                final result =
+                    await AppNavigator.pushNamed(RouterName.courseForm);
                 if (result == true && context.mounted) {
                   widget.courseBloc.loadCourses(mine: !_isAdmin);
                 }
@@ -192,7 +193,8 @@ class _CourseListViewState extends State<_CourseListView>
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Xác nhận xóa'),
-        content: Text('Bạn có chắc chắn muốn xóa học phần "${course.courseName}"?'),
+        content:
+            Text('Bạn có chắc chắn muốn xóa học phần "${course.courseName}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),

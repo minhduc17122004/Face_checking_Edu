@@ -1,0 +1,203 @@
+# EDU Checking Flow — Implementation Plan (Revised - Hybrid Architecture)
+
+## Strategy
+
+> **Online-first with offline fallback queue**
+> - Backend = single source of truth (late detection, session mapping, validation)
+> - Hive = temporary offline buffer with retry mechanism
+> - Client sends only: `studentId + timestamp` — backend decides everything
+
+---
+
+## Proposed Changes
+
+### 1. Entity Layer
+
+#### [NEW] [edu_check_in.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/entities/edu_check_in.dart)
+
+UI display model for check-in result:
+
+```dart
+class EduCheckIn {
+  final String studentName;
+  final int studentId;
+  final DateTime checkinTime;
+  final String status;       // 'early', 'on_time', 'late', 'present'
+  final int? minutesDiff;
+  final String message;
+  final String? imagePath;
+}
+```
+
+#### [NEW] [pending_edu_check_in.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/entities/pending_edu_check_in.dart)
+
+Offline queue buffer entity (Hive):
+
+```dart
+@HiveType(typeId: 10)
+class PendingEduCheckIn extends HiveObject {
+  @HiveField(0) String localId;        // UUID
+  @HiveField(1) int studentId;
+  @HiveField(2) String? sessionId;     // nullable when offline
+  @HiveField(3) DateTime timestamp;
+  @HiveField(4) String? imagePath;
+  @HiveField(5) bool isSynced;
+  @HiveField(6) int retryCount;
+  @HiveField(7) double? latitude;
+  @HiveField(8) double? longitude;
+  @HiveField(9) String? studentName;
+}
+```
+
+> [!NOTE]
+> `typeId: 10` — must not conflict with existing Hive types (0=CheckInOut, 2=Person, 6=Tenant). Need to register adapter in [callbackDispatcher()](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/common/utils/sync_jobs_util.dart#43-193).
+
+---
+
+### 2. Storage Layer (Hive + LocalService)
+
+#### [MODIFY] [hive_service.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/data/local/hive_service.dart)
+
+Add new box `pending_edu_checkin_box-{tenantId}` and methods:
+
+```dart
+// New abstract methods:
+Future<int> savePendingEduCheckIn(PendingEduCheckIn item);
+Future<List<PendingEduCheckIn>> getPendingEduCheckIns();
+Future<void> markEduCheckInSynced(String localId);
+Future<void> increaseEduRetryCount(String localId);
+Future<void> clearPendingEduCheckIns();
+```
+
+#### [MODIFY] [local_service.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/data/local/local_service.dart)
+
+Add proxy methods calling HiveService for pending EDU check-ins.
+
+---
+
+### 3. BLoC Layer
+
+#### [NEW] [edu_checking_state.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/edu_checking/bloc/edu_checking_state.dart)
+
+```dart
+class EduCheckingState {
+  RequestStatus faceStatus;
+  RequestStatus checkinStatus;
+  String? errorMessage;
+  EduCheckIn? lastCheckIn;
+  bool isAllowCapture;
+  bool isOfflineMode;
+  bool hasPendingSync;
+  List<AttendanceRecordUI> sessionRecords;
+  AttendanceCheckinSummary? summary;
+}
+```
+
+#### [NEW] [edu_checking_bloc.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/edu_checking/bloc/edu_checking_bloc.dart)
+
+**Core hybrid flow:**
+
+```
+Face → Try API
+        ├── SUCCESS → emit result
+        └── FAIL (network)
+              ↓
+        Save PendingEduCheckIn (Hive)
+              ↓
+        Emit "Đã lưu, sẽ đồng bộ sau"
+```
+
+Methods:
+- [init(sessionId)](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/checking/bloc/checking_bloc.dart#56-72) → load session checkins + summary, start polling
+- [verify(XFile, sessionId)](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/checking/bloc/checking_bloc.dart#79-128) → face recognition → try API → fallback to Hive
+- `syncPendingCheckIns()` → retry pending items
+- Polling timer (5s) to refresh records
+
+Dependencies: [AttendanceCheckinService](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/data/remote/attendance_checkin_service.dart#83-98), [LocalService](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/data/local/local_service.dart#39-123), `AppBloc`
+
+---
+
+### 4. Background Sync
+
+#### [MODIFY] [sync_jobs_util.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/common/utils/sync_jobs_util.dart)
+
+Add new Workmanager task `sync-edu-checkin-periodic`:
+
+```
+Get pending list → Call API (manualCheckin)
+  → SUCCESS → markSynced
+  → FAIL → retryCount++
+```
+
+Register `PendingEduCheckInAdapter` in [callbackDispatcher()](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/common/utils/sync_jobs_util.dart#43-193).
+
+---
+
+### 5. Page + Widget Layer
+
+#### [NEW] [edu_checking_page.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/edu_checking/edu_checking_page.dart)
+
+- Args: `EduCheckingArgs { RoomSession session }`
+- Camera + face detection (reuses `FaceDetectorView`)
+- Session header (course name, date, time)
+- Result panel with 3 states: ✅ Success, ⏳ Pending (offline), ❌ Failed
+- Live summary card (early/on-time/late/absent)
+
+#### [NEW] [edu_check_in_result_widget.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/edu_checking/widgets/edu_check_in_result_widget.dart)
+
+Result card with status icon, student name, time, message. Handles both online and offline states.
+
+---
+
+### 6. Route Registration
+
+#### [MODIFY] [app_route.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/route/app_route.dart)
+
+Add `static const String eduChecking = '/edu-checking';` + routing case.
+
+---
+
+### 7. DI & Build
+
+- `EduCheckingBloc` → `@Injectable()` annotation
+- After creating files: `flutter packages pub run build_runner build --delete-conflicting-outputs`
+
+---
+
+## UX
+
+| Case | UI |
+|---|---|
+| Online success | Normal result card (name, status, time) |
+| Offline fallback | "Đã lưu, sẽ đồng bộ sau" with ⏳ icon |
+| Background sync success | Silent |
+| Background sync fail | Optional retry indicator |
+
+---
+
+## Key Design Decisions
+
+| Aspect | HRM Checking (old) | EDU Checking (new) |
+|---|---|---|
+| Storage | Offline-first (Hive) | Hybrid (API + Hive fallback) |
+| Sync | Background Workmanager | Direct API + Workmanager retry |
+| Session logic | Shift-based (client) | Session-based (backend) |
+| Late detection | Client-side | Backend only |
+| Face recognition | FaceNative (offline) | Same |
+| Offline support | Full | Queue-based fallback |
+
+---
+
+## Verification
+
+### Automated
+```
+cd c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping
+flutter analyze
+```
+
+### Manual
+1. Room → Session → "Điểm danh EDU" → Camera opens
+2. Face recognized → check-in result (early/on_time/late)
+3. Disable network → face recognized → "Đã lưu, sẽ đồng bộ sau"
+4. Re-enable network → pending items sync automatically

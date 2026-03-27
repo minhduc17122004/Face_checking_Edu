@@ -227,8 +227,8 @@ class CourseService:
             department_id=req.department_id,
             room_id=req.room_id,
             attendance_mode=req.attendance_mode,
-            attendance_before_minutes=req.attendance_before_minutes,
-            attendance_after_minutes=req.attendance_after_minutes,
+            custom_window_start_minutes=req.custom_window_start_minutes,
+            custom_window_end_minutes=req.custom_window_end_minutes,
         )
 
         # ── Phase 10: Automatic Schedule creation ───────────────────────────
@@ -423,12 +423,12 @@ class CourseService:
             department_id=req.department_id,
             room_id=req.room_id,
             attendance_mode=req.attendance_mode,
-            attendance_before_minutes=req.attendance_before_minutes,
-            attendance_after_minutes=req.attendance_after_minutes,
+            custom_window_start_minutes=req.custom_window_start_minutes,
+            custom_window_end_minutes=req.custom_window_end_minutes,
         )
 
         # ── Update checkin windows for existing sessions if attendance config changed ──
-        if req.attendance_mode is not None or req.attendance_before_minutes is not None or req.attendance_after_minutes is not None:
+        if req.attendance_mode is not None or req.custom_window_start_minutes is not None or req.custom_window_end_minutes is not None:
             from app.models.session import Session
             from sqlalchemy import select
             from datetime import timedelta
@@ -442,12 +442,12 @@ class CourseService:
             )
             for session in sessions_to_update.scalars():
                 mode = getattr(course, "attendance_mode", "preset") or "preset"
-                before = getattr(course, "attendance_before_minutes", 0) or 0
-                after = getattr(course, "attendance_after_minutes", 30) or 30
+                start_min = getattr(course, "custom_window_start_minutes", 0) or 0
+                end_min = getattr(course, "custom_window_end_minutes", 30) or 30
 
                 if mode == "custom" and session.start_time and session.end_time:
-                    window_start = session.start_time + timedelta(minutes=before)
-                    window_end = window_start + timedelta(minutes=after)
+                    window_start = session.start_time + timedelta(minutes=start_min)
+                    window_end = session.start_time + timedelta(minutes=end_min)
                     if window_end > session.end_time:
                         window_end = session.end_time
                     session.checkin_window_start = window_start

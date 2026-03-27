@@ -33,6 +33,7 @@ class CheckingBloc extends Cubit<CheckingState> {
 
   /// The start time of the current session (used for late detection)
   DateTime? sessionStartTime;
+  String? sessionId;
 
   final LocalService _localService;
   static AudioPlayer player = AudioPlayer();
@@ -170,6 +171,7 @@ class CheckingBloc extends Cubit<CheckingState> {
       final Map<String, dynamic> result = await _localService.checkIn(
         checkIn,
         sessionStartTime: sessionStartTime,
+        sessionId: sessionId,
       );
       if (result['errorMessage'] != null) {
         emit(state.copyWith(

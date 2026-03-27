@@ -54,7 +54,7 @@ abstract class LocalService {
   void saveRecentDomain(String? domain);
   Future<void> clearServerRelatedData();
   Future<void> initApp();
-  Future<Map<String, dynamic>> checkIn(CheckInOut checkIn, {DateTime? sessionStartTime});
+  Future<Map<String, dynamic>> checkIn(CheckInOut checkIn, {DateTime? sessionStartTime, String? sessionId});
   Future<Map<String, dynamic>> checkOut(CheckOut checkOut, Position location);
   Future<void> saveShiftTimes({
     required TimeOfDay morningStart,
@@ -781,7 +781,7 @@ class LocalServiceImplement with EventBusMixin implements LocalService {
   }
 
   @override
-  Future<Map<String, dynamic>> checkIn(CheckInOut checkIn, {DateTime? sessionStartTime}) async {
+  Future<Map<String, dynamic>> checkIn(CheckInOut checkIn, {DateTime? sessionStartTime, String? sessionId}) async {
     // null is false, int is minutes late
     try {
       final activeRoomId = await _getActiveRoomIdSafely();
@@ -789,10 +789,20 @@ class LocalServiceImplement with EventBusMixin implements LocalService {
           (checkIn.roomId != null && checkIn.roomId!.trim().isNotEmpty)
               ? checkIn.roomId!.trim()
               : activeRoomId;
+      final minutesLate = _isLate(checkIn, sessionStartTime: sessionStartTime);
+      final status = minutesLate > 0 ? "late" : "on_time";
+
       final checkInToSave =
           (normalizedRoomId != null && normalizedRoomId.isNotEmpty)
-              ? checkIn.copyWith(roomId: normalizedRoomId)
-              : checkIn;
+              ? checkIn.copyWith(
+                  roomId: normalizedRoomId,
+                  minutesLate: minutesLate,
+                  status: status,
+                )
+              : checkIn.copyWith(
+                  minutesLate: minutesLate,
+                  status: status,
+                );
 
       await _hiveService.saveCheckInOut(checkInToSave);
       
@@ -806,19 +816,20 @@ class LocalServiceImplement with EventBusMixin implements LocalService {
       final pendingEdu = PendingEduCheckIn(
         localId: localId,
         studentId: checkInToSave.studentId,
-        sessionId: null, // Auto-resolved by backend using roomId + timestamp
+        sessionId: sessionId, // Auto-resolved by backend using roomId + timestamp if null
         roomId: checkInToSave.roomId,
         timestamp: checkInToSave.time,
         deviceId: deviceCode,
         serverUserId: studentPerson?.serverUserId,
         pin: studentPerson?.pin ?? checkInToSave.pin,
+        minutesLate: minutesLate,
+        status: status,
       );
       
       await savePendingEduCheckIn(pendingEdu);
       await pushLog('Saved PendingEduCheckIn to local queue: localId=$localId, studentId=${pendingEdu.studentId}, room=${pendingEdu.roomId}, pin=${pendingEdu.pin}, serverUserId=${pendingEdu.serverUserId}');
 
       shareEvent(AttendanceChangeEvent());
-      final minutesLate = _isLate(checkInToSave, sessionStartTime: sessionStartTime);
       return {
         'minutesLate': minutesLate,
       };

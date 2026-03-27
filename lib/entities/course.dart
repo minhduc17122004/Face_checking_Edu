@@ -59,8 +59,8 @@ class Course {
   final String? roomId;
   final String? roomName;
   final AttendanceMode attendanceMode;
-  final int attendanceBeforeMinutes;
-  final int attendanceAfterMinutes;
+  final int customWindowStartMinutes;
+  final int customWindowEndMinutes;
   final int enrolledCount;
   final int? dayOfWeek;
   final int? timeSlotId;
@@ -79,8 +79,8 @@ class Course {
     this.roomId,
     this.roomName,
     this.attendanceMode = AttendanceMode.preset,
-    this.attendanceBeforeMinutes = 30,
-    this.attendanceAfterMinutes = 30,
+    this.customWindowStartMinutes = 0,
+    this.customWindowEndMinutes = 30,
     this.enrolledCount = 0,
     this.dayOfWeek,
     this.timeSlotId,
@@ -102,10 +102,10 @@ class Course {
       roomName: json['room_name'] as String?,
       attendanceMode: AttendanceMode.fromString(
           json['attendance_mode'] as String? ?? 'preset'),
-      attendanceBeforeMinutes:
-          json['attendance_before_minutes'] as int? ?? 30,
-      attendanceAfterMinutes:
-          json['attendance_after_minutes'] as int? ?? 30,
+      customWindowStartMinutes:
+          json['custom_window_start_minutes'] as int? ?? 0,
+      customWindowEndMinutes:
+          json['custom_window_end_minutes'] as int? ?? 30,
       enrolledCount: json['enrolled_count'] as int? ?? 0,
       dayOfWeek: json['day_of_week'] as int?,
       timeSlotId: json['time_slot_id'] as int?,
@@ -126,8 +126,8 @@ class Course {
       'department_id': departmentId,
       'room_id': roomId,
       'attendance_mode': attendanceMode.value,
-      'attendance_before_minutes': attendanceBeforeMinutes,
-      'attendance_after_minutes': attendanceAfterMinutes,
+      'custom_window_start_minutes': customWindowStartMinutes,
+      'custom_window_end_minutes': customWindowEndMinutes,
       'day_of_week': dayOfWeek,
       'time_slot_id': timeSlotId,
     };
@@ -144,8 +144,8 @@ class Course {
     String? roomId,
     String? roomName,
     AttendanceMode? attendanceMode,
-    int? attendanceBeforeMinutes,
-    int? attendanceAfterMinutes,
+    int? customWindowStartMinutes,
+    int? customWindowEndMinutes,
     int? enrolledCount,
     int? dayOfWeek,
     int? timeSlotId,
@@ -164,10 +164,10 @@ class Course {
       roomId: roomId ?? this.roomId,
       roomName: roomName ?? this.roomName,
       attendanceMode: attendanceMode ?? this.attendanceMode,
-      attendanceBeforeMinutes:
-          attendanceBeforeMinutes ?? this.attendanceBeforeMinutes,
-      attendanceAfterMinutes:
-          attendanceAfterMinutes ?? this.attendanceAfterMinutes,
+      customWindowStartMinutes:
+          customWindowStartMinutes ?? this.customWindowStartMinutes,
+      customWindowEndMinutes:
+          customWindowEndMinutes ?? this.customWindowEndMinutes,
       enrolledCount: enrolledCount ?? this.enrolledCount,
       dayOfWeek: dayOfWeek ?? this.dayOfWeek,
       timeSlotId: timeSlotId ?? this.timeSlotId,

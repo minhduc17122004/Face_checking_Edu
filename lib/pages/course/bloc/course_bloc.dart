@@ -80,8 +80,8 @@ class CourseBloc extends Cubit<CourseState> with EventBusMixin {
     int? teacherId,
     String? roomId,
     AttendanceMode attendanceMode = AttendanceMode.preset,
-    int attendanceBeforeMinutes = 30,
-    int attendanceAfterMinutes = 30,
+    int customWindowStartMinutes = 0,
+    int customWindowEndMinutes = 30,
     int? dayOfWeek,
     int? timeSlotId,
   }) async {
@@ -93,8 +93,8 @@ class CourseBloc extends Cubit<CourseState> with EventBusMixin {
       teacherId: teacherId,
       roomId: roomId,
       attendanceMode: attendanceMode,
-      attendanceBeforeMinutes: attendanceBeforeMinutes,
-      attendanceAfterMinutes: attendanceAfterMinutes,
+      customWindowStartMinutes: customWindowStartMinutes,
+      customWindowEndMinutes: customWindowEndMinutes,
       dayOfWeek: dayOfWeek,
       timeSlotId: timeSlotId,
     );
@@ -122,8 +122,8 @@ class CourseBloc extends Cubit<CourseState> with EventBusMixin {
     int? teacherId,
     String? roomId,
     AttendanceMode? attendanceMode,
-    int? attendanceBeforeMinutes,
-    int? attendanceAfterMinutes,
+    int? customWindowStartMinutes,
+    int? customWindowEndMinutes,
     int? dayOfWeek,
     int? timeSlotId,
   }) async {
@@ -136,8 +136,8 @@ class CourseBloc extends Cubit<CourseState> with EventBusMixin {
       teacherId: teacherId,
       roomId: roomId,
       attendanceMode: attendanceMode,
-      attendanceBeforeMinutes: attendanceBeforeMinutes,
-      attendanceAfterMinutes: attendanceAfterMinutes,
+      customWindowStartMinutes: customWindowStartMinutes,
+      customWindowEndMinutes: customWindowEndMinutes,
       dayOfWeek: dayOfWeek,
       timeSlotId: timeSlotId,
     );
@@ -238,5 +238,15 @@ class CourseBloc extends Cubit<CourseState> with EventBusMixin {
         message: result.error ?? 'Failed to delete course',
       ));
     }
+  }
+
+  void clearDetail() {
+    emit(CourseState(
+      requestStatus: RequestStatus.initial,
+      courses: state.courses,
+      students: const [],
+      message: null,
+      selectedCourse: null,
+    ));
   }
 }

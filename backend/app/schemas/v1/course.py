@@ -14,8 +14,8 @@ class CourseCreate(BaseModel):
     room_id: Optional[uuid.UUID] = None
     teacher_id: Optional[int] = Field(None, description="Teacher ID from teachers table to assign as instructor")
     attendance_mode: Literal["preset", "flexible", "custom"] = "preset"
-    attendance_before_minutes: int = Field(default=30, ge=0, le=120)
-    attendance_after_minutes: int = Field(default=30, ge=0, le=120)
+    custom_window_start_minutes: int = Field(default=0, ge=0, le=120)
+    custom_window_end_minutes: int = Field(default=30, ge=0, le=240)
     day_of_week: Optional[int] = Field(None, ge=1, le=7, description="Day of week (1=Mon, 7=Sun)")
     time_slot_id: Optional[int] = Field(None, description="Time slot ID to create a schedule entry")
 
@@ -29,8 +29,8 @@ class CourseUpdate(BaseModel):
     room_id: Optional[uuid.UUID] = None
     teacher_id: Optional[int] = Field(None, description="Teacher ID from teachers table to reassign instructor")
     attendance_mode: Optional[Literal["preset", "flexible", "custom"]] = None
-    attendance_before_minutes: Optional[int] = Field(None, ge=0, le=120)
-    attendance_after_minutes: Optional[int] = Field(None, ge=0, le=120)
+    custom_window_start_minutes: Optional[int] = Field(None, ge=0, le=120)
+    custom_window_end_minutes: Optional[int] = Field(None, ge=0, le=240)
     day_of_week: Optional[int] = Field(None, ge=1, le=7)
     time_slot_id: Optional[int] = Field(None)
 
@@ -45,8 +45,8 @@ class CourseOut(BaseModel):
     department_id: uuid.UUID | None = None
     room_id: uuid.UUID | None = None
     attendance_mode: Literal["preset", "flexible", "custom"] = "preset"
-    attendance_before_minutes: int = 30
-    attendance_after_minutes: int = 30
+    custom_window_start_minutes: int = 0
+    custom_window_end_minutes: int = 30
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime] = None

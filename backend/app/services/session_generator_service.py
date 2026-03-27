@@ -121,10 +121,10 @@ class SessionGeneratorService:
         Modes:
           preset  — window = [session_start, session_end]  (auto open/close at slot boundaries)
           flexible — window = None (teacher manually opens/closes)
-          custom  — attendance_before_minutes = offset from slot START to open (minutes)
-                    attendance_after_minutes  = duration the window stays open (minutes)
-                    → window_start = session_start + before_minutes
-                    → window_end   = window_start  + after_minutes
+          custom  — custom_window_start_minutes = offset from slot START to open (minutes)
+                    custom_window_end_minutes   = offset from slot START to close (minutes)
+                    → window_start = session_start + start_minutes
+                    → window_end   = session_start + end_minutes
                     Clamped so window_end <= session_end.
         """
         mode = getattr(course, "attendance_mode", "preset") or "preset"
@@ -132,14 +132,14 @@ class SessionGeneratorService:
         if mode == "flexible":
             return None, None
 
-        before = getattr(course, "attendance_before_minutes", 0) or 0
-        after = getattr(course, "attendance_after_minutes", 30) or 30
+        start_min = getattr(course, "custom_window_start_minutes", 0) or 0
+        end_min = getattr(course, "custom_window_end_minutes", 30) or 30
 
         if mode == "custom":
-            # Open the window `before` minutes after the slot starts
-            window_start = session_start + timedelta(minutes=before)
-            # Close the window `after` minutes later (not past slot end)
-            window_end = window_start + timedelta(minutes=after)
+            # Open the window `start_min` minutes after the slot starts
+            window_start = session_start + timedelta(minutes=start_min)
+            # Close the window `end_min` minutes after the slot starts (not past slot end)
+            window_end = session_start + timedelta(minutes=end_min)
             if window_end > session_end:
                 window_end = session_end
             return window_start, window_end

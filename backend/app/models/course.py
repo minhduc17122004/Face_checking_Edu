@@ -72,10 +72,10 @@ class Course(Base):
     attendance_mode: Mapped[str] = mapped_column(
         String(20), default="preset", nullable=False
     )
-    attendance_before_minutes: Mapped[int] = mapped_column(
-        Integer, default=30
+    custom_window_start_minutes: Mapped[int] = mapped_column(
+        Integer, default=0
     )
-    attendance_after_minutes: Mapped[int] = mapped_column(
+    custom_window_end_minutes: Mapped[int] = mapped_column(
         Integer, default=30
     )
 

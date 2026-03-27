@@ -52,6 +52,12 @@ class PendingEduCheckIn extends HiveObject {
   @HiveField(13)
   String? pin;
 
+  @HiveField(14)
+  int? minutesLate;
+
+  @HiveField(15)
+  String? status;
+
   PendingEduCheckIn({
     required this.localId,
     required this.studentId,
@@ -67,6 +73,8 @@ class PendingEduCheckIn extends HiveObject {
     this.deviceId,
     this.serverUserId,
     this.pin,
+    this.minutesLate,
+    this.status,
   });
 
   PendingEduCheckIn copyWith({
@@ -84,6 +92,8 @@ class PendingEduCheckIn extends HiveObject {
     String? deviceId,
     String? serverUserId,
     String? pin,
+    int? minutesLate,
+    String? status,
   }) =>
       PendingEduCheckIn(
         localId: localId ?? this.localId,
@@ -100,5 +110,7 @@ class PendingEduCheckIn extends HiveObject {
         deviceId: deviceId ?? this.deviceId,
         serverUserId: serverUserId ?? this.serverUserId,
         pin: pin ?? this.pin,
+        minutesLate: minutesLate ?? this.minutesLate,
+        status: status ?? this.status,
       );
 }

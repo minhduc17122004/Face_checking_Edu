@@ -48,8 +48,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
   final _formKey = GlobalKey<FormState>();
   final _courseNameController = TextEditingController();
   final _courseCodeController = TextEditingController();
-  final _beforeMinutesController = TextEditingController();
-  final _afterMinutesController = TextEditingController();
+  final _startMinutesController = TextEditingController();
+  final _endMinutesController = TextEditingController();
 
   AttendanceMode _selectedMode = AttendanceMode.preset;
   bool _isLoading = false;
@@ -81,17 +81,17 @@ class _CourseFormViewState extends State<_CourseFormView> {
       _courseNameController.text = widget.course!.courseName;
       _courseCodeController.text = widget.course!.courseCode ?? '';
       _selectedMode = widget.course!.attendanceMode;
-      _beforeMinutesController.text =
-          widget.course!.attendanceBeforeMinutes.toString();
-      _afterMinutesController.text =
-          widget.course!.attendanceAfterMinutes.toString();
+      _startMinutesController.text =
+          widget.course!.customWindowStartMinutes.toString();
+      _endMinutesController.text =
+          widget.course!.customWindowEndMinutes.toString();
       _selectedDepartmentId = widget.course!.departmentId;
       _selectedRoomId = widget.course!.roomId;
       _selectedDayOfWeek = widget.course!.dayOfWeek;
       _selectedTimeSlotId = widget.course!.timeSlotId;
     } else {
-      _beforeMinutesController.text = '30';
-      _afterMinutesController.text = '30';
+      _startMinutesController.text = '0';
+      _endMinutesController.text = '30';
     }
     _loadDepartments();
     _loadTeachers();
@@ -154,8 +154,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
   void dispose() {
     _courseNameController.dispose();
     _courseCodeController.dispose();
-    _beforeMinutesController.dispose();
-    _afterMinutesController.dispose();
+    _startMinutesController.dispose();
+    _endMinutesController.dispose();
     super.dispose();
   }
 
@@ -207,8 +207,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
         );
         return;
       }
-      final before = int.tryParse(_beforeMinutesController.text) ?? 0;
-      final after = int.tryParse(_afterMinutesController.text) ?? 0;
+      final startMin = int.tryParse(_startMinutesController.text) ?? 0;
+      final endMin = int.tryParse(_endMinutesController.text) ?? 0;
       // Find selected time slot and compute its duration from "HH:mm" strings
       final slot = _timeSlots.firstWhere(
         (s) => s.id == _selectedTimeSlotId,
@@ -221,11 +221,19 @@ class _CourseFormViewState extends State<_CourseFormView> {
 
       final slotDuration =
           _parseMinutes(slot.endTime) - _parseMinutes(slot.startTime);
-      if (before + after > slotDuration) {
+      if (endMin <= startMin) {
+        showTopAlert(
+          context,
+          title: 'Thời gian Kết thúc phải lớn hơn thời gian Bắt đầu.',
+          type: AlertType.error,
+        );
+        return;
+      }
+      if (endMin > slotDuration) {
         showTopAlert(
           context,
           title:
-              'Tổng thời gian trước ($before phút) + sau ($after phút) vượt quá thời lượng tiết học ($slotDuration phút).',
+              'Thời gian kết thúc ($endMin phút) vượt quá thời lượng tiết học ($slotDuration phút).',
           type: AlertType.error,
         );
         return;
@@ -234,8 +242,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
 
     setState(() => _isLoading = true);
 
-    final beforeMinutes = int.tryParse(_beforeMinutesController.text) ?? 30;
-    final afterMinutes = int.tryParse(_afterMinutesController.text) ?? 30;
+    final startMinutes = int.tryParse(_startMinutesController.text) ?? 0;
+    final endMinutes = int.tryParse(_endMinutesController.text) ?? 30;
 
     if (_isEditing) {
       await widget.courseBloc.updateCourse(
@@ -248,8 +256,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
         teacherId: _selectedTeacherId,
         roomId: _selectedRoomId,
         attendanceMode: _selectedMode,
-        attendanceBeforeMinutes: beforeMinutes,
-        attendanceAfterMinutes: afterMinutes,
+        customWindowStartMinutes: startMinutes,
+        customWindowEndMinutes: endMinutes,
         dayOfWeek: _selectedDayOfWeek,
         timeSlotId: _selectedTimeSlotId,
       );
@@ -263,8 +271,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
         teacherId: _selectedTeacherId,
         roomId: _selectedRoomId,
         attendanceMode: _selectedMode,
-        attendanceBeforeMinutes: beforeMinutes,
-        attendanceAfterMinutes: afterMinutes,
+        customWindowStartMinutes: startMinutes,
+        customWindowEndMinutes: endMinutes,
         dayOfWeek: _selectedDayOfWeek,
         timeSlotId: _selectedTimeSlotId,
       );
@@ -807,17 +815,20 @@ class _CourseFormViewState extends State<_CourseFormView> {
       final slotEndMin = parseMinutes(slot.endTime);
       final slotDuration = slotEndMin - slotStartMin;
 
-      final before = int.tryParse(_beforeMinutesController.text) ?? 0;
-      final after = int.tryParse(_afterMinutesController.text) ?? 0;
+      final startMin = int.tryParse(_startMinutesController.text) ?? 0;
+      final endMin = int.tryParse(_endMinutesController.text) ?? 0;
 
-      final openMin = slotStartMin + before;
-      final closeMin = (openMin + after).clamp(openMin, slotEndMin);
+      final openMin = slotStartMin + startMin;
+      final closeMin = (slotStartMin + endMin).clamp(openMin, slotEndMin);
 
       final openStr = formatMinutes(openMin);
       final closeStr = formatMinutes(closeMin);
 
-      if (before + after > slotDuration) {
-        return '⚠️ Vượt thời lượng tiết ($slotDuration phút) — Mở: $openStr → Đóng: $closeStr (bị cắt)';
+      if (endMin <= startMin) {
+        return '⚠️ Kết thúc ($endMin) phải sau Bắt đầu ($startMin)';
+      }
+      if (endMin > slotDuration) {
+        return '⚠️ Kết thúc ($endMin phút) vượt thời lượng tiết ($slotDuration phút) — Chốt: $closeStr (bị cắt)';
       }
       return '🕐 Mở: $openStr  →  Đóng: $closeStr  (trong tiết ${slot.startTime}–${slot.endTime})';
     }
@@ -844,8 +855,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
             children: [
               Expanded(
                 child: _buildNumberField(
-                  controller: _beforeMinutesController,
-                  label: 'Sau thời gian bắt đầu',
+                  controller: _startMinutesController,
+                  label: 'Bắt đầu (phút)',
                   color: AppColors.teal600,
                   onChanged: (_) => setState(() {}),
                 ),
@@ -853,8 +864,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
               const SizedBox(width: 16),
               Expanded(
                 child: _buildNumberField(
-                  controller: _afterMinutesController,
-                  label: 'Khoảng thời gian',
+                  controller: _endMinutesController,
+                  label: 'Kết thúc (phút)',
                   color: AppColors.teal600,
                   onChanged: (_) => setState(() {}),
                 ),
@@ -873,22 +884,23 @@ class _CourseFormViewState extends State<_CourseFormView> {
               _previewText(),
               style: TextStyle(
                 fontSize: 13,
-                color: (int.tryParse(_beforeMinutesController.text) ?? 0) +
-                            (int.tryParse(_afterMinutesController.text) ?? 0) >
-                        (_selectedTimeSlotId != null && _timeSlots.isNotEmpty
-                            ? () {
-                                final s = _timeSlots.firstWhere(
-                                    (s) => s.id == _selectedTimeSlotId,
-                                    orElse: () => _timeSlots.first);
-                                int p(String t) {
-                                  final parts = t.split(':');
-                                  return int.parse(parts[0]) * 60 +
-                                      int.parse(parts[1]);
-                                }
+                color: (int.tryParse(_startMinutesController.text) ?? 0) >=
+                            (int.tryParse(_endMinutesController.text) ?? 0) ||
+                        (int.tryParse(_endMinutesController.text) ?? 0) >
+                            (_selectedTimeSlotId != null && _timeSlots.isNotEmpty
+                                ? () {
+                                    final s = _timeSlots.firstWhere(
+                                        (s) => s.id == _selectedTimeSlotId,
+                                        orElse: () => _timeSlots.first);
+                                    int p(String t) {
+                                      final parts = t.split(':');
+                                      return int.parse(parts[0]) * 60 +
+                                          int.parse(parts[1]);
+                                    }
 
-                                return p(s.endTime) - p(s.startTime);
-                              }()
-                            : 9999)
+                                    return p(s.endTime) - p(s.startTime);
+                                  }()
+                                : 9999)
                     ? AppColors.red600
                     : AppColors.teal600,
                 fontWeight: FontWeight.w500,

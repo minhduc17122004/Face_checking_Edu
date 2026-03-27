@@ -37,6 +37,9 @@ class _CourseDetailPageState extends State<CourseDetailPage>
     _courseBloc = getIt<CourseBloc>();
     _scheduleBloc = getIt<ScheduleBloc>();
 
+    // Clear old details from previous visits since CourseBloc is a lazy singleton
+    _courseBloc.clearDetail();
+
     _courseBloc.loadCourseDetail(widget.course.id);
     _courseBloc.loadCourseStudents(widget.course.id);
     _scheduleBloc.loadSchedules(courseId: widget.course.id);
@@ -63,15 +66,23 @@ class _CourseDetailPageState extends State<CourseDetailPage>
           icon: const Icon(Icons.arrow_back, color: AppColors.slate900),
           onPressed: () => AppNavigator.pop(),
         ),
-        title: Text(
-          widget.course.courseName,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.slate900,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        title: BlocBuilder<CourseBloc, CourseState>(
+          bloc: _courseBloc,
+          builder: (context, state) {
+            final course = (state.selectedCourse?.id == widget.course.id)
+                ? state.selectedCourse!
+                : widget.course;
+            return Text(
+              course.courseName,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.slate900,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            );
+          },
         ),
         bottom: TabBar(
           controller: _tabController,
@@ -107,18 +118,27 @@ class _CourseDetailPageState extends State<CourseDetailPage>
     return BlocBuilder<CourseBloc, CourseState>(
       bloc: _courseBloc,
       builder: (context, state) {
-        final course = state.selectedCourse ?? widget.course;
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildInfoCard(course),
-              const SizedBox(height: 16),
-              _buildAttendanceConfigCard(course),
-              const SizedBox(height: 16),
-              _buildScheduleSection(),
-            ],
+        final course = (state.selectedCourse?.id == widget.course.id)
+            ? state.selectedCourse!
+            : widget.course;
+        return RefreshIndicator(
+          onRefresh: () async {
+            await _courseBloc.loadCourseDetail(course.id);
+            await _scheduleBloc.loadSchedules(courseId: course.id);
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildInfoCard(course),
+                const SizedBox(height: 16),
+                _buildAttendanceConfigCard(course),
+                const SizedBox(height: 16),
+                _buildScheduleSection(),
+              ],
+            ),
           ),
         );
       },
@@ -192,14 +212,15 @@ class _CourseDetailPageState extends State<CourseDetailPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildInfoHeader('Cấu hình điểm danh'),
+          _buildInfoHeader('Chế độ điểm danh'),
           const SizedBox(height: 12),
           _buildInfoRow('Chế độ', course.attendanceMode.label),
-          _buildInfoRow(
-              'Sau khi bắt đầu tiết', '${course.attendanceBeforeMinutes} phút'),
-          _buildInfoRow(
-              'Thời gian điểm danh', '${course.attendanceAfterMinutes} phút'),
           if (course.attendanceMode == AttendanceMode.custom) ...[
+            _buildInfoRow(
+                'Bắt đầu điểm danh', '${course.customWindowStartMinutes} phút sau khi bắt đầu tiết'),
+            _buildInfoRow(
+                'Kết thúc điểm danh', '${course.customWindowEndMinutes} phút sau khi bắt đầu tiết'),
+
             BlocBuilder<ScheduleBloc, ScheduleState>(
               bloc: _scheduleBloc,
               builder: (context, state) {
@@ -222,8 +243,8 @@ class _CourseDetailPageState extends State<CourseDetailPage>
 
                 final slotStart = p(ts.startTime);
                 final slotEnd = p(ts.endTime);
-                final openMin = slotStart + course.attendanceBeforeMinutes;
-                final closeMin = (openMin + course.attendanceAfterMinutes)
+                final openMin = slotStart + course.customWindowStartMinutes;
+                final closeMin = (slotStart + course.customWindowEndMinutes)
                     .clamp(openMin, slotEnd);
 
                 return _buildInfoRow(

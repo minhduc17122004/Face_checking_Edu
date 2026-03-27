@@ -25,8 +25,8 @@ abstract class CourseService {
     int? teacherId,
     String? roomId,
     AttendanceMode attendanceMode = AttendanceMode.preset,
-    int attendanceBeforeMinutes = 30,
-    int attendanceAfterMinutes = 30,
+    int customWindowStartMinutes = 30,
+    int customWindowEndMinutes = 30,
     int? dayOfWeek,
     int? timeSlotId,
   });
@@ -38,8 +38,8 @@ abstract class CourseService {
     int? teacherId,
     String? roomId,
     AttendanceMode? attendanceMode,
-    int? attendanceBeforeMinutes,
-    int? attendanceAfterMinutes,
+    int? customWindowStartMinutes,
+    int? customWindowEndMinutes,
     int? dayOfWeek,
     int? timeSlotId,
   });
@@ -121,8 +121,8 @@ class CourseServiceImplement implements CourseService {
     int? teacherId,
     String? roomId,
     AttendanceMode attendanceMode = AttendanceMode.preset,
-    int attendanceBeforeMinutes = 30,
-    int attendanceAfterMinutes = 30,
+    int customWindowStartMinutes = 30,
+    int customWindowEndMinutes = 30,
     int? dayOfWeek,
     int? timeSlotId,
   }) async {
@@ -136,8 +136,8 @@ class CourseServiceImplement implements CourseService {
           if (teacherId != null) 'teacher_id': teacherId,
           if (roomId != null) 'room_id': roomId,
           'attendance_mode': attendanceMode.value,
-          'attendance_before_minutes': attendanceBeforeMinutes,
-          'attendance_after_minutes': attendanceAfterMinutes,
+          'custom_window_start_minutes': customWindowStartMinutes,
+          'custom_window_end_minutes': customWindowEndMinutes,
           if (dayOfWeek != null) 'day_of_week': dayOfWeek,
           if (timeSlotId != null) 'time_slot_id': timeSlotId,
         },
@@ -168,8 +168,8 @@ class CourseServiceImplement implements CourseService {
     int? teacherId,
     String? roomId,
     AttendanceMode? attendanceMode,
-    int? attendanceBeforeMinutes,
-    int? attendanceAfterMinutes,
+    int? customWindowStartMinutes,
+    int? customWindowEndMinutes,
     int? dayOfWeek,
     int? timeSlotId,
   }) async {
@@ -182,11 +182,11 @@ class CourseServiceImplement implements CourseService {
       if (teacherId != null) data['teacher_id'] = teacherId;
       if (attendanceMode != null)
         data['attendance_mode'] = attendanceMode.value;
-      if (attendanceBeforeMinutes != null) {
-        data['attendance_before_minutes'] = attendanceBeforeMinutes;
+      if (customWindowStartMinutes != null) {
+        data['custom_window_start_minutes'] = customWindowStartMinutes;
       }
-      if (attendanceAfterMinutes != null) {
-        data['attendance_after_minutes'] = attendanceAfterMinutes;
+      if (customWindowEndMinutes != null) {
+        data['custom_window_end_minutes'] = customWindowEndMinutes;
       }
       if (dayOfWeek != null) data['day_of_week'] = dayOfWeek;
       if (timeSlotId != null) data['time_slot_id'] = timeSlotId;

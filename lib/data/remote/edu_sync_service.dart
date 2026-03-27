@@ -143,6 +143,12 @@ class EduSyncServiceImpl implements EduSyncService {
     if (item.pin != null) {
       m['pin'] = item.pin;
     }
+    if (item.minutesLate != null) {
+      m['minutes_diff'] = item.minutesLate;
+    }
+    if (item.status != null) {
+      m['status'] = item.status;
+    }
     return m;
   }
 }

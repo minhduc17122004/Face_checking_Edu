@@ -169,7 +169,7 @@ class _AttendanceReportState extends State<AttendanceReport> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '$count bản ghi EDU chưa đồng bộ lên server. Nhấn để đồng bộ.',
+                '$count bản ghi chưa đồng bộ lên server. Nhấn để đồng bộ.',
                 style: TextStyle(
                     color: Colors.orange.shade800,
                     fontSize: 12,
@@ -390,6 +390,14 @@ class _AttendanceReportState extends State<AttendanceReport> {
           Expanded(
             flex: 2,
             child: Text(
+              'Trạng thái',
+              style: headerStyle,
+              textAlign: TextAlign.center,
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
               'Hình Ảnh',
               style: headerStyle,
               textAlign: TextAlign.center,
@@ -466,13 +474,22 @@ class _AttendanceReportState extends State<AttendanceReport> {
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               child: Text(
                 DateFormat('HH:mm').format(checkInOut.time),
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: Colors.green.shade700,
+                  color: Colors.black87,
                 ),
                 textAlign: TextAlign.center,
               ),
+            ),
+          ),
+
+          // Trạng thái
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: _buildStatusWidget(checkInOut),
             ),
           ),
 
@@ -512,6 +529,59 @@ class _AttendanceReportState extends State<AttendanceReport> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStatusWidget(CheckInOut checkInOut) {
+    // Determine status from either properties (EDU mode) or standard fallback
+    final isLate = checkInOut.status == 'late';
+    final isOnTime =
+        checkInOut.status == 'on_time' || checkInOut.status == 'early';
+    final isAbsent = checkInOut.status == 'absent';
+
+    // Default fallback handling if property is null
+    String displayText = '--';
+    Color bgColor = Colors.grey.shade100;
+    Color textColor = Colors.grey.shade700;
+
+    if (isAbsent) {
+      displayText = 'Vắng';
+      bgColor = Colors.red.shade50;
+      textColor = Colors.red.shade700;
+    } else if (isLate) {
+      final lateMins = checkInOut.minutesLate ?? 0;
+      displayText = 'Trễ ${lateMins > 0 ? '($lateMins p)' : ''}';
+      bgColor = Colors.orange.shade50;
+      textColor = Colors.orange.shade800;
+    } else if (isOnTime) {
+      displayText = 'Đúng giờ';
+      bgColor = Colors.green.shade50;
+      textColor = Colors.green.shade700;
+    } else {
+      // Very old checkins without status flag — just default to present/on-time look
+      displayText = 'Có mặt';
+      bgColor = Colors.green.shade50;
+      textColor = Colors.green.shade700;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        displayText,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: textColor,
+        ),
+        textAlign: TextAlign.center,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }

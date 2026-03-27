@@ -493,7 +493,7 @@ class AttendanceService:
         # late/on-time logic based on checkinWindowEnd or active session state).
         calculated_minutes_diff = minutes_diff
         auto_status = attendance_status
-        
+
         if session and calculated_minutes_diff is None:
             # Fallback auto-detection for endpoints that do not provide minutes_diff
             # (e.g. manual fallback or raw hardware realtime checkins)
@@ -506,7 +506,40 @@ class AttendanceService:
             else:
                 auto_status = "late"
 
-        # Create record
+        # Create record (flush only — caller decides when to commit)
+        record = await self._persist_attendance(
+            session_id=session_id,
+            student_id=student_id,
+            checkin_time=checkin_time,
+            sync_time=sync_time,
+            auto_status=auto_status,
+            confidence=confidence,
+            device_id=device_id,
+            calculated_minutes_diff=calculated_minutes_diff,
+            skip_audit=skip_audit,
+        )
+        await self.db.commit()
+        return AttendanceOut.model_validate(record)
+
+    # ── Internal persist helper (flush-only, no commit) ────────────────────────
+    async def _persist_attendance(
+        self,
+        *,
+        session_id: uuid.UUID,
+        student_id: int,
+        checkin_time: datetime,
+        sync_time: datetime | None,
+        auto_status: str,
+        confidence: float | None,
+        device_id: uuid.UUID | None,
+        calculated_minutes_diff: int | None,
+        skip_audit: bool,
+    ) -> Attendance:
+        """Low-level attendance writer — flush only (no commit).
+
+        Used by both create_attendance (single, commits after) and
+        bulk_checkin (batch, commits once at the very end).
+        """
         record = await self.repo.create(
             session_id=session_id,
             student_id=student_id,
@@ -535,8 +568,7 @@ class AttendanceService:
                 device_id=device_id,
                 minutes_diff=calculated_minutes_diff,
             )
-        await self.db.commit()
-        return AttendanceOut.model_validate(record)
+        return record
 
     # ── Real-time check-in (device-initiated) ─────────────────────────────────
     async def realtime_checkin(self, req: CheckinRequest) -> CheckinResponse:
@@ -810,7 +842,7 @@ class AttendanceService:
         self, user_id: uuid.UUID
     ) -> Session | None:
         """Find the most relevant session for a teacher's dashboard.
-        
+
         Logic:
         1. Resolve teacher_id from user_id.
         2. Fetch active/upcoming sessions for this teacher.
@@ -892,7 +924,7 @@ class AttendanceService:
                         student = await student_repo.get_by_user_id(item.server_user_id)
                     if not student and item.pin:
                         student = await student_repo.get_by_student_code_or_pin(item.pin)
-                    
+
                     if student:
                         resolved_student_id = student.id
                     else:
@@ -915,12 +947,34 @@ class AttendanceService:
                     skipped += 1
                     continue
 
-                # Create the attendance record via core pipeline
-                record = await self.create_attendance(
+                # Validate and auto-transition session before writing
+                await self._ensure_session_active(resolved_session_id)
+
+                # Calculate auto_status and minutes_diff matching create_attendance logic
+                session_ref = await self.session_repo.get_by_id(resolved_session_id)
+                provided_status = item.status or "present"
+                provided_minutes_diff = getattr(item, "minutes_diff", None)
+
+                if session_ref and provided_minutes_diff is None:
+                    delta = checkin_time - session_ref.start_time
+                    provided_minutes_diff = int(delta.total_seconds() / 60)
+                    if provided_minutes_diff < 0:
+                        provided_status = "early"
+                    elif provided_minutes_diff == 0:
+                        provided_status = "on_time"
+                    else:
+                        provided_status = "late"
+
+                # Flush-only write — single commit after the full loop
+                record = await self._persist_attendance(
                     session_id=resolved_session_id,
                     student_id=resolved_student_id,
                     checkin_time=checkin_time,
-                    status=item.status,
+                    sync_time=None,
+                    auto_status=provided_status,
+                    confidence=None,
+                    device_id=None,
+                    calculated_minutes_diff=provided_minutes_diff,
                     skip_audit=True,
                 )
                 results.append(BulkCheckinItemResult(
@@ -954,6 +1008,22 @@ class AttendanceService:
                     error=str(e),
                 ))
                 failed += 1
+
+        # Commit all successfully flushed records in a single transaction
+        if succeeded > 0:
+            try:
+                await self.db.commit()
+            except Exception as commit_err:
+                logger.exception("bulk_checkin commit failed: %s", commit_err)
+                await self.db.rollback()
+                # Mark all succeeded items as failed
+                for r in results:
+                    if r.success and not r.skipped:
+                        r.success = False
+                        r.attendance_id = None
+                        r.error = "Commit failed, please retry."
+                failed += succeeded
+                succeeded = 0
 
         return BulkCheckinResponse(
             total=len(req.items),

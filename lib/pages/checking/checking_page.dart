@@ -112,6 +112,8 @@ class _CheckingPageState extends State<CheckingPage> {
           // During active session → always on-time (no reference = 0 minutes late)
           args?.sessionStartTime != null ? null : null
         );
+        _bloc.sessionId = args?.sessionId;
+        
         return BlocProvider<CheckingBloc>(
           create: (_) => _bloc,
           child: BlocConsumer<CheckingBloc, CheckingState>(

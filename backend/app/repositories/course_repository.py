@@ -125,8 +125,8 @@ class CourseRepository:
         department_id: uuid.UUID | None = None,
         room_id: uuid.UUID | None = None,
         attendance_mode: Literal["preset", "flexible", "custom"] = "preset",
-        attendance_before_minutes: int = 30,
-        attendance_after_minutes: int = 30,
+        custom_window_start_minutes: int = 0,
+        custom_window_end_minutes: int = 30,
     ) -> Course:
         course = Course(
             course_name=course_name,
@@ -135,8 +135,8 @@ class CourseRepository:
             department_id=department_id,
             room_id=room_id,
             attendance_mode=attendance_mode,
-            attendance_before_minutes=attendance_before_minutes,
-            attendance_after_minutes=attendance_after_minutes,
+            custom_window_start_minutes=custom_window_start_minutes,
+            custom_window_end_minutes=custom_window_end_minutes,
         )
         self.db.add(course)
         await self.db.flush()
@@ -155,8 +155,8 @@ class CourseRepository:
         department_id: uuid.UUID | None = None,
         room_id: uuid.UUID | None = None,
         attendance_mode: str | None = None,
-        attendance_before_minutes: int | None = None,
-        attendance_after_minutes: int | None = None,
+        custom_window_start_minutes: int | None = None,
+        custom_window_end_minutes: int | None = None,
     ) -> Course:
         if course_name is not None:
             course.course_name = course_name
@@ -170,10 +170,10 @@ class CourseRepository:
             course.room_id = room_id
         if attendance_mode is not None:
             course.attendance_mode = attendance_mode
-        if attendance_before_minutes is not None:
-            course.attendance_before_minutes = attendance_before_minutes
-        if attendance_after_minutes is not None:
-            course.attendance_after_minutes = attendance_after_minutes
+        if custom_window_start_minutes is not None:
+            course.custom_window_start_minutes = custom_window_start_minutes
+        if custom_window_end_minutes is not None:
+            course.custom_window_end_minutes = custom_window_end_minutes
         await self.db.flush()
         await self.db.refresh(course)
         # Re-fetch with all eager loads for service layer properties

@@ -28,6 +28,7 @@ import 'package:face_time_keeping/data/remote/department_service.dart' as _i276;
 import 'package:face_time_keeping/data/remote/device_request_service.dart'
     as _i141;
 import 'package:face_time_keeping/data/remote/device_service.dart' as _i607;
+import 'package:face_time_keeping/data/remote/edu_sync_service.dart' as _i440;
 import 'package:face_time_keeping/data/remote/logging_service.dart' as _i513;
 import 'package:face_time_keeping/data/remote/room_service.dart' as _i492;
 import 'package:face_time_keeping/data/remote/room_session_service.dart'
@@ -141,6 +142,8 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i169.TeacherServiceImplement(gh<_i644.ApiClient>()));
     gh.lazySingleton<_i566.ScheduleService>(
         () => _i566.ScheduleServiceImplement(gh<_i644.ApiClient>()));
+    gh.lazySingleton<_i440.EduSyncService>(
+        () => _i440.EduSyncServiceImpl(gh<_i644.ApiClient>()));
     gh.factory<_i734.RegisterFaceBloc>(() => _i734.RegisterFaceBloc(
           gh<_i840.LocalService>(),
           gh<_i106.HiveService>(),
@@ -163,8 +166,6 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i981.DomainBloc(gh<_i840.LocalService>()));
     gh.factory<_i447.ServerSettingCubit>(
         () => _i447.ServerSettingCubit(gh<_i840.LocalService>()));
-    gh.singleton<_i664.AttendanceReportCubit>(
-        () => _i664.AttendanceReportCubit(gh<_i840.LocalService>()));
     gh.lazySingleton<_i492.RoomService>(
         () => _i492.RoomServiceImplement(gh<_i644.ApiClient>()));
     gh.lazySingleton<_i687.UserService>(() => _i687.UserServiceImplement(
@@ -185,6 +186,10 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i995.CourseBloc(gh<_i256.CourseService>()));
     gh.factory<_i836.ScheduleBloc>(
         () => _i836.ScheduleBloc(gh<_i566.ScheduleService>()));
+    gh.singleton<_i664.AttendanceReportCubit>(() => _i664.AttendanceReportCubit(
+          gh<_i840.LocalService>(),
+          gh<_i440.EduSyncService>(),
+        ));
     gh.factory<_i309.CheckingBloc>(() => _i309.CheckingBloc(
           gh<_i840.LocalService>(),
           gh<_i578.AppBloc>(),

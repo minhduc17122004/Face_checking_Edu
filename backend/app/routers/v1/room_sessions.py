@@ -103,6 +103,17 @@ async def _build_room_session_list(
                 )
             mapped_status = "CAN_OPEN" if in_window else "NOT_OPEN"
 
+        # Determine if session was closed early while still in physical window.
+        # Only applies to 'flexible' and 'custom' modes — these are the only modes
+        # where a session can close early (manual close or scheduled window close).
+        # 'preset' sessions can only close naturally when their time window expires.
+        is_closed_early = False
+        if effective_status == "closed" and mode in ("flexible", "custom"):
+            physical_end = session.end_time
+            if physical_end is None or now < physical_end:
+                # Session is closed but still within physical time window → early close
+                is_closed_early = True
+
         results.append(
             RoomSessionResponse(
                 id=session.id,
@@ -119,6 +130,7 @@ async def _build_room_session_list(
                 attendance_count=att_count,
                 total_enrolled=enrolled_count,
                 can_checkin=can_checkin,
+                is_closed_early=is_closed_early,
             )
         )
     return results
@@ -241,5 +253,13 @@ async def get_room_active_session(
         (item for item in items if item.mapped_status == "OPEN"),
         None
     )
+
+    # Fallback: if no OPEN session, check for an early-closed session still within its
+    # physical time window so the Flutter popup can show "phiên đã đóng" instead of "không có phiên".
+    if active_item is None:
+        active_item = next(
+            (item for item in items if item.is_closed_early),
+            None
+        )
 
     return RoomActiveSessionResponse(session=active_item)

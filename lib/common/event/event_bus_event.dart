@@ -26,6 +26,19 @@ class AttendanceChangeEvent {}
 
 class CourseChangeEvent {}
 
+/// Fired after a successful manual bulk-sync of EDU pending check-ins to the backend.
+/// The AttendanceHistoryBloc listens to this event to auto-refresh the backend history.
+class EduSyncCompleteEvent {
+  final int succeeded;
+  final int failed;
+  final int skipped;
+  const EduSyncCompleteEvent({
+    this.succeeded = 0,
+    this.failed = 0,
+    this.skipped = 0,
+  });
+}
+
 class SyncStudentEvent {
   SyncStudentEvent({
     required this.status,

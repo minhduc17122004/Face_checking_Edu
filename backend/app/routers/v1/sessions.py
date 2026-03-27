@@ -233,18 +233,33 @@ async def list_teacher_sessions(
 ):
     """List all sessions for courses where the current user is the teacher."""
     from app.services.course_service import CourseService
-
-    teacher_id = await CourseService.resolve_teacher_id_from_user(db, None, user_id, required=False)
-    if not teacher_id:
-        return SessionList(total=0, items=[])
+    from app.models.user import User
+    from sqlalchemy import select
+    
+    # Get user role
+    result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+    user = result.scalar_one_or_none()
+    is_admin = user and user.role == "admin"
 
     repo = SessionRepository(db)
-    items, total = await repo.get_sessions_by_teacher(
-        teacher_id=teacher_id,
-        session_date=session_date,
-        skip=skip,
-        limit=limit,
-    )
+
+    if is_admin:
+        items, total = await repo.list(
+            session_date=session_date,
+            skip=skip,
+            limit=limit,
+        )
+    else:
+        teacher_id = await CourseService.resolve_teacher_id_from_user(db, None, user_id, required=False)
+        if not teacher_id:
+            return SessionList(total=0, items=[])
+
+        items, total = await repo.get_sessions_by_teacher(
+            teacher_id=teacher_id,
+            session_date=session_date,
+            skip=skip,
+            limit=limit,
+        )
 
     now = datetime.now(timezone.utc)
     session_outs = []

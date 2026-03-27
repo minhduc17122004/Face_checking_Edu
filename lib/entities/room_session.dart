@@ -19,6 +19,8 @@ class RoomSession {
   final bool canOpen;
   final bool canClose;
 
+  final bool isClosedEarly;
+
   const RoomSession({
     required this.id,
     required this.courseId,
@@ -36,6 +38,7 @@ class RoomSession {
     this.canCheckin = false,
     this.canOpen = false,
     this.canClose = false,
+    this.isClosedEarly = false,
   });
 
   factory RoomSession.fromJson(Map<String, dynamic> json) {
@@ -63,6 +66,7 @@ class RoomSession {
       canCheckin: json['can_checkin'] as bool? ?? false,
       canOpen: json['can_open'] as bool? ?? false,
       canClose: json['can_close'] as bool? ?? false,
+      isClosedEarly: json['is_closed_early'] as bool? ?? false,
     );
   }
 

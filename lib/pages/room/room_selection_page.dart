@@ -225,7 +225,8 @@ class _RoomSessionDialog extends StatelessWidget {
     return BlocBuilder<RoomSessionBloc, RoomSessionState>(
       bloc: bloc,
       builder: (context, state) {
-        if (state.requestStatus == RequestStatus.requesting || !state.hasActiveSession) {
+        if (state.requestStatus == RequestStatus.requesting ||
+            !state.hasActiveSession) {
           return const AlertDialog(
             content: SizedBox(
               height: 100,
@@ -235,6 +236,7 @@ class _RoomSessionDialog extends StatelessWidget {
         }
 
         final activeSession = state.activeSession;
+        final isClosedEarly = activeSession?.isClosedEarly ?? false;
 
         return AlertDialog(
           shape:
@@ -267,14 +269,16 @@ class _RoomSessionDialog extends StatelessWidget {
           ),
           content: activeSession == null
               ? _buildNoSession()
-              : _buildSessionInfo(activeSession),
+              : isClosedEarly
+                  ? _buildClosedSessionWarning(activeSession)
+                  : _buildSessionInfo(activeSession),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Đóng',
                   style: TextStyle(color: AppColors.slate500)),
             ),
-            if (activeSession != null)
+            if (activeSession != null && !isClosedEarly)
               FilledButton.icon(
                 onPressed: () {
                   Navigator.of(context).pop();
@@ -283,7 +287,9 @@ class _RoomSessionDialog extends StatelessWidget {
                     arguments: CheckingArgs(
                       isCheckIn: true,
                       sessionId: activeSession.id,
+                      // Active session → always on-time, no lateReferenceTime
                       sessionStartTime: activeSession.startTime,
+                      lateReferenceTime: null,
                     ),
                   );
                 },
@@ -296,9 +302,73 @@ class _RoomSessionDialog extends StatelessWidget {
                   ),
                 ),
               ),
+            if (activeSession != null && isClosedEarly)
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop(); // close session dialog
+                  AppNavigator.pushNamed(
+                    RouterName.checking,
+                    arguments: CheckingArgs(
+                      isCheckIn: true,
+                      sessionId: activeSession.id,
+                      sessionStartTime: activeSession.startTime,
+                      // Use checkinWindowEnd (or endTime) as the late reference point
+                      lateReferenceTime: activeSession.checkinWindowEnd ??
+                          activeSession.endTime,
+                    ),
+                  );
+                },
+                label: const Text('Điểm danh muộn'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
           ],
         );
       },
+    );
+  }
+
+  /// Warning content shown when session was manually closed early
+  Widget _buildClosedSessionWarning(RoomSession session) {
+    final closedAtTime = session.checkinWindowEnd ?? session.endTime;
+    final closedFmt = closedAtTime != null
+        ? DateFormat('HH:mm').format(closedAtTime.toLocal())
+        : '--:--';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(Icons.lock_clock_outlined,
+                size: 40, color: Colors.orange.shade700),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Phiên điểm danh đã đóng',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: Colors.orange.shade800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Phiên điểm danh của học phần\n"${session.courseName}"\nhiện tại đã đóng từ $closedFmt.\nBạn có muốn tiếp tục điểm danh không?',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.slate600, fontSize: 13),
+          ),
+        ],
+      ),
     );
   }
 
@@ -458,10 +528,10 @@ class _RoomSessionDialog extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           // Attendance count
-          _infoRow(
-            Icons.people_outline,
-            '${session.attendanceCount} / ${session.totalEnrolled} sinh viên đã điểm danh',
-          ),
+          // _infoRow(
+          // Icons.people_outline,
+          // // '${session.attendanceCount} / ${session.totalEnrolled} sinh viên đã điểm danh',
+          // ),
         ],
       ),
     );

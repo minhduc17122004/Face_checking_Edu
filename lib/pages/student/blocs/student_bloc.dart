@@ -224,6 +224,7 @@ class StudentBloc extends Cubit<StudentState> with EventBusMixin {
         jobPosition: result.data!.jobTitle,
         pin: result.data?.pin ?? '',
         avatar: result.data?.avatar,
+        serverUserId: result.data?.serverUserId, // pass UUID for EDU sync
       );
       await onRegisterStudentLocal(registerStudentData);
       emit(state.copyWith(
@@ -267,6 +268,7 @@ class StudentBloc extends Cubit<StudentState> with EventBusMixin {
         name: registerStudent.studentName,
         jobTitle: registerStudent.jobPosition,
         avatar: registerStudent.avatar,
+        serverUserId: registerStudent.serverUserId,
         updatedTime: DateTime.now(),
       ));
       _fetchStudents();

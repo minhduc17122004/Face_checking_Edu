@@ -19,9 +19,10 @@ class AttendanceCreate(BaseModel):
     user_id: Optional[uuid.UUID] = Field(None, description="Link to user account (optional)")
     checkin_time: datetime = Field(..., examples=["2026-03-19T08:05:33"])
     sync_time: Optional[datetime] = Field(None, description="Server time (auto-set if not provided)")
-    status: str = Field(default="present", pattern="^(present|late|absent)$")
+    status: str = Field(default="present", pattern="^(present|early|on_time|late|absent)$")
     confidence: Optional[float] = Field(None, ge=0.0, le=1.0, examples=[0.97])
     device_id: Optional[uuid.UUID] = Field(None)
+    minutes_diff: Optional[int] = Field(None)
 
 
 class AttendanceOut(BaseModel):
@@ -30,7 +31,7 @@ class AttendanceOut(BaseModel):
     id: uuid.UUID
     session_id: uuid.UUID
     student_id: int
-    user_id: Optional[uuid.UUID]
+    user_id: Optional[uuid.UUID] = None
     checkin_time: datetime
     sync_time: datetime
     status: str

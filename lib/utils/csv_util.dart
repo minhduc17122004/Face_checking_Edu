@@ -20,7 +20,7 @@ class CsvUtil {
 
     final dir = await Directory.systemTemp.createTemp();
     final file = File(
-        "${dir.path}/checkin_checkout_export_${_formatDateTime(DateTime.now())}.csv");
+        "${dir.path}/Diem_Danh_${_formatDateTime(DateTime.now())}.csv");
     String csv = const ListToCsvConverter().convert(csvData);
     return await file.writeAsString(csv);
   }
@@ -52,7 +52,7 @@ class CsvUtil {
 
       final dir = await Directory.systemTemp.createTemp();
       final file = File(
-          "${dir.path}/checkin_checkout_export_${_formatDateTime(DateTime.now())}.xlsx");
+          "${dir.path}/Diem_Danh_${_formatDateTime(DateTime.now())}.xlsx");
       return await file.writeAsBytes(bytes, flush: true);
     } catch (e, s) {
       pushLog('Error in exportCheckInOutToExcel (CsvUtil): $e\n$s');
@@ -61,7 +61,7 @@ class CsvUtil {
   }
 
   String _formatDateTime(DateTime dt) {
-    return dt.toIso8601String().split('.').first;
+    return dt.toIso8601String().split('.').first.replaceAll(':', '-');
   }
 
   DateTime? _parseDateTime(String input) {

@@ -7,6 +7,7 @@ import 'package:face_time_keeping/common/utils/log_util.dart';
 import 'package:face_time_keeping/data/local/hive_service.dart';
 import 'package:face_time_keeping/data/models/logging_model.dart';
 import 'package:face_time_keeping/data/remote/attendance_checkin_service.dart';
+import 'package:face_time_keeping/data/remote/edu_sync_service.dart';
 import 'package:face_time_keeping/data/remote/logging_service.dart';
 import 'package:face_time_keeping/data/remote/user_service.dart';
 import 'package:face_time_keeping/di/injection.dart';
@@ -71,7 +72,7 @@ void callbackDispatcher() {
       await initializeMessages(locale.languageCode);
       Intl.defaultLocale = locale.toLanguageTag();
 
-      // await SyncJobsUtil._headlessInitLocalNotifications();
+      await SyncJobsUtil._headlessInitLocalNotifications();
       final hiveService = getIt<HiveService>();
       final localService = getIt<LocalService>();
       final tenantKey = await localService.getTenantId();
@@ -83,7 +84,29 @@ void callbackDispatcher() {
 
       if (Platform.isAndroid) {
         if (taskName.contains(_periodicUniqueName)) {
+          // 1. Đồng bộ luồng HRM cũ
           await userService.syncCheckInOutData(url: url);
+
+          // 2. Đồng bộ luồng EDU mới (Batch Bulk API)
+          final eduSyncService = getIt<EduSyncService>();
+          final pending = await localService.getPendingEduCheckIns();
+          final unsyncedItems = pending.where((p) => !p.isSynced).toList();
+
+          if (unsyncedItems.isNotEmpty) {
+            const batchSize = 50;
+            for (var i = 0; i < unsyncedItems.length; i += batchSize) {
+              final batch = unsyncedItems.skip(i).take(batchSize).toList();
+              final result = await eduSyncService.syncPendingCheckIns(batch);
+              if (result.isSuccess && result.data != null) {
+                for (final localId in result.data!.syncedLocalIds) {
+                  await localService.markEduCheckInSynced(localId);
+                }
+              }
+            }
+            await localService.clearSyncedEduCheckIns();
+          }
+
+          // Notify UI
           //  EventBusMixin.shareStaticEvent(SyncDataEvent());
           final sendPort = IsolateNameServer.lookupPortByName(
               IsolateListenUtil.bgToUiPortName);
@@ -91,17 +114,19 @@ void callbackDispatcher() {
             sendPort.send(null);
           }
 
-          // await SyncJobsUtil._showNotification(
-          //   title: 'Đồng bộ dữ liệu thành công',
-          //   body: 'Đã đồng bộ dữ liệu vào lúc ${DateTime.now().toLocal()} ',
-          // );
+          await SyncJobsUtil._showNotification(
+            title: 'Đồng bộ dữ liệu thành công',
+            body:
+                'Dữ liệu đã được cập nhật vào lúc ${DateFormat('HH:mm dd/MM').format(DateTime.now())}',
+          );
         } else if (taskName.contains(_faceDataPeriodicUniqueName)) {
           await userService.pushFaceData(url: url);
           await userService.pullFaceData(url: url);
-          // await SyncJobsUtil._showNotification(
-          //   title: 'Đồng bộ dữ liệu khuôn mặt thành công',
-          //   body: 'Đã đồng bộ dữ liệu vào lúc ${DateTime.now().toLocal()} ',
-          // );
+          await SyncJobsUtil._showNotification(
+            title: 'Đồng bộ dữ liệu khuôn mặt thành công',
+            body:
+                'Dữ liệu khuôn mặt đã được cập nhật vào lúc ${DateFormat('HH:mm dd/MM').format(DateTime.now())}',
+          );
           debugPrint('sync face data done');
         } else if (taskName.contains(_studentDataPeriodicUniqueName)) {
           // --- Student data sync ---
@@ -169,6 +194,25 @@ void callbackDispatcher() {
           debugPrint('sync face data done');
         } else if (taskName == "com.example.face_time_keeping.processing2") {
           await userService.syncCheckInOutData(url: url);
+
+          final eduSyncService = getIt<EduSyncService>();
+          final pending = await localService.getPendingEduCheckIns();
+          final unsyncedItems = pending.where((p) => !p.isSynced).toList();
+
+          if (unsyncedItems.isNotEmpty) {
+            const batchSize = 50;
+            for (var i = 0; i < unsyncedItems.length; i += batchSize) {
+              final batch = unsyncedItems.skip(i).take(batchSize).toList();
+              final result = await eduSyncService.syncPendingCheckIns(batch);
+              if (result.isSuccess && result.data != null) {
+                for (final localId in result.data!.syncedLocalIds) {
+                  await localService.markEduCheckInSynced(localId);
+                }
+              }
+            }
+            await localService.clearSyncedEduCheckIns();
+          }
+
           //  EventBusMixin.shareStaticEvent(SyncDataEvent());
           final sendPort = IsolateNameServer.lookupPortByName(
               IsolateListenUtil.bgToUiPortName);
@@ -218,10 +262,10 @@ void callbackDispatcher() {
           ),
           url: url);
 
-      // await SyncJobsUtil._showNotification(
-      //   title: '$taskName Đồng bộ dữ liệu thất bại',
-      //   body: 'Đã xảy ra lỗi khi đồng bộ dữ liệu: $e',
-      // );
+      await SyncJobsUtil._showNotification(
+        title: 'Đồng bộ dữ liệu thất bại',
+        body: 'Đã xảy ra lỗi khi đồng bộ dữ liệu tự động.',
+      );
 
       return Future.value(false);
     }

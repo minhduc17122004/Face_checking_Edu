@@ -131,6 +131,7 @@ abstract class LocalService {
   Future<void> markEduCheckInSynced(String localId);
   Future<void> incrementEduRetryCount(String localId);
   Future<void> clearSyncedEduCheckIns();
+  Future<void> clearAllEduCheckIns();
 }
 
 @LazySingleton(as: LocalService)
@@ -794,6 +795,28 @@ class LocalServiceImplement with EventBusMixin implements LocalService {
               : checkIn;
 
       await _hiveService.saveCheckInOut(checkInToSave);
+      
+      // >>> Save PendingEduCheckIn for EDU sync <<<
+      final deviceCode = await getDeviceCode();
+      final localId = '${deviceCode}_${checkInToSave.time.millisecondsSinceEpoch}';
+      
+      final persons = await _hiveService.getAllPersons();
+      final studentPerson = persons.firstWhereOrNull((p) => p.studentId == checkInToSave.studentId);
+      
+      final pendingEdu = PendingEduCheckIn(
+        localId: localId,
+        studentId: checkInToSave.studentId,
+        sessionId: null, // Auto-resolved by backend using roomId + timestamp
+        roomId: checkInToSave.roomId,
+        timestamp: checkInToSave.time,
+        deviceId: deviceCode,
+        serverUserId: studentPerson?.serverUserId,
+        pin: studentPerson?.pin ?? checkInToSave.pin,
+      );
+      
+      await savePendingEduCheckIn(pendingEdu);
+      await pushLog('Saved PendingEduCheckIn to local queue: localId=$localId, studentId=${pendingEdu.studentId}, room=${pendingEdu.roomId}, pin=${pendingEdu.pin}, serverUserId=${pendingEdu.serverUserId}');
+
       shareEvent(AttendanceChangeEvent());
       final minutesLate = _isLate(checkInToSave, sessionStartTime: sessionStartTime);
       return {
@@ -1147,16 +1170,19 @@ class LocalServiceImplement with EventBusMixin implements LocalService {
     }
   }
 
-  /// Calculate minutes late based on the current session's start time.
-  /// If [sessionStartTime] is provided, compares check-in time directly
-  /// against it. Returns 0 if no session info is available or if on time.
+  /// Calculate minutes late.
+  ///
+  /// - If [sessionStartTime] is null → session is currently active,
+  ///   so the student is always on time. Returns 0.
+  /// - If [sessionStartTime] is provided → it carries the **late reference time**
+  ///   (i.e. `checkinWindowEnd` when the session was manually closed).
+  ///   Late = check-in time minus reference. Returns 0 when on time.
   int _isLate(CheckInOut checkIn, {DateTime? sessionStartTime}) {
     try {
       if (sessionStartTime == null) {
-        // No session info — cannot determine lateness
+        // Session still active → always on time
         return 0;
       }
-
       final checkInTime = checkIn.time;
       final diff = checkInTime.difference(sessionStartTime).inMinutes;
       return diff > 0 ? diff : 0;
@@ -1357,9 +1383,12 @@ class LocalServiceImplement with EventBusMixin implements LocalService {
       await _hiveService.clearPersons();
       await pushLog('Cleared all persons from Hive');
 
-      // Clear all check-in/out records
       await _hiveService.clearCheckInOut();
       await pushLog('Cleared all check-in/out records');
+
+      // Clear all EDU pending check-ins
+      await _hiveService.clearAllEduCheckIns();
+      await pushLog('Cleared all pending EDU sync records');
 
       // Get all persons to remove their face embeddings
       final allRecords = await _faceNative.getAllImages();
@@ -1425,6 +1454,15 @@ class LocalServiceImplement with EventBusMixin implements LocalService {
       await _hiveService.clearSyncedEduCheckIns();
     } catch (e) {
       await pushLog('Error in clearSyncedEduCheckIns: $e');
+    }
+  }
+
+  @override
+  Future<void> clearAllEduCheckIns() async {
+    try {
+      await _hiveService.clearAllEduCheckIns();
+    } catch (e) {
+      await pushLog('Error in clearAllEduCheckIns: $e');
     }
   }
 }

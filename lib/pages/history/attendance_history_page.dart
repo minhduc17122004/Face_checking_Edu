@@ -12,18 +12,15 @@ class AttendanceHistoryPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bloc = getIt<AttendanceHistoryBloc>()..loadHistory();
-    return BlocProvider.value(
-      value: bloc,
-      child: _AttendanceHistoryView(bloc: bloc),
+    return BlocProvider(
+      create: (context) => getIt<AttendanceHistoryBloc>()..loadHistory(),
+      child: const _AttendanceHistoryView(),
     );
   }
 }
 
 class _AttendanceHistoryView extends StatefulWidget {
-  final AttendanceHistoryBloc bloc;
-
-  const _AttendanceHistoryView({required this.bloc});
+  const _AttendanceHistoryView();
 
   @override
   State<_AttendanceHistoryView> createState() => _AttendanceHistoryViewState();
@@ -88,7 +85,7 @@ class _AttendanceHistoryViewState extends State<_AttendanceHistoryView> {
                   ),
                   const SizedBox(height: 8),
                   TextButton.icon(
-                    onPressed: () => widget.bloc.loadHistory(),
+                    onPressed: () => context.read<AttendanceHistoryBloc>().loadHistory(),
                     icon: const Icon(Icons.refresh, size: 18),
                     label: const Text('Tải lại'),
                   ),
@@ -101,7 +98,7 @@ class _AttendanceHistoryViewState extends State<_AttendanceHistoryView> {
           final grouped = _groupByDate(state.items);
 
           return RefreshIndicator(
-            onRefresh: () async => widget.bloc.loadHistory(),
+            onRefresh: () async => context.read<AttendanceHistoryBloc>().loadHistory(),
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: grouped.length,

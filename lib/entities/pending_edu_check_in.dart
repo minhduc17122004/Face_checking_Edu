@@ -44,6 +44,14 @@ class PendingEduCheckIn extends HiveObject {
   @HiveField(11)
   String? deviceId;
 
+  // UUID from backend
+  @HiveField(12)
+  String? serverUserId;
+
+  // Student code (MSSV)
+  @HiveField(13)
+  String? pin;
+
   PendingEduCheckIn({
     required this.localId,
     required this.studentId,
@@ -57,6 +65,8 @@ class PendingEduCheckIn extends HiveObject {
     this.studentName,
     this.roomId,
     this.deviceId,
+    this.serverUserId,
+    this.pin,
   });
 
   PendingEduCheckIn copyWith({
@@ -72,6 +82,8 @@ class PendingEduCheckIn extends HiveObject {
     String? studentName,
     String? roomId,
     String? deviceId,
+    String? serverUserId,
+    String? pin,
   }) =>
       PendingEduCheckIn(
         localId: localId ?? this.localId,
@@ -86,5 +98,7 @@ class PendingEduCheckIn extends HiveObject {
         studentName: studentName ?? this.studentName,
         roomId: roomId ?? this.roomId,
         deviceId: deviceId ?? this.deviceId,
+        serverUserId: serverUserId ?? this.serverUserId,
+        pin: pin ?? this.pin,
       );
 }

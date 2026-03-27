@@ -3,7 +3,6 @@ import 'package:face_time_keeping/entities/person.dart';
 class Student {
   final int id;
   final String? pin;
-
   final String name;
   final dynamic jobTitle;
   final bool hasAvatar;
@@ -11,6 +10,8 @@ class Student {
   final String? attachmentId;
   final String? avatar;
   final bool isFromServer;
+  /// UUID from backend — used to identify student when syncing to server
+  final String? serverUserId;
 
   Student({
     required this.id,
@@ -22,6 +23,7 @@ class Student {
     this.attachmentId,
     this.avatar,
     this.isFromServer = false,
+    this.serverUserId,
   });
 
   factory Student.fromJson(Map<String, dynamic> json) {
@@ -43,7 +45,6 @@ class Student {
   factory Student.fromUserJson(Map<String, dynamic> json) {
     final idStr = json['id'] as String;
     final idInt = idStr.hashCode;
-    // Chỉ gán pin nếu có student_code (MSSV), nếu không thì để null để UI tự chặn
     final pin = json['student_code'] as String?;
     return Student(
       id: idInt.abs(),
@@ -55,6 +56,7 @@ class Student {
       attachmentId: null,
       avatar: json['avatar_url'] as String?,
       isFromServer: true,
+      serverUserId: idStr, // Store the original UUID
     );
   }
 
@@ -80,6 +82,7 @@ class Student {
       'attachment_id': attachmentId,
       'avatar_url': avatar,
       'is_from_server': isFromServer,
+      'server_user_id': serverUserId,
     };
   }
 
@@ -110,6 +113,7 @@ class Student {
     String? name,
     dynamic jobTitle,
     bool? isFromServer,
+    String? serverUserId,
   }) {
     return Student(
       id: id ?? this.id,
@@ -117,6 +121,7 @@ class Student {
       name: name ?? this.name,
       jobTitle: jobTitle ?? this.jobTitle,
       isFromServer: isFromServer ?? this.isFromServer,
+      serverUserId: serverUserId ?? this.serverUserId,
     );
   }
 

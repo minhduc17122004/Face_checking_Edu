@@ -19,11 +19,17 @@ class CheckingArgs {
   final bool isCheckIn;
   final String? sessionId;
   final DateTime? sessionStartTime;
+  /// When not null, late detection uses this time as the reference point
+  /// (e.g. checkinWindowEnd when the session was manually closed).
+  /// When null AND sessionStartTime is provided, the student is always on-time
+  /// (they are checking in while the session is still active).
+  final DateTime? lateReferenceTime;
 
   const CheckingArgs({
     required this.isCheckIn,
     this.sessionId,
     this.sessionStartTime,
+    this.lateReferenceTime,
   });
 }
 
@@ -102,7 +108,10 @@ class _CheckingPageState extends State<CheckingPage> {
             ),
           );
         }
-        _bloc.sessionStartTime = args?.sessionStartTime;
+        _bloc.sessionStartTime = args?.lateReferenceTime ?? (
+          // During active session → always on-time (no reference = 0 minutes late)
+          args?.sessionStartTime != null ? null : null
+        );
         return BlocProvider<CheckingBloc>(
           create: (_) => _bloc,
           child: BlocConsumer<CheckingBloc, CheckingState>(

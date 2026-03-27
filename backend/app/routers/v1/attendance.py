@@ -22,6 +22,8 @@ from app.schemas.v1.attendance_checkin import (
     AttendanceCheckinList,
     AttendanceSummaryResponse,
     AttendanceHistoryList,
+    BulkCheckinRequest,
+    BulkCheckinResponse,
 )
 
 router = APIRouter(prefix="/attendance", tags=["v1 — Attendance"])
@@ -50,7 +52,10 @@ async def get_attendance_history(
         sa_select(User).where(User.id == uuid.UUID(user_id))
     )
     user = result.scalar_one_or_none()
-    role = user.role if user else "student"
+    
+    # Ensure role is lowercase so "TEACHER" matches "teacher" in the service logic 
+    # and doesn't accidentally fall through to the admin (full access) view.
+    role = user.role.lower() if user and user.role else "student"
 
     svc = AttendanceService(db)
     return await svc.get_role_based_history(
@@ -171,6 +176,28 @@ async def manual_checkin(
     """
     svc = AttendanceService(db)
     return await svc.manual_checkin(req)
+
+
+@router.post(
+    "/bulk-check-in",
+    response_model=BulkCheckinResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def bulk_checkin(
+    req: BulkCheckinRequest,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """POST /api/v1/attendance/bulk-check-in — batch sync from device offline queue.
+
+    Phase 10: allows the tablet/device to push multiple pending check-ins
+    accumulated in its local Hive queue in a single request.
+    - Per-item result with success/failure/skipped status.
+    - Duplicate records are silently skipped (idempotent).
+    - Max 50 items per call.
+    """
+    svc = AttendanceService(db)
+    return await svc.bulk_checkin(req)
 
 
 @router.get("/session/{session_id}/checkins", response_model=AttendanceCheckinList)

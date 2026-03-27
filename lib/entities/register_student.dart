@@ -9,6 +9,8 @@ class RegisterStudent {
   final String pin;
   final int? studentId;
   final String? avatar;
+  /// UUID from backend server — used for EDU sync identification
+  final String? serverUserId;
 
   RegisterStudent({
     required this.studentName,
@@ -17,6 +19,7 @@ class RegisterStudent {
     required this.pin,
     this.studentId,
     this.avatar,
+    this.serverUserId,
   });
 
   Future<Map<String, dynamic>> toJson() async {

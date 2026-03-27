@@ -1,0 +1,277 @@
+# Kế hoạch Refactor: Lịch sử điểm danh EDU (Backend-Centric)
+
+## Bối cảnh & Mục tiêu
+
+Chuyển hệ thống lịch sử điểm danh từ mô hình Hive-local sang **Backend là Single Source of Truth**. Client chỉ còn 2 việc:
+1. **Ghi local** (offline-first check-in via [PendingEduCheckIn](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/entities/pending_edu_check_in.dart#8-91) / Hive [CheckInOut](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/entities/check_in_out.dart#5-91))
+2. **Đọc từ backend** (lịch sử, báo cáo)
+
+> [!IMPORTANT]
+> **Không chạm** vào luồng nhận diện khuôn mặt + ghi Hive ([CheckInOut](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/entities/check_in_out.dart#5-91)) của HRM. Luồng này giữ nguyên 100%.
+
+---
+
+## Phân tích hiện trạng (AS-IS)
+
+```mermaid
+graph LR
+    subgraph Client ["Flutter Client"]
+        A[Face Recognition] --> B[Hive CheckInOut]
+        B --> C[Workmanager Sync HRM]
+        B --> D[AttendanceReportCubit<br/>Đọc Hive local]
+        E[EDU CheckingPage] --> F[PendingEduCheckIn<br/>Hive offline queue]
+        F --> G[Workmanager Sync EDU]
+    end
+    
+    subgraph Backend
+        C -->|Odoo API| H[Odoo Server]
+        G -->|POST /check-in| I[FastAPI Backend]
+        I --> J[(PostgreSQL)]
+    end
+    
+    subgraph History ["History Page"]
+        K[AttendanceHistoryBloc] -->|GET /history| I
+    end
+```
+
+| Thành phần | Hiện tại | Vấn đề |
+|---|---|---|
+| `AttendanceReportPage` | Đọc **Hive local** ([getCheckInOutByDate](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/data/local/local_service.dart#677-697)) | Chỉ thấy data đã ghi trên thiết bị này, không thấy data từ thiết bị khác |
+| [AttendanceHistoryPage](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/history/attendance_history_page.dart#10-22) | Đọc **backend API** (`/api/v1/attendance/history`) | ✅ Đã đúng hướng, cần bổ sung filter + sync trigger |
+| Sync EDU | Workmanager retry [PendingEduCheckIn](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/entities/pending_edu_check_in.dart#8-91) | ✅ Hoạt động, thiếu trigger manual + event reload |
+| Sync HRM | Workmanager push [CheckInOut](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/entities/check_in_out.dart#5-91) lên Odoo | ✅ Giữ nguyên, không liên quan |
+
+---
+
+## Kiến trúc đích (TO-BE)
+
+```mermaid
+graph LR
+    subgraph Client ["Flutter Client"]
+        A[Face Recognition] --> B[Hive CheckInOut<br/>+ PendingEduCheckIn]
+        B --> C[Workmanager Auto Sync]
+        D[Manual Sync Button] --> E[SyncService.syncNow]
+        E --> C
+    end
+
+    subgraph Backend
+        C -->|POST /check-in| F[FastAPI Backend]
+        F --> G[(PostgreSQL)]
+    end
+
+    subgraph UI ["UI Pages"]
+        H[AttendanceReportPage<br/>Đọc Hive local + Nút Sync] --> D
+        I[AttendanceHistoryPage<br/>Đọc Backend API] -->|GET /history| F
+        D -->|EventBus<br/>EduSyncCompleteEvent| I
+    end
+```
+
+---
+
+## Proposed Changes
+
+### Phase 1: Backend — Bổ sung API endpoint bulk-sync
+
+Endpoint hiện có `POST /api/v1/attendance/check-in` đã hỗ trợ `room_id + timestamp → session` mapping. Cần thêm **1 endpoint bulk** để sync nhiều bản ghi cùng lúc (tối ưu cho manual sync).
+
+#### [NEW] Bulk sync endpoint
+
+Thêm vào [attendance.py](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/backend/app/routers/v1/attendance.py):
+
+```python
+POST /api/v1/attendance/bulk-check-in
+Request:  { "items": [ManualCheckinRequest, ...] }
+Response: { "results": [ { "local_id": "...", "success": true, "attendance_id": "..." }, ... ] }
+```
+
+#### [NEW] Schema cho bulk request
+
+Thêm vào [attendance_checkin.py](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/backend/app/schemas/v1/attendance_checkin.py):
+
+- `BulkCheckinRequest` (list of items with `local_id`)
+- `BulkCheckinItemResult` (per-item result)
+- `BulkCheckinResponse` (list of results + summary counts)
+
+---
+
+### Phase 2: Flutter — API Layer
+
+#### [MODIFY] [api_endpoint.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/data/remote/api_endpoint.dart)
+
+Thêm:
+```dart
+static const String attendanceBulkCheckin = "/api/v1/attendance/bulk-check-in";
+```
+
+#### [MODIFY] [attendance_history_service.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/data/remote/attendance_history_service.dart)
+
+Bổ sung method filter theo `date_from`, `date_to`:
+```dart
+Future<DataState<List<AttendanceHistoryItem>>> getHistory({
+  String? courseId,
+  DateTime? dateFrom,
+  DateTime? dateTo,
+  int skip, int limit,
+});
+```
+
+#### [NEW] `lib/data/remote/edu_sync_service.dart`
+
+Service chuyên đẩy [PendingEduCheckIn](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/entities/pending_edu_check_in.dart#8-91) lên backend qua bulk endpoint:
+```dart
+class EduSyncService {
+  Future<EduSyncResult> syncPendingCheckIns(List<PendingEduCheckIn> items);
+}
+```
+
+---
+
+### Phase 3: Flutter — Event Bus & Manual Sync
+
+#### [NEW] Event: `EduSyncCompleteEvent`
+
+Thêm vào [event_bus_event.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/common/event/event_bus_event.dart):
+```dart
+class EduSyncCompleteEvent {}
+```
+
+#### [MODIFY] [attendance_report.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/setting/attendance_report.dart)
+
+Thêm nút **"Đồng bộ lên Server"** trên AppBar:
+- Bấm → gọi `AttendanceReportCubit.syncToBackend()`
+- Hiển thị progress indicator
+- Thành công → fire `EduSyncCompleteEvent()`
+
+#### [MODIFY] [attendance_report_cubit.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/setting/cubit/attendance_report_cubit.dart)
+
+Thêm method:
+```dart
+Future<void> syncToBackend() async {
+  // 1. Lấy PendingEduCheckIn chưa sync
+  // 2. Gọi EduSyncService.syncPendingCheckIns()
+  // 3. Đánh dấu synced local
+  // 4. shareEvent(EduSyncCompleteEvent())
+}
+```
+
+#### [MODIFY] [attendance_report_state.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/setting/cubit/attendance_report_state.dart)
+
+Thêm field `isSyncing`, `syncMessage` để UI hiển thị trạng thái sync.
+
+---
+
+### Phase 4: Flutter — History Page Refresh
+
+#### [MODIFY] [attendance_history_bloc.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/history/bloc/attendance_history_bloc.dart)
+
+- Lắng nghe `EduSyncCompleteEvent` → tự reload
+- Thêm filter `dateFrom`, [dateTo](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/entities/session.dart#135-138) (nếu cần)
+- Thêm `loadMore()` cho pagination
+
+#### [MODIFY] [attendance_history_page.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/history/attendance_history_page.dart)
+
+- Giữ nguyên UI hiện tại (đã đọc từ backend ✅)
+- Thêm date filter
+- Thêm pull-to-refresh trigger reload
+
+---
+
+## Luồng dữ liệu sau Refactor
+
+### Manual Sync Flow
+```
+User bấm "Đồng bộ" trên AttendanceReport
+  │
+  ▼
+AttendanceReportCubit.syncToBackend()
+  │
+  ├─ LocalService.getPendingEduCheckIns()     ← lấy queue offline
+  │
+  ▼
+EduSyncService.syncPendingCheckIns(items)
+  │ POST /api/v1/attendance/bulk-check-in
+  │ Backend mapping: roomId + timestamp → session
+  │
+  ▼
+Nhận BulkCheckinResponse
+  │
+  ├─ LocalService.markEduCheckInSynced()      ← đánh dấu local
+  ├─ shareEvent(EduSyncCompleteEvent())       ← trigger reload
+  │
+  ▼
+AttendanceHistoryBloc listens EduSyncCompleteEvent
+  │ → loadHistory()
+  │ → GET /api/v1/attendance/history
+  │
+  ▼
+UI AttendanceHistoryPage tự refresh
+```
+
+---
+
+## Edge Cases & Xử lý
+
+| Case | Giải pháp |
+|---|---|
+| **Offline** | Vẫn ghi vào [PendingEduCheckIn](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/entities/pending_edu_check_in.dart#8-91), retry qua Workmanager hoặc manual sync |
+| **Duplicate** | Backend đã có unique constraint [(student_id, session_id)](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/course/course_detail_page.dart#217-222) → trả `409 Conflict`, client bỏ qua |
+| **Delay sync** | `PendingEduCheckIn.retryCount` giới hạn 5 lần, quá 5 → bỏ qua |
+| **Nhiều thiết bị** | Backend mapping `room_id + timestamp` → đúng session, không phụ thuộc thiết bị |
+| **History rỗng** | UI đã có empty state ✅ |
+| **API timeout** | `EduSyncService` handle timeout, increment retry, show error toast |
+
+---
+
+## Rủi ro & Giảm thiểu
+
+| Rủi ro | Mức độ | Giảm thiểu |
+|---|---|---|
+| Bulk endpoint performance (nhiều bản ghi) | Trung bình | Giới hạn batch size 50/request, retry failed items |
+| Race condition giữa auto-sync và manual-sync | Thấp | Lock check trước khi sync (`isSyncing` flag) |
+| Mất data khi clear app | Thấp | [PendingEduCheckIn](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/entities/pending_edu_check_in.dart#8-91) trong Hive persistent, chỉ xóa sau khi server confirm |
+| Backend downtime | Trung bình | Offline queue + exponential backoff retry |
+
+---
+
+## Danh sách file tổng hợp
+
+| Action | File | Phase |
+|---|---|---|
+| MODIFY | [backend/app/routers/v1/attendance.py](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/backend/app/routers/v1/attendance.py) | 1 |
+| MODIFY | [backend/app/schemas/v1/attendance_checkin.py](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/backend/app/schemas/v1/attendance_checkin.py) | 1 |
+| MODIFY | [backend/app/services/attendance_service.py](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/backend/app/services/attendance_service.py) | 1 |
+| MODIFY | [lib/data/remote/api_endpoint.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/data/remote/api_endpoint.dart) | 2 |
+| MODIFY | [lib/data/remote/attendance_history_service.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/data/remote/attendance_history_service.dart) | 2 |
+| NEW | `lib/data/remote/edu_sync_service.dart` | 2 |
+| MODIFY | [lib/common/event/event_bus_event.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/common/event/event_bus_event.dart) | 3 |
+| MODIFY | [lib/pages/setting/attendance_report.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/setting/attendance_report.dart) | 3 |
+| MODIFY | [lib/pages/setting/cubit/attendance_report_cubit.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/setting/cubit/attendance_report_cubit.dart) | 3 |
+| MODIFY | [lib/pages/setting/cubit/attendance_report_state.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/setting/cubit/attendance_report_state.dart) | 3 |
+| MODIFY | [lib/pages/history/bloc/attendance_history_bloc.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/history/bloc/attendance_history_bloc.dart) | 4 |
+| MODIFY | [lib/pages/history/attendance_history_page.dart](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/pages/history/attendance_history_page.dart) | 4 |
+
+---
+
+## Verification Plan
+
+### Manual Verification (yêu cầu hợp tác với User)
+
+1. **Test Manual Sync Flow:**
+   - Bật máy ở chế độ offline → điểm danh 3 học sinh → kiểm tra Hive có 3 [PendingEduCheckIn](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/entities/pending_edu_check_in.dart#8-91)
+   - Bật mạng lại → vào Báo cáo điểm danh → bấm "Đồng bộ lên Server"
+   - Kiểm tra snackbar thông báo thành công
+   - Chuyển sang tab Lịch sử → xác nhận 3 bản ghi mới xuất hiện từ backend
+
+2. **Test Duplicate Prevention:**
+   - Sync lại lần 2 → backend trả 409 → không tạo bản ghi trùng
+
+3. **Test History Page:**
+   - Mở Lịch sử → pull-to-refresh → dữ liệu load từ backend
+   - Verify dữ liệu hiển thị đúng: tên học sinh, tên học phần, phòng, thời gian, trạng thái
+
+4. **Test HRM không bị ảnh hưởng:**
+   - Thực hiện check-in HRM bình thường → verify Hive [CheckInOut](file:///c:/Users/ADMIN/Desktop/MIS/hrm-flutter_dev_2.0/hrm-flutter_dev_2.0/face_time_keeping/lib/entities/check_in_out.dart#5-91) vẫn ghi đúng
+   - Báo cáo điểm danh vẫn hiển thị data local HRM
+
+> [!NOTE]
+> Các lỗi lint `sqlalchemy`/`pydantic` import trong IDE là false positives do IDE không detect được Python virtual environment. Chúng không ảnh hưởng runtime.

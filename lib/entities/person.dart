@@ -23,6 +23,11 @@ class Person extends HiveObject {
   @HiveField(6)
   final String? avatar;
 
+  /// UUID from backend (e.g. "19c0116c-3b56-484e-a567-e0289afcf8a0").
+  /// Used to identify the student when syncing PendingEduCheckIn to the backend.
+  @HiveField(7)
+  final String? serverUserId;
+
   Person({
     required this.studentId,
     required this.updatedTime,
@@ -31,6 +36,7 @@ class Person extends HiveObject {
     this.pin,
     this.jobTitle,
     this.avatar,
+    this.serverUserId,
   });
 
   Person copyWith({
@@ -41,6 +47,7 @@ class Person extends HiveObject {
     String? pin,
     dynamic jobTitle,
     String? avatar,
+    String? serverUserId,
   }) {
     return Person(
       studentId: studentId ?? this.studentId,
@@ -50,6 +57,7 @@ class Person extends HiveObject {
       pin: pin ?? this.pin,
       jobTitle: jobTitle ?? this.jobTitle,
       avatar: avatar ?? this.avatar,
+      serverUserId: serverUserId ?? this.serverUserId,
     );
   }
 
@@ -60,11 +68,12 @@ class Person extends HiveObject {
       name: name ?? '',
       jobTitle: jobTitle,
       avatar: avatar,
+      serverUserId: serverUserId,
     );
   }
 
   @override
   String toString() {
-    return 'Person(studentId: $studentId, updatedTime: $updatedTime, isSynced: $isSynced)';
+    return 'Person(studentId: $studentId, serverUserId: $serverUserId, updatedTime: $updatedTime, isSynced: $isSynced)';
   }
 }

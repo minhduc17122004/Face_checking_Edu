@@ -488,13 +488,17 @@ class AttendanceService:
         if existing:
             return AttendanceOut.model_validate(existing)
 
-        # Phase 9: Calculate minutes_diff and auto-detect status
+        # Phase 9/10: Trust client-provided minutes_diff and status if passed
+        # (e.g. from the mobile app's offline queue which implements the correct
+        # late/on-time logic based on checkinWindowEnd or active session state).
         calculated_minutes_diff = minutes_diff
         auto_status = attendance_status
-        if session:
+        
+        if session and calculated_minutes_diff is None:
+            # Fallback auto-detection for endpoints that do not provide minutes_diff
+            # (e.g. manual fallback or raw hardware realtime checkins)
             delta = checkin_time - session.start_time
             calculated_minutes_diff = int(delta.total_seconds() / 60)
-            # Phase 9: early / on_time / late based on minutes difference
             if calculated_minutes_diff < 0:
                 auto_status = "early"
             elif calculated_minutes_diff == 0:
@@ -824,3 +828,137 @@ class AttendanceService:
             teacher_id=teacher_id, limit=1
         )
         return sessions[0] if sessions else None
+
+    # ── Phase 10: Bulk Check-in (device offline sync) ────────────────────────
+    async def bulk_checkin(
+        self,
+        req,  # BulkCheckinRequest
+    ):
+        """POST /api/v1/attendance/bulk-check-in — batch sync from device offline queue.
+
+        Processes each item independently:
+        - Existing (duplicate) records are silently skipped (idempotent).
+        - Individual failures do not abort the whole batch.
+        - Returns per-item results with local_id for client-side reconciliation.
+        """
+        from app.schemas.v1.attendance_checkin import (
+            BulkCheckinResponse,
+            BulkCheckinItemResult,
+        )
+
+        results: list[BulkCheckinItemResult] = []
+        succeeded = 0
+        failed = 0
+        skipped = 0
+
+        for item in req.items:
+            try:
+                # Resolve session_id
+                resolved_session_id = item.session_id
+                if resolved_session_id is None:
+                    # room_id + timestamp → session
+                    checkin_time = item.timestamp or datetime.now(timezone.utc)
+                    if item.timestamp and item.timestamp.tzinfo is None:
+                        checkin_time = item.timestamp.replace(tzinfo=timezone.utc)
+                    elif item.timestamp:
+                        checkin_time = item.timestamp.astimezone(timezone.utc)
+
+                    session = await self._resolve_session_by_room_timestamp(
+                        item.room_id, checkin_time
+                    )
+                    if not session:
+                        results.append(BulkCheckinItemResult(
+                            local_id=item.local_id,
+                            success=False,
+                            error="No matching session found for room and timestamp.",
+                        ))
+                        failed += 1
+                        continue
+                    resolved_session_id = session.id
+                else:
+                    checkin_time = item.timestamp or datetime.now(timezone.utc)
+                    if item.timestamp and item.timestamp.tzinfo is None:
+                        checkin_time = item.timestamp.replace(tzinfo=timezone.utc)
+                    elif item.timestamp:
+                        checkin_time = item.timestamp.astimezone(timezone.utc)
+
+                # Resolve true student_id
+                resolved_student_id = item.student_id
+                if item.server_user_id or item.pin:
+                    from app.repositories.student_repository import StudentRepository
+                    student_repo = StudentRepository(self.db)
+                    student = None
+                    if item.server_user_id:
+                        student = await student_repo.get_by_user_id(item.server_user_id)
+                    if not student and item.pin:
+                        student = await student_repo.get_by_student_code_or_pin(item.pin)
+                    
+                    if student:
+                        resolved_student_id = student.id
+                    else:
+                        logger.warning(
+                            "bulk_checkin could not resolve student for server_user_id=%s pin=%s, fallback to local int=%s",
+                            item.server_user_id, item.pin, item.student_id
+                        )
+
+                # Check for duplicate (idempotent)
+                existing = await self.repo.get_by_session_student(
+                    resolved_session_id, resolved_student_id
+                )
+                if existing:
+                    results.append(BulkCheckinItemResult(
+                        local_id=item.local_id,
+                        success=True,
+                        attendance_id=existing.id,
+                        skipped=True,
+                    ))
+                    skipped += 1
+                    continue
+
+                # Create the attendance record via core pipeline
+                record = await self.create_attendance(
+                    session_id=resolved_session_id,
+                    student_id=resolved_student_id,
+                    checkin_time=checkin_time,
+                    status=item.status,
+                    skip_audit=True,
+                )
+                results.append(BulkCheckinItemResult(
+                    local_id=item.local_id,
+                    success=True,
+                    attendance_id=record.id,
+                    skipped=False,
+                ))
+                succeeded += 1
+
+            except HTTPException as e:
+                logger.warning(
+                    "bulk_checkin item failed local_id=%s: %s",
+                    item.local_id,
+                    e.detail,
+                )
+                results.append(BulkCheckinItemResult(
+                    local_id=item.local_id,
+                    success=False,
+                    error=str(e.detail),
+                ))
+                failed += 1
+            except Exception as e:
+                logger.exception(
+                    "bulk_checkin unexpected error local_id=%s",
+                    item.local_id,
+                )
+                results.append(BulkCheckinItemResult(
+                    local_id=item.local_id,
+                    success=False,
+                    error=str(e),
+                ))
+                failed += 1
+
+        return BulkCheckinResponse(
+            total=len(req.items),
+            succeeded=succeeded,
+            failed=failed,
+            skipped=skipped,
+            results=results,
+        )

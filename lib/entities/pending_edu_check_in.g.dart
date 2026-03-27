@@ -29,13 +29,15 @@ class PendingEduCheckInAdapter extends TypeAdapter<PendingEduCheckIn> {
       studentName: fields[9] as String?,
       roomId: fields[10] as String?,
       deviceId: fields[11] as String?,
+      serverUserId: fields[12] as String?,
+      pin: fields[13] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, PendingEduCheckIn obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.localId)
       ..writeByte(1)
@@ -59,7 +61,11 @@ class PendingEduCheckInAdapter extends TypeAdapter<PendingEduCheckIn> {
       ..writeByte(10)
       ..write(obj.roomId)
       ..writeByte(11)
-      ..write(obj.deviceId);
+      ..write(obj.deviceId)
+      ..writeByte(12)
+      ..write(obj.serverUserId)
+      ..writeByte(13)
+      ..write(obj.pin);
   }
 
   @override

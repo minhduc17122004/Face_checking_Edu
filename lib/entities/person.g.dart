@@ -24,13 +24,14 @@ class PersonAdapter extends TypeAdapter<Person> {
       pin: fields[3] as String?,
       jobTitle: fields[5] as dynamic,
       avatar: fields[6] as String?,
+      serverUserId: fields[7] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Person obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.studentId)
       ..writeByte(1)
@@ -44,7 +45,9 @@ class PersonAdapter extends TypeAdapter<Person> {
       ..writeByte(5)
       ..write(obj.jobTitle)
       ..writeByte(6)
-      ..write(obj.avatar);
+      ..write(obj.avatar)
+      ..writeByte(7)
+      ..write(obj.serverUserId);
   }
 
   @override

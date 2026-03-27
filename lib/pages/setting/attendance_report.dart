@@ -53,32 +53,131 @@ class _AttendanceReportState extends State<AttendanceReport> {
   Widget build(BuildContext context) {
     return BlocProvider.value(
       value: _cubit,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Báo Cáo Điểm Danh'),
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
-          elevation: 1,
-          actions: [
-            IconButton(
-              onPressed: () => _showExportDialog(context),
-              icon:
-                  const Icon(Icons.file_download, size: 24, color: Colors.blue),
-              tooltip: 'Xuất CSV/Excel',
-            ),
-          ],
-        ),
-        backgroundColor: const Color(0xFFF5F5F5),
-        body: BlocBuilder<AttendanceReportCubit, AttendanceReportState>(
-          builder: (context, state) {
-            return Column(
-              children: [
-                _buildDateFilter(context, state),
-                Expanded(child: _buildContent(state)),
-                const SizedBox(height: 16),
-              ],
+      child: BlocListener<AttendanceReportCubit, AttendanceReportState>(
+        listenWhen: (prev, curr) =>
+            prev.isSyncing && !curr.isSyncing && curr.syncMessage.isNotEmpty,
+        listener: (context, state) {
+          if (_scaffoldMessenger != null) {
+            _scaffoldMessenger!.hideCurrentSnackBar();
+            _scaffoldMessenger!.showSnackBar(
+              SnackBar(
+                content: Text(state.syncMessage),
+                backgroundColor: state.syncMessage.contains('thất bại') ||
+                        state.syncMessage.contains('Lỗi')
+                    ? Colors.red.shade700
+                    : Colors.green.shade700,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 4),
+              ),
             );
-          },
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('Báo Cáo Điểm Danh'),
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.black,
+            elevation: 1,
+            actions: [
+              BlocBuilder<AttendanceReportCubit, AttendanceReportState>(
+                builder: (context, state) {
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      IconButton(
+                        onPressed: state.isSyncing
+                            ? null
+                            : () => context
+                                .read<AttendanceReportCubit>()
+                                .syncToBackend(),
+                        icon: state.isSyncing
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.blue),
+                              )
+                            : const Icon(Icons.cloud_upload,
+                                size: 24, color: Colors.blue),
+                        tooltip: 'Đồng bộ lên Server',
+                      ),
+                      if (state.unsyncedCount > 0 && !state.isSyncing)
+                        Positioned(
+                          top: 6,
+                          right: 4,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Colors.orange,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            constraints: const BoxConstraints(
+                                minWidth: 16, minHeight: 16),
+                            child: Text(
+                              state.unsyncedCount > 99
+                                  ? '99+'
+                                  : '${state.unsyncedCount}',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+              IconButton(
+                onPressed: () => _showExportDialog(context),
+                icon: const Icon(Icons.file_download,
+                    size: 24, color: Colors.blue),
+                tooltip: 'Xuất CSV/Excel',
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFFF5F5F5),
+          body: BlocBuilder<AttendanceReportCubit, AttendanceReportState>(
+            builder: (context, state) {
+              return Column(
+                children: [
+                  _buildDateFilter(context, state),
+                  if (state.unsyncedCount > 0 && !state.isSyncing)
+                    _buildUnsyncedBanner(context, state.unsyncedCount),
+                  Expanded(child: _buildContent(state)),
+                  const SizedBox(height: 16),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUnsyncedBanner(BuildContext context, int count) {
+    return InkWell(
+      onTap: () => context.read<AttendanceReportCubit>().syncToBackend(),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        color: Colors.orange.shade50,
+        child: Row(
+          children: [
+            Icon(Icons.cloud_off, color: Colors.orange.shade700, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '$count bản ghi EDU chưa đồng bộ lên server. Nhấn để đồng bộ.',
+                style: TextStyle(
+                    color: Colors.orange.shade800,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500),
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.orange.shade700, size: 18),
+          ],
         ),
       ),
     );
@@ -254,9 +353,17 @@ class _AttendanceReportState extends State<AttendanceReport> {
           bottom: BorderSide(color: Colors.grey.shade200),
         ),
       ),
-      child: Row(
+      child: const Row(
         children: [
-          const Expanded(
+          Expanded(
+            flex: 2,
+            child: Text(
+              'Mã SV',
+              style: headerStyle,
+              textAlign: TextAlign.center,
+            ),
+          ),
+          Expanded(
             flex: 3,
             child: Text(
               'Tên Học Sinh',
@@ -264,23 +371,7 @@ class _AttendanceReportState extends State<AttendanceReport> {
               textAlign: TextAlign.center,
             ),
           ),
-          const Expanded(
-            flex: 2,
-            child: Text(
-              'Thời gian',
-              style: headerStyle,
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const Expanded(
-            flex: 2,
-            child: Text(
-              'Hành động',
-              style: headerStyle,
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const Expanded(
+          Expanded(
             flex: 2,
             child: Text(
               'Phòng học',
@@ -288,16 +379,15 @@ class _AttendanceReportState extends State<AttendanceReport> {
               textAlign: TextAlign.center,
             ),
           ),
-          if (isWideScreen)
-            const Expanded(
-              flex: 1,
-              child: const Text(
-                'Đồng Bộ',
-                style: headerStyle,
-                textAlign: TextAlign.center,
-              ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              'Thời gian',
+              style: headerStyle,
+              textAlign: TextAlign.center,
             ),
-          const Expanded(
+          ),
+          Expanded(
             flex: 2,
             child: Text(
               'Hình Ảnh',
@@ -320,6 +410,23 @@ class _AttendanceReportState extends State<AttendanceReport> {
       ),
       child: Row(
         children: [
+          // Mã SV
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: Text(
+                checkInOut.pin ?? '--',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+
           // Tên Học Sinh
           Expanded(
             flex: 3,
@@ -334,11 +441,29 @@ class _AttendanceReportState extends State<AttendanceReport> {
             ),
           ),
 
-          // Check In Time
+          // Phòng học
           Expanded(
             flex: 2,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: Text(
+                _displayRoomName(checkInOut.roomId, roomNameById),
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.black87,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+
+          // Thời gian
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               child: Text(
                 DateFormat('HH:mm').format(checkInOut.time),
                 style: TextStyle(
@@ -351,81 +476,6 @@ class _AttendanceReportState extends State<AttendanceReport> {
             ),
           ),
 
-          // Hành động
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              child: Text(
-                checkInOut.isCheckIn ? 'CheckIn' : 'CheckOut',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: checkInOut.isCheckIn
-                      ? Colors.green.shade700
-                      : Colors.red.shade700,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-
-          // Phòng học
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Text(
-                _displayRoomName(checkInOut.roomId, roomNameById),
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Colors.black87,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-
-          // Sync Status
-          if (isWideScreen)
-            Expanded(
-              flex: 1,
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: checkInOut.isSynced
-                          ? Colors.green.shade50
-                          : Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: checkInOut.isSynced
-                            ? Colors.green.shade200
-                            : Colors.orange.shade200,
-                        width: 1,
-                      ),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        checkInOut.isSynced
-                            ? Icons.cloud_done
-                            : Icons.cloud_off,
-                        size: 18,
-                        color: checkInOut.isSynced
-                            ? Colors.green.shade700
-                            : Colors.orange.shade700,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
           // Hình Ảnh
           Expanded(
             flex: 2,
@@ -836,8 +886,8 @@ class _AttendanceReportState extends State<AttendanceReport> {
       final result = await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
-          text: 'Dữ liệu CheckInOut (Excel), vui lòng kiểm tra file đính kèm.',
-          subject: 'Backup CheckInOut Excel',
+          text: 'Dữ liệu Điểm Danh (Excel), vui lòng kiểm tra file đính kèm.',
+          subject: 'Báo Cáo Điểm Danh Excel',
         ),
       );
       if (!mounted) return;
@@ -900,8 +950,8 @@ class _AttendanceReportState extends State<AttendanceReport> {
       final result = await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
-          text: 'Dữ liệu CheckInOut, vui lòng kiểm tra file CSV đính kèm.',
-          subject: 'Backup CheckInOut CSV',
+          text: 'Dữ liệu Điểm Danh, vui lòng kiểm tra file CSV đính kèm.',
+          subject: 'Báo Cáo Điểm Danh CSV',
         ),
       );
       if (!mounted) {

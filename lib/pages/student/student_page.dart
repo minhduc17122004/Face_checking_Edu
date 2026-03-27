@@ -133,17 +133,17 @@ class _StudentPageState extends State<StudentPage> {
           ),
           Expanded(
             child: students.isEmpty && !isLoading
-                ? Center(
+                ? const Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.people_outline,
+                        Icon(Icons.people_outline,
                             size: 64, color: AppColors.gray200),
-                        const SizedBox(height: 12),
+                        SizedBox(height: 12),
                         Text(
                           'Chưa có học sinh nào',
-                          style: TextStyle(
-                              color: AppColors.gray200, fontSize: 16),
+                          style:
+                              TextStyle(color: AppColors.gray200, fontSize: 16),
                         ),
                       ],
                     ),
@@ -282,12 +282,11 @@ class _StudentPageState extends State<StudentPage> {
           ),
         ),
         const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.gray200)),
+        Text(label,
+            style: const TextStyle(fontSize: 12, color: AppColors.gray200)),
       ],
     );
   }
-
-  
 
   Color getRandomColor() {
     return Color.fromARGB(

@@ -77,6 +77,7 @@ class ApiEndpoint {
 
   // Phase 9: Attendance Check-in
   static const String attendanceCheckin = "/api/v1/attendance/check-in";
+  static const String attendanceBulkCheckin = "/api/v1/attendance/bulk-check-in";
   static const String attendanceSessionCheckins =
       "/api/v1/attendance/session/{id}/checkins";
   static const String attendanceSessionSummary =

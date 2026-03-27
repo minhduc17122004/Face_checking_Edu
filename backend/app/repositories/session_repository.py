@@ -93,9 +93,13 @@ class SessionRepository(BaseRepository[Session]):
             select(func.count()).select_from(Session).where(where_clause)
         )
         total = count_result.scalar_one()
+        from app.models.course import Course as CourseModel
         result = await self.db.execute(
             select(Session)
-            .options(joinedload(Session.course))
+            .options(
+                joinedload(Session.course).joinedload(CourseModel.room),
+                joinedload(Session.schedule)
+            )
             .where(where_clause)
             .offset(skip)
             .limit(limit)

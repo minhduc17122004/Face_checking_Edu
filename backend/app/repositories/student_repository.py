@@ -1,6 +1,7 @@
 from __future__ import annotations
 """Student repository — raw async DB queries for the `students` table."""
 from typing import Sequence
+import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +18,6 @@ class StudentRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    # ── Read ──────────────────────────────────────────────────
     async def get_by_id(self, student_id: int) -> Student | None:
         result = await self.db.execute(
             select(Student).where(
@@ -26,6 +26,34 @@ class StudentRepository:
             )
         )
         return result.scalar_one_or_none()
+
+    async def get_by_user_id(self, user_id: str | uuid.UUID) -> Student | None:
+        """Find the Student profile corresponding to a specific User UUID."""
+        from uuid import UUID
+        if isinstance(user_id, str):
+            user_id = UUID(user_id)
+        result = await self.db.execute(
+            select(Student).where(
+                Student.user_id == user_id,
+                Student.deleted_at.is_(None),
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_student_code_or_pin(self, identifier: str) -> Student | None:
+        """Find by student_code (MSSV) first, or fallback to pin."""
+        from sqlalchemy import or_
+        result = await self.db.execute(
+            select(Student).where(
+                or_(
+                    Student.student_code == identifier,
+                    Student.pin == identifier
+                ),
+                Student.deleted_at.is_(None),
+            )
+        )
+        # return the first one found
+        return result.scalars().first()
 
     async def get_all(self, skip: int = 0, limit: int = 500) -> Sequence[Student]:
         """Return all students ordered by ID ascending (Flutter sync order)."""

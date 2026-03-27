@@ -1,5 +1,7 @@
 import 'package:face_time_keeping/common/api_client/data_state.dart';
 import 'package:face_time_keeping/common/enums/request_status.dart';
+import 'package:face_time_keeping/common/event/event_bus_event.dart';
+import 'package:face_time_keeping/common/event/event_bus_mixin.dart';
 import 'package:face_time_keeping/data/remote/attendance_history_service.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
@@ -30,8 +32,17 @@ class AttendanceHistoryState {
 }
 
 @injectable
-class AttendanceHistoryBloc extends Cubit<AttendanceHistoryState> {
-  AttendanceHistoryBloc(this._historyService) : super(const AttendanceHistoryState());
+class AttendanceHistoryBloc extends Cubit<AttendanceHistoryState>
+    with EventBusMixin {
+  AttendanceHistoryBloc(this._historyService)
+      : super(const AttendanceHistoryState()) {
+    // Auto-refresh when a manual EDU sync completes
+    listenEvent<EduSyncCompleteEvent>((e) {
+      if (!isClosed && e.succeeded > 0) {
+        loadHistory();
+      }
+    });
+  }
 
   final AttendanceHistoryService _historyService;
 

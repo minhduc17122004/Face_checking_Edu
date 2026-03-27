@@ -28,6 +28,10 @@ class RoomSessionResponse(BaseModel):
         default=False,
         description="Whether attendance can currently be checked in for this session",
     )
+    is_closed_early: bool = Field(
+        default=False,
+        description="True when session was closed early (manually or by custom schedule) while still within its physical time window",
+    )
 
     model_config = {"from_attributes": True}
 

@@ -40,6 +40,7 @@ abstract class HiveService {
   Future<void> markEduCheckInSynced(String localId);
   Future<void> incrementEduRetryCount(String localId);
   Future<void> clearSyncedEduCheckIns();
+  Future<void> clearAllEduCheckIns();
 }
 
 @LazySingleton(as: HiveService)
@@ -337,7 +338,8 @@ class HiveServiceImplement implements HiveService {
 
   Future<Box<PendingEduCheckIn>> _getPendingEduBox() async {
     await checkTenantKey();
-    _pendingEduBox ??= await Hive.openBox<PendingEduCheckIn>('$_pendingEduBoxName-$_tenantKey');
+    _pendingEduBox ??= await Hive.openBox<PendingEduCheckIn>(
+        '$_pendingEduBoxName-$_tenantKey');
     return _pendingEduBox!;
   }
 
@@ -367,18 +369,27 @@ class HiveServiceImplement implements HiveService {
     final box = await _getPendingEduBox();
     final entry = box.values.firstWhereOrNull((e) => e.localId == localId);
     if (entry != null) {
-      await box.put(entry.key, entry.copyWith(retryCount: entry.retryCount + 1));
+      await box.put(
+          entry.key, entry.copyWith(retryCount: entry.retryCount + 1));
     }
   }
 
   @override
   Future<void> clearSyncedEduCheckIns() async {
     final box = await _getPendingEduBox();
-    final syncedKeys = box.toMap().entries
+    final syncedKeys = box
+        .toMap()
+        .entries
         .where((e) => e.value.isSynced)
         .map((e) => e.key)
         .toList();
     await box.deleteAll(syncedKeys);
+  }
+
+  @override
+  Future<void> clearAllEduCheckIns() async {
+    final box = await _getPendingEduBox();
+    await box.clear();
   }
 
   @override

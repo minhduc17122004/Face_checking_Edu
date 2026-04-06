@@ -4,10 +4,6 @@
 - Preference > Editor > Code Style > Dart > Line Length: 100
 
 
-# Config project
-
-- Add key.properties to folder android/ => "android/key.properties"
-
 
 # Run project with env
 - Run by command line:

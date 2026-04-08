@@ -1,9 +1,9 @@
 from __future__ import annotations
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import TYPE_CHECKING, List, Literal, Optional
 
-from sqlalchemy import String, DateTime, ForeignKey, Integer, func
+from sqlalchemy import Date, String, DateTime, ForeignKey, Integer, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -77,6 +77,15 @@ class Course(Base):
     )
     custom_window_end_minutes: Mapped[int] = mapped_column(
         Integer, default=30
+    )
+
+    # Course validity period — optional. Used to determine whether a session
+    # belongs to this course's active period.
+    course_start_date: Mapped[Optional[date]] = mapped_column(
+        Date, nullable=True
+    )
+    course_end_date: Mapped[Optional[date]] = mapped_column(
+        Date, nullable=True
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -175,6 +184,19 @@ class Course(Base):
     def is_deleted(self) -> bool:
         """Check if course is soft-deleted (compatibility accessor)."""
         return self.deleted_at is not None
+
+    @property
+    def is_course_active_now(self) -> bool:
+        """Check if today's date falls within [course_start_date, course_end_date].
+
+        Returns True if either boundary is not set (open-ended).
+        """
+        today = date.today()
+        if self.course_start_date and today < self.course_start_date:
+            return False
+        if self.course_end_date and today > self.course_end_date:
+            return False
+        return True
 
     def __repr__(self) -> str:
         return f"<Course id={self.id} name={self.course_name}>"

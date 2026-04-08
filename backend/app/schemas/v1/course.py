@@ -1,5 +1,5 @@
 from __future__ import annotations
-from datetime import datetime
+from datetime import date, datetime
 import uuid
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
@@ -18,6 +18,8 @@ class CourseCreate(BaseModel):
     custom_window_end_minutes: int = Field(default=30, ge=0, le=240)
     day_of_week: Optional[int] = Field(None, ge=1, le=7, description="Day of week (1=Mon, 7=Sun)")
     time_slot_id: Optional[int] = Field(None, description="Time slot ID to create a schedule entry")
+    course_start_date: Optional[date] = Field(None, description="Ngày mở học phần (YYYY-MM-DD)")
+    course_end_date: Optional[date] = Field(None, description="Ngày kết thúc học phần (YYYY-MM-DD)")
 
 
 class CourseUpdate(BaseModel):
@@ -33,6 +35,8 @@ class CourseUpdate(BaseModel):
     custom_window_end_minutes: Optional[int] = Field(None, ge=0, le=240)
     day_of_week: Optional[int] = Field(None, ge=1, le=7)
     time_slot_id: Optional[int] = Field(None)
+    course_start_date: Optional[date] = Field(None, description="Ngày mở học phần (YYYY-MM-DD)")
+    course_end_date: Optional[date] = Field(None, description="Ngày kết thúc học phần (YYYY-MM-DD)")
 
 
 class CourseOut(BaseModel):
@@ -57,6 +61,10 @@ class CourseOut(BaseModel):
     day_of_week: Optional[int] = None
     time_slot_id: Optional[int] = None
     time_slot_name: Optional[str] = None
+    course_start_date: Optional[date] = None
+    course_end_date: Optional[date] = None
+    is_active: bool = True
+    is_course_active_now: bool = True
 
     model_config = {"from_attributes": True}
 

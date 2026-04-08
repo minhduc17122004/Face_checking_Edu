@@ -229,6 +229,8 @@ class CourseService:
             attendance_mode=req.attendance_mode,
             custom_window_start_minutes=req.custom_window_start_minutes,
             custom_window_end_minutes=req.custom_window_end_minutes,
+            course_start_date=req.course_start_date,
+            course_end_date=req.course_end_date,
         )
 
         # ── Phase 10: Automatic Schedule creation ───────────────────────────
@@ -425,6 +427,8 @@ class CourseService:
             attendance_mode=req.attendance_mode,
             custom_window_start_minutes=req.custom_window_start_minutes,
             custom_window_end_minutes=req.custom_window_end_minutes,
+            course_start_date=req.course_start_date,
+            course_end_date=req.course_end_date,
         )
 
         # ── Update checkin windows for existing sessions if attendance config changed ──

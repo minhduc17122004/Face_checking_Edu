@@ -26,6 +26,62 @@ class _TeacherListPageState extends State<TeacherListPage> {
     _teachersFuture = getIt<UserService>().getUsersByRole('teacher');
   }
 
+  Future<void> _confirmDeleteTeacher(UserInfo teacher) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xác nhận xóa'),
+        content: Text('Bạn có chắc muốn xóa giáo viên "${teacher.fullName}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.blue),
+          ),
+        ),
+      );
+
+      final result = await getIt<UserService>().deleteUser(teacher.id);
+
+      if (mounted) Navigator.of(context).pop(); // close loading
+
+      if (result.isSuccess && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Xóa giáo viên thành công'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        setState(() {
+          _fetchTeachers();
+        });
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.error ?? 'Xóa thất bại'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -61,7 +117,8 @@ class _TeacherListPageState extends State<TeacherListPage> {
             return Center(
               child: Text(
                 'Lỗi: ${snapshot.error}',
-                style: TextStyles.blackNormalRegular.copyWith(color: AppColors.red),
+                style: TextStyles.blackNormalRegular
+                    .copyWith(color: AppColors.red),
               ),
             );
           }
@@ -71,7 +128,8 @@ class _TeacherListPageState extends State<TeacherListPage> {
             return Center(
               child: Text(
                 dataState?.error ?? 'Không thể tải danh sách giáo viên',
-                style: TextStyles.blackNormalRegular.copyWith(color: AppColors.red),
+                style: TextStyles.blackNormalRegular
+                    .copyWith(color: AppColors.red),
               ),
             );
           }
@@ -180,6 +238,12 @@ class _TeacherListPageState extends State<TeacherListPage> {
                             ],
                           ],
                         ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline,
+                            color: AppColors.red),
+                        onPressed: () => _confirmDeleteTeacher(teacher),
+                        tooltip: 'Xóa giáo viên',
                       ),
                     ],
                   ),

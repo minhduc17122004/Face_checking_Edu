@@ -92,14 +92,14 @@ class BootstrapCubit extends Cubit<BootstrapState> with EventBusMixin {
         if (token.isNotEmpty) {
           const fallbackDbName = 'fastapi_db';
           await _localService.saveDatabaseName(fallbackDbName);
-          await _configTenant(domain, fallbackDbName);
+          await _configLocalServices();
           emit(state.copyWith(status: BootstrapStatus.authenticated));
           return;
         }
         emit(state.copyWith(status: BootstrapStatus.unauthenticated));
         return;
       }
-      await _configTenant(domain, dbName);
+      await _configLocalServices();
 
       if (token.isEmpty) {
         emit(state.copyWith(status: BootstrapStatus.unauthenticated));
@@ -291,11 +291,8 @@ class BootstrapCubit extends Cubit<BootstrapState> with EventBusMixin {
     return false;
   }
 
-  Future<void> _configTenant(String domain, String dbName) async {
-    final tenantId =
-        await _localService.getTenantIdOrSaveTenant(domain, dbName);
-    await _localService.saveTenantId(tenantId);
-    await FaceNative().initObjectBox(tenantId.toString());
-    await getIt<HiveService>().init(tenantId.toString());
+  Future<void> _configLocalServices() async {
+    await FaceNative().initObjectBox("default");
+    await getIt<HiveService>().init();
   }
 }

@@ -229,8 +229,8 @@ class CourseService:
             attendance_mode=req.attendance_mode,
             custom_window_start_minutes=req.custom_window_start_minutes,
             custom_window_end_minutes=req.custom_window_end_minutes,
-            course_start_date=req.course_start_date,
-            course_end_date=req.course_end_date,
+            total_sessions=req.total_sessions,
+            credits=req.credits,
         )
 
         # ── Phase 10: Automatic Schedule creation ───────────────────────────
@@ -323,6 +323,7 @@ class CourseService:
         req: CourseUpdate,
         teacher_id: int | None,
         user_id: str,
+        role: str,
     ) -> CourseOut:
         """Update a course. Admin (no teacher profile) can update any course."""
         import uuid
@@ -339,12 +340,25 @@ class CourseService:
                 detail=f"Course '{course_id}' not found.",
             )
 
-        # Admin (current_teacher_id is None) can update any course
-        # Teacher can only update their own courses
-        if current_teacher_id is not None and course.teacher_id != current_teacher_id:
+        # Admin (role == "admin") can update any course
+        # Teacher (role == "teacher") can only update their own courses
+        if role == "teacher":
+            if current_teacher_id is not None and course.teacher_id != current_teacher_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You do not own this course.",
+                )
+            # Restriction: Only allow attendance config fields for teachers
+            # Clear all other fields from the req object internally
+            allowed_fields = {"attendance_mode", "custom_window_start_minutes", "custom_window_end_minutes"}
+            original_req_dict = req.model_dump(exclude_unset=True)
+            for key in original_req_dict:
+                if key not in allowed_fields:
+                    setattr(req, key, None)
+        elif role != "admin":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not own this course.",
+                detail="You do not have permission to update courses.",
             )
 
         if req.department_id is not None:
@@ -427,8 +441,8 @@ class CourseService:
             attendance_mode=req.attendance_mode,
             custom_window_start_minutes=req.custom_window_start_minutes,
             custom_window_end_minutes=req.custom_window_end_minutes,
-            course_start_date=req.course_start_date,
-            course_end_date=req.course_end_date,
+            total_sessions=req.total_sessions,
+            credits=req.credits,
         )
 
         # ── Update checkin windows for existing sessions if attendance config changed ──

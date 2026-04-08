@@ -1,0 +1,71 @@
+Traceback (most recent call last):
+  File "clear_faces.py", line 20, in <module>
+    asyncio.run(clear_faces())
+  File "C:\Users\ADMIN\AppData\Local\Programs\Python\Python38\lib\asyncio\runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "C:\Users\ADMIN\AppData\Local\Programs\Python\Python38\lib\asyncio\base_events.py", line 616, in run_until_complete
+    return future.result()
+  File "clear_faces.py", line 14, in clear_faces
+    result = await db.execute(delete(FaceEmbedding))
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\ext\asyncio\session.py", line 461, in execute
+    result = await greenlet_spawn(
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 201, in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\orm\session.py", line 2226, in _execute_internal
+    conn = self._connection_for_bind(bind)
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\orm\session.py", line 2095, in _connection_for_bind
+    return trans._connection_for_bind(engine, execution_options)
+  File "<string>", line 2, in _connection_for_bind
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\orm\state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\orm\session.py", line 1189, in _connection_for_bind
+    conn = bind.connect()
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\engine\base.py", line 3276, in connect
+    return self._connection_cls(self)
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\engine\base.py", line 146, in __init__
+    self._dbapi_connection = engine.raw_connection()
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\engine\base.py", line 3300, in raw_connection
+    return self.pool.connect()
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\pool\base.py", line 449, in connect
+    return _ConnectionFairy._checkout(self)
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\pool\base.py", line 1263, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\pool\base.py", line 712, in checkout
+    rec = pool._do_get()
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\pool\impl.py", line 180, in _do_get
+    self._dec_overflow()
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\pool\impl.py", line 177, in _do_get
+    return self._create_connection()
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\pool\base.py", line 390, in _create_connection
+    return _ConnectionRecord(self)
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\pool\base.py", line 674, in __init__
+    self.__connect()
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\pool\base.py", line 901, in __connect
+    pool.logger.debug("Error on connect(): %s", e)
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\util\langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\pool\base.py", line 896, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\engine\create.py", line 643, in connect
+    return dialect.connect(*cargs, **cparams)
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\engine\default.py", line 620, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py", line 937, in connect
+    await_only(creator_fn(*arg, **kw)),
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 131, in await_only
+    return current.driver.switch(awaitable)  # type: ignore[no-any-return]
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\asyncpg\connection.py", line 2329, in connect
+    return await connect_utils._connect(
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\asyncpg\connect_utils.py", line 991, in _connect
+    conn = await _connect_addr(
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\asyncpg\connect_utils.py", line 828, in _connect_addr
+    return await __connect_addr(params, True, *args)
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\.venv\lib\site-packages\asyncpg\connect_utils.py", line 876, in __connect_addr
+    await connected
+asyncpg.exceptions.InvalidPasswordError: password authentication failed for user "vedura"

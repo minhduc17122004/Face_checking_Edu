@@ -127,6 +127,8 @@ class CourseRepository:
         attendance_mode: Literal["preset", "flexible", "custom"] = "preset",
         custom_window_start_minutes: int = 0,
         custom_window_end_minutes: int = 30,
+        total_sessions: int | None = None,
+        credits: int | None = None,
     ) -> Course:
         course = Course(
             course_name=course_name,
@@ -137,6 +139,8 @@ class CourseRepository:
             attendance_mode=attendance_mode,
             custom_window_start_minutes=custom_window_start_minutes,
             custom_window_end_minutes=custom_window_end_minutes,
+            total_sessions=total_sessions,
+            credits=credits,
         )
         self.db.add(course)
         await self.db.flush()
@@ -157,6 +161,8 @@ class CourseRepository:
         attendance_mode: str | None = None,
         custom_window_start_minutes: int | None = None,
         custom_window_end_minutes: int | None = None,
+        total_sessions: int | None = None,
+        credits: int | None = None,
     ) -> Course:
         if course_name is not None:
             course.course_name = course_name
@@ -174,6 +180,10 @@ class CourseRepository:
             course.custom_window_start_minutes = custom_window_start_minutes
         if custom_window_end_minutes is not None:
             course.custom_window_end_minutes = custom_window_end_minutes
+        if total_sessions is not None:
+            course.total_sessions = total_sessions
+        if credits is not None:
+            course.credits = credits
         await self.db.flush()
         await self.db.refresh(course)
         # Re-fetch with all eager loads for service layer properties

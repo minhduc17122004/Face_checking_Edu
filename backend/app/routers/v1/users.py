@@ -47,3 +47,30 @@ async def get_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
     return UserOut.model_validate(user)
+
+
+@router.delete("/{target_id}", status_code=status.HTTP_200_OK)
+async def delete_user(
+    target_id: uuid.UUID,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Soft delete a user by ID, and cascade-delete their face embeddings."""
+    from app.repositories.face_repository import FaceRepository
+
+    repo = UserRepository(db)
+    user = await repo.get_by_id(target_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    await repo.soft_delete(user)
+
+    # Cascade: delete all face embeddings for this student
+    if user.role == 'student' and getattr(user, 'student_profile', None):
+        student_id = user.student_profile.id
+        face_repo = FaceRepository(db)
+        deleted_count = await face_repo.delete_for_student(student_id)
+        await db.commit()
+        return {"message": f"User deleted successfully. Removed {deleted_count} face embedding(s)."}
+
+    await db.commit()
+    return {"message": "User deleted successfully"}

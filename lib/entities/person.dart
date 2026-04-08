@@ -28,6 +28,21 @@ class Person extends HiveObject {
   @HiveField(7)
   final String? serverUserId;
 
+  /// SHA-256 hex digest of the embeddings — from server response.
+  /// Used for content-based change detection (hash check).
+  @HiveField(8)
+  final String? embeddingHash;
+
+  /// Server-side UTC timestamp of the latest embedding update.
+  /// Separated from [updatedTime] (local) for deterministic watermark.
+  @HiveField(9)
+  final DateTime? serverUpdatedAt;
+
+  /// Flag indicating whether FaceNative has embeddings for this person.
+  /// Avoids expensive file-system / native queries on every sync cycle.
+  @HiveField(10)
+  final bool hasLocalEmbedding;
+
   Person({
     required this.studentId,
     required this.updatedTime,
@@ -37,6 +52,9 @@ class Person extends HiveObject {
     this.jobTitle,
     this.avatar,
     this.serverUserId,
+    this.embeddingHash,
+    this.serverUpdatedAt,
+    this.hasLocalEmbedding = false,
   });
 
   Person copyWith({
@@ -48,6 +66,9 @@ class Person extends HiveObject {
     dynamic jobTitle,
     String? avatar,
     String? serverUserId,
+    String? embeddingHash,
+    DateTime? serverUpdatedAt,
+    bool? hasLocalEmbedding,
   }) {
     return Person(
       studentId: studentId ?? this.studentId,
@@ -58,6 +79,9 @@ class Person extends HiveObject {
       jobTitle: jobTitle ?? this.jobTitle,
       avatar: avatar ?? this.avatar,
       serverUserId: serverUserId ?? this.serverUserId,
+      embeddingHash: embeddingHash ?? this.embeddingHash,
+      serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
+      hasLocalEmbedding: hasLocalEmbedding ?? this.hasLocalEmbedding,
     );
   }
 
@@ -74,6 +98,6 @@ class Person extends HiveObject {
 
   @override
   String toString() {
-    return 'Person(studentId: $studentId, serverUserId: $serverUserId, updatedTime: $updatedTime, isSynced: $isSynced)';
+    return 'Person(studentId: $studentId, serverUserId: $serverUserId, updatedTime: $updatedTime, isSynced: $isSynced, hasLocalEmbedding: $hasLocalEmbedding)';
   }
 }

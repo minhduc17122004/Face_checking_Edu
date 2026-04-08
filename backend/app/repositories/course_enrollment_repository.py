@@ -112,6 +112,10 @@ class CourseEnrollmentRepository(BaseRepository[CourseEnrollment]):
                 Student.user_id,  # For name lookup via user
                 Student.pin,
                 CourseEnrollment.enrolled_at,
+                CourseEnrollment.absent_count,
+                CourseEnrollment.leave_count,
+                CourseEnrollment.late_count,
+                CourseEnrollment.on_time_count,
                 case((subq.c.emb_count.is_(None), False), else_=True).label("has_face"),
                 func.coalesce(subq.c.emb_count, 0).label("embedding_count"),
             )

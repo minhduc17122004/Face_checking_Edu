@@ -9,13 +9,14 @@ import 'package:face_time_keeping/data/models/batch_student_response.dart';
 import 'package:face_time_keeping/data/models/register_user_request.dart';
 import 'package:face_time_keeping/data/models/student_request.dart';
 import 'package:face_time_keeping/data/models/upload_response.dart';
-import 'package:face_time_keeping/di/injection.dart';
 
 import 'package:face_time_keeping/entities/student.dart';
 import 'package:face_time_keeping/entities/face_data.dart';
 import 'package:face_time_keeping/entities/person.dart';
 import 'package:face_time_keeping/entities/register_student.dart';
 import 'package:face_time_keeping/entities/sync_response.dart';
+import 'package:face_time_keeping/common/event/event_bus_mixin.dart';
+import 'package:face_time_keeping/common/event/event_bus_event.dart' show SyncStudentEvent;
 import 'package:flutter/material.dart';
 
 import 'package:injectable/injectable.dart';
@@ -31,8 +32,7 @@ abstract class UserService {
   Future<DataState<List<UserInfo>>> getUsersByRole(String role);
   Future<DataState<bool>> syncCheckInOutData({String? url});
   Future<DateTime> fetchWorldTime({String timezone = 'Etc/UTC'});
-  Future<DataState<Student>> registerStudent(
-      RegisterStudent registerStudent);
+  Future<DataState<Student>> registerStudent(RegisterStudent registerStudent);
   Future<DataState<BatchStudentResponse>> registerStudents(
       CreateStudentBatchRequest request);
   Future<void> testFunction();
@@ -42,6 +42,8 @@ abstract class UserService {
   Future<DataState<UploadResponse>> uploadAvatars(List<File> files);
   Future<DataState<RegisterUserResponse>> registerUser(
       RegisterUserRequest request);
+  Future<DataState<bool>> deleteUser(String serverUserId);
+  Future<DataState<bool>> deleteFace(int studentId);
 }
 
 @LazySingleton(as: UserService)
@@ -71,30 +73,59 @@ class UserServiceImplement implements UserService {
           await _localService.getLatestTimePullFaceData();
       final Map<String, dynamic> queryParameters = {};
       if (latestTime != null) {
+        // latestTime can be local or UTC, we ensure it's translated properly
+        final utcTime = latestTime.toUtc();
         queryParameters['from_date'] =
-            latestTime.toIso8601String().split('.').first;
+            '${utcTime.toIso8601String().split('.').first}Z';
       }
-      final response = await getIt<Dio>().request<dynamic>(
-          url != null
-              ? '$url${ApiEndpoint.pullFaceData}'
-              : ApiEndpoint.pullFaceData,
-          queryParameters: queryParameters,
-          options: Options(
-            method: 'GET',
-            headers: {
-              "Content-Type": "application/json",
-              "Accept": "application/json",
-            },
-          ));
-      final data = response.data as List<dynamic>;
+
+      final pendingIds = await _localService.getPendingRecoveryStudentIds();
+      if (pendingIds.isNotEmpty) {
+        queryParameters['specific_student_ids'] = pendingIds.join(',');
+      }
+
+      final response = await _apiClient.dio.get(
+        url != null
+            ? '$url${ApiEndpoint.pullFaceData}'
+            : ApiEndpoint.pullFaceData,
+        queryParameters: queryParameters,
+      );
+
+      if (response.statusCode != 200) {
+        return DataFailed<String>(
+            'Pull face data thất bại: Mập mờ HTTP ${response.statusCode}');
+      }
+
+      final rawData = response.data;
+      final List<dynamic> data;
+      if (rawData is List) {
+        data = rawData;
+      } else {
+        // Fallback: data có thể là Map với key 'data'
+        data =
+            (rawData is Map ? rawData['data'] : null) as List<dynamic>? ?? [];
+      }
+
       if (data.isNotEmpty) {
-        final now = DateTime.now();
-        final faceDataList = data.map((e) => FaceData.fromJson(e)).toList();
-        await _localService.importFaceData(faceDataList);
-        await _localService.saveLatestTimePullFaceData(now);
+        final faceDataList = data
+            .map((e) => FaceData.fromJson(e as Map<String, dynamic>))
+            .toList();
+
+        final actualImported = await _localService.importFaceData(faceDataList);
+
+        // Clear recovery IDs ONLY if import successfully completes (no throw)
+        await _localService.clearPendingRecoveryStudentIds();
+
+        // Broadcast event so UI refreshes to show recovered faces silently
+        EventBusMixin.shareStaticEvent(SyncStudentEvent(status: 'silent'));
+
+        final msg = actualImported > 0
+            ? 'Tải về $actualImported khuôn mặt thành công'
+            : 'Không có khuôn mặt mới (đã cập nhật metadata ${faceDataList.length} bản ghi)';
+        return DataSuccess<String>(msg);
       }
-      return DataSuccess<String>(
-          response.statusMessage ?? 'Cập nhật dữ liệu thành công');
+
+      return const DataSuccess<String>('Không có dữ liệu mới được tải về');
     } catch (e) {
       await pushLog('Error in pullFaceData: $e');
       return DataFailed<String>(e.toString());
@@ -127,8 +158,9 @@ class UserServiceImplement implements UserService {
       );
       debugPrint('response: ${response.data}');
       if (response.isSuccess()) {
+        final responseData = response.data['data'] as Map<String, dynamic>? ?? {};
         final listSkippedPersonIds =
-            response.data['data']['skipped'] as List<dynamic>? ?? [];
+            responseData['skipped'] as List<dynamic>? ?? [];
         final listSkippedPersonIdsInt =
             listSkippedPersonIds.map((e) => e as int).toList();
         for (final personId in listPushedPersonIds) {
@@ -136,7 +168,20 @@ class UserServiceImplement implements UserService {
             await _localService.setPersonSynced(personId);
           }
         }
-        return DataSuccess<String>(response.data['message']);
+
+        // ── Sync-echo elimination: apply server metadata immediately ──
+        final itemsMeta = responseData['items_meta'] as List<dynamic>? ?? [];
+        if (itemsMeta.isNotEmpty) {
+          await _localService.applyPushMetadata(itemsMeta);
+        }
+
+        final baseMessage = response.data['message'] ?? 'Thành công.';
+        final successPersonCount = listPushedPersonIds.length - listSkippedPersonIdsInt.length;
+        final detailMessage = successPersonCount > 0
+            ? '$baseMessage ($successPersonCount học sinh)'
+            : baseMessage;
+
+        return DataSuccess<String>(detailMessage);
       }
       return DataFailed<String>(response.error);
     } catch (e) {
@@ -270,8 +315,7 @@ class UserServiceImplement implements UserService {
         debugPrint('json: $json');
         final realData = json['data'];
         final studentsData = realData['students'] as List<dynamic>;
-        final students =
-            studentsData.map((e) => Student.fromJson(e)).toList();
+        final students = studentsData.map((e) => Student.fromJson(e)).toList();
         return DataSuccess<List<Student>>(students);
       }
       return DataFailed<List<Student>>(response.error);
@@ -478,6 +522,43 @@ class UserServiceImplement implements UserService {
     } catch (e) {
       await pushLog('Error in registerUser: $e');
       return DataFailed<RegisterUserResponse>(e.toString());
+    }
+  }
+
+  @override
+  Future<DataState<bool>> deleteUser(String serverUserId) async {
+    try {
+      final ApiResponse response = await _apiClient.delete(
+        path: ApiEndpoint.deleteUser.replaceFirst('{id}', serverUserId),
+      );
+
+      if (response.isSuccess()) {
+        return const DataSuccess<bool>(true);
+      } else {
+        return DataFailed<bool>(response.error ?? 'Xóa user thất bại');
+      }
+    } catch (e) {
+      await pushLog('Error in deleteUser: $e');
+      return DataFailed<bool>(e.toString());
+    }
+  }
+
+  @override
+  Future<DataState<bool>> deleteFace(int studentId) async {
+    try {
+      final response = await _apiClient.delete(
+        path: ApiEndpoint.deleteFace.replaceAll('{id}', studentId.toString()),
+      );
+      if (response.isSuccess()) {
+        return const DataSuccess<bool>(true);
+      }
+      return DataFailed<bool>(response.error);
+    } on DioError catch (e) {
+      await pushLog('Error in deleteFace: $e');
+      return DataFailed<bool>(e.message);
+    } on Exception catch (e) {
+      await pushLog('Error in deleteFace: $e');
+      return DataFailed<bool>(e.toString());
     }
   }
 }

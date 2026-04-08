@@ -15,6 +15,7 @@ Flutter endpoint constants (from api_endpoint.dart):
     POST /api/attendance/history/sync_bulk_io
 """
 from typing import List, Any
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile, Body
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -108,6 +109,8 @@ async def upload_avatars(
     summary="[Flutter] Export all face embeddings as JSON",
 )
 async def export_face_embeddings(
+    from_date: datetime | None = None,
+    specific_student_ids: str | None = None,
     _: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ) -> list[FaceDataOut]:
@@ -115,7 +118,16 @@ async def export_face_embeddings(
     for ALL students. The Flutter app pulls this on startup to load its local
     face recognition engine.
     """
-    return await FaceService(db).export_all()
+    import traceback
+    from fastapi import HTTPException
+    try:
+        return await FaceService(db).export_all(
+            from_date=from_date,
+            specific_student_ids=specific_student_ids
+        )
+    except Exception as exc:
+        tb = traceback.format_exc()
+        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}\n\n{tb}")
 
 
 @router.put(

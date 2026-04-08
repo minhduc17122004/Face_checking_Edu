@@ -240,19 +240,15 @@ class SessionRepository(BaseRepository[Session]):
         """
         from app.models.course import Course as CourseModel
         # Subquery: find courses in the given room
-        course_subq = (
-            select(CourseModel.id)
-            .where(
-                and_(
-                    CourseModel.room_id == room_id,
-                    CourseModel.deleted_at.is_(None),
-                )
+        course_stmt = select(CourseModel.id).where(
+            and_(
+                CourseModel.room_id == room_id,
+                CourseModel.deleted_at.is_(None),
             )
-            .subquery()
         )
 
         conditions = [
-            Session.course_id.in_(select(course_subq)),
+            Session.course_id.in_(course_stmt),
             Session.deleted_at.is_(None),
         ]
         if session_date:
@@ -284,19 +280,15 @@ class SessionRepository(BaseRepository[Session]):
         from datetime import datetime
         from sqlalchemy import case
 
-        course_subq = (
-            select(CourseModel.id)
-            .where(
-                and_(
-                    CourseModel.room_id == room_id,
-                    CourseModel.deleted_at.is_(None),
-                )
+        course_stmt = select(CourseModel.id).where(
+            and_(
+                CourseModel.room_id == room_id,
+                CourseModel.deleted_at.is_(None),
             )
-            .subquery()
         )
 
         conditions = [
-            Session.course_id.in_(select(course_subq)),
+            Session.course_id.in_(course_stmt),
             Session.deleted_at.is_(None),
         ]
         if session_date:
@@ -345,19 +337,15 @@ class SessionRepository(BaseRepository[Session]):
         now = datetime.now(timezone.utc)
 
         # Find courses for this teacher
-        course_subq = (
-            select(CourseModel.id)
-            .where(
-                and_(
-                    CourseModel.teacher_id == teacher_id,
-                    CourseModel.deleted_at.is_(None),
-                )
+        course_stmt = select(CourseModel.id).where(
+            and_(
+                CourseModel.teacher_id == teacher_id,
+                CourseModel.deleted_at.is_(None),
             )
-            .subquery()
         )
 
         conditions = [
-            Session.course_id.in_(select(course_subq)),
+            Session.course_id.in_(course_stmt),
             Session.deleted_at.is_(None),
             # Filter sessions that haven't ended yet
             Session.end_time > now,

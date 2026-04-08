@@ -1,0 +1,288 @@
+# ERD - Hệ thống Điểm danh Khuôn mặt
+# Face Attendance System Database Schema
+# Copy toàn bộ nội dung bên dưới vào: https://mermaid.live để xem & export
+
+erDiagram
+    %% ═══════════════════════════════════════════════════════════
+    %% NHÓM 1: XÁC THỰC & NGƯỜI DÙNG
+    %% ═══════════════════════════════════════════════════════════
+
+    USERS {
+        uuid id PK "UUID, khóa chính"
+        string email UK "Email, duy nhất"
+        string password_hash "Mật khẩu băm"
+        string full_name "Họ và tên"
+        string role "enum: admin|teacher|student"
+        string avatar_url "URL avatar"
+        datetime created_at "Thời gian tạo"
+        datetime updated_at "Thời gian cập nhật"
+        datetime deleted_at "Soft delete"
+    }
+
+    REFRESH_TOKENS {
+        uuid id PK "UUID, khóa chính"
+        uuid user_id FK "→ users.id"
+        string token_jti UK "JWT token ID, duy nhất"
+        string device_id "ID thiết bị"
+        json device_info "Thông tin thiết bị"
+        datetime expires_at "Hết hạn token"
+        boolean revoked "Đã thu hồi"
+        datetime created_at "Thời gian tạo"
+    }
+
+    TEACHERS {
+        int id PK "INT, khóa chính (Flutter compatible)"
+        uuid user_id FK UK "→ users.id, duy nhất"
+        string teacher_id UK "Mã giáo viên"
+        string phone "Số điện thoại"
+        uuid department_id FK "→ departments.id"
+        datetime created_at "Thời gian tạo"
+        datetime updated_at "Thời gian cập nhật"
+        datetime deleted_at "Soft delete"
+    }
+
+    STUDENTS {
+        int id PK "INT, khóa chính (Flutter compatible)"
+        uuid user_id FK UK "→ users.id, duy nhất"
+        string student_code UK "Mã sinh viên (MSSV)"
+        string pin "Mã PIN offline"
+        uuid student_group_id FK "→ student_groups.id"
+        datetime created_at "Thời gian tạo"
+        datetime updated_at "Thời gian cập nhật"
+        datetime deleted_at "Soft delete"
+    }
+
+    %% ═══════════════════════════════════════════════════════════
+    %% NHÓM 2: HỌC THUẬT
+    %% ═══════════════════════════════════════════════════════════
+
+    DEPARTMENTS {
+        uuid id PK "UUID, khóa chính"
+        string code UK "Mã khoa, duy nhất"
+        string name "Tên khoa"
+        datetime created_at "Thời gian tạo"
+        datetime updated_at "Thời gian cập nhật"
+        datetime deleted_at "Soft delete"
+        uuid created_by "Người tạo"
+        uuid updated_by "Người cập nhật"
+    }
+
+    STUDENT_GROUPS {
+        uuid id PK "UUID, khóa chính"
+        string code UK "Mã lớp, duy nhất"
+        string name "Tên lớp"
+        uuid department_id FK "→ departments.id"
+        uuid advisor_id FK "→ users.id (GV chủ nhiệm)"
+        datetime created_at "Thời gian tạo"
+        datetime updated_at "Thời gian cập nhật"
+        datetime deleted_at "Soft delete"
+        uuid created_by "Người tạo"
+        uuid updated_by "Người cập nhật"
+    }
+
+    COURSES {
+        uuid id PK "UUID, khóa chính"
+        string course_name "Tên lớp học phần"
+        string course_code "Mã môn học"
+        int teacher_id FK "→ teachers.id"
+        uuid department_id FK "→ departments.id"
+        uuid room_id FK "→ rooms.id (phòng chính)"
+        string attendance_mode "enum: preset|flexible"
+        int custom_window_start_minutes "Phút trước giờ bắt đầu"
+        int custom_window_end_minutes "Phút sau giờ bắt đầu"
+        date course_start_date "Ngày bắt đầu khóa"
+        date course_end_date "Ngày kết thúc khóa"
+        datetime created_at "Thời gian tạo"
+        datetime updated_at "Thời gian cập nhật"
+        datetime deleted_at "Soft delete"
+        uuid created_by "Người tạo"
+        uuid updated_by "Người cập nhật"
+    }
+
+    COURSE_ENROLLMENTS {
+        uuid id PK "UUID, khóa chính"
+        uuid course_id FK "→ courses.id"
+        int student_id FK "→ students.id"
+        datetime enrolled_at "Thời gian đăng ký"
+    }
+
+    TIME_SLOTS {
+        int id PK "INT, khóa chính"
+        int period_number UK "Số thứ tự tiết (1, 2, 3...)"
+        time start_time "Giờ bắt đầu tiết"
+        time end_time "Giờ kết thúc tiết"
+        datetime created_at "Thời gian tạo"
+    }
+
+    SCHEDULES {
+        uuid id PK "UUID, khóa chính"
+        uuid course_id FK "→ courses.id"
+        int day_of_week "1-7 (Thứ 2 - Chủ nhật)"
+        int time_slot_id FK "→ time_slots.id"
+        datetime created_at "Thời gian tạo"
+        datetime updated_at "Thời gian cập nhật"
+        datetime deleted_at "Soft delete"
+        uuid created_by "Người tạo"
+        uuid updated_by "Người cập nhật"
+    }
+
+    %% ═══════════════════════════════════════════════════════════
+    %% NHÓM 3: PHIÊN & ĐIỂM DANH
+    %% ═══════════════════════════════════════════════════════════
+
+    SESSIONS {
+        uuid id PK "UUID, khóa chính"
+        uuid course_id FK "→ courses.id"
+        uuid schedule_id FK "→ schedules.id"
+        date session_date "Ngày diễn ra phiên"
+        datetime start_time "Giờ bắt đầu"
+        datetime end_time "Giờ kết thúc"
+        datetime checkin_window_start "Bắt đầu cho phép điểm danh"
+        datetime checkin_window_end "Kết thúc cho phép điểm danh"
+        string status "enum: scheduled|active|closed"
+        datetime created_at "Thời gian tạo"
+        datetime updated_at "Thời gian cập nhật"
+        datetime deleted_at "Soft delete"
+    }
+
+    ATTENDANCES {
+        uuid id PK "UUID, khóa chính"
+        uuid session_id FK "→ sessions.id"
+        int student_id FK "→ students.id"
+        datetime checkin_time "Giờ điểm danh (device)"
+        datetime sync_time "Giờ đồng bộ (server)"
+        string status "enum: present|late|absent|early|on_time"
+        float confidence "Độ tin cậy nhận diện"
+        uuid device_id FK "→ devices.id"
+        int minutes_diff "Số phút chênh lệch"
+        datetime created_at "Thời gian tạo"
+        datetime deleted_at "Soft delete"
+    }
+
+    ATTENDANCE_CONFIGS {
+        uuid id PK "UUID, khóa chính"
+        uuid session_id FK UK "→ sessions.id, duy nhất"
+        uuid room_id FK "→ rooms.id"
+        string mode "enum: FIXED|FLEXIBLE"
+        int early_allowance "Phút được phép sớm (default: 15)"
+        int late_allowance "Phút được phép trễ (default: 15)"
+        datetime created_at "Thời gian tạo"
+        datetime updated_at "Thời gian cập nhật"
+    }
+
+    ATTENDANCE_AUDIT_LOGS {
+        uuid id PK "UUID, khóa chính"
+        int student_id "ID sinh viên"
+        uuid session_id "ID phiên"
+        uuid device_id FK "→ devices.id"
+        string action "enum: checkin|manual|delete"
+        string old_status "Trạng thái trước"
+        string new_status "Trạng thái sau"
+        int minutes_diff "Số phút chênh lệch"
+        datetime created_at "Thời gian tạo"
+    }
+
+    %% ═══════════════════════════════════════════════════════════
+    %% NHÓM 4: KHUÔN MẶT & THIẾT BỊ
+    %% ═══════════════════════════════════════════════════════════
+
+    FACE_EMBEDDINGS {
+        uuid id PK "UUID, khóa chính"
+        int student_id FK "→ students.id"
+        json embedding "Vector 128 chiều (JSON)"
+        boolean is_active "Có đang sử dụng không"
+        float quality_score "Điểm chất lượng ảnh (0.0-1.0)"
+        uuid device_id FK "→ devices.id"
+        datetime captured_at "Thời gian chụp"
+        datetime created_at "Thời gian tạo"
+        datetime updated_at "Thời gian cập nhật"
+        datetime deleted_at "Soft delete"
+    }
+
+    ROOMS {
+        uuid id PK "UUID, khóa chính"
+        string code UK "Mã phòng, duy nhất"
+        string name "Tên phòng"
+        string building "Tòa nhà"
+        int floor "Tầng"
+        int capacity "Sức chứa"
+        datetime created_at "Thời gian tạo"
+        datetime updated_at "Thời gian cập nhật"
+        datetime deleted_at "Soft delete"
+        uuid created_by "Người tạo"
+        uuid updated_by "Người cập nhật"
+    }
+
+    DEVICES {
+        uuid id PK "UUID, khóa chính"
+        string device_code UK "Mã thiết bị, duy nhất"
+        string device_name "Tên thiết bị"
+        uuid room_id FK "→ rooms.id"
+        string device_type "Loại: tablet, kiosk..."
+        boolean is_active "Có đang hoạt động không"
+        boolean is_global "Cho phép mọi phòng"
+        string status "enum: ACTIVE|INACTIVE"
+        string ip_address "Địa chỉ IP"
+        string mac_address "Địa chỉ MAC"
+        datetime last_active_at "Hoạt động lần cuối"
+        datetime created_at "Thời gian tạo"
+        datetime updated_at "Thời gian cập nhật"
+        datetime deleted_at "Soft delete"
+        uuid created_by "Người tạo"
+        uuid updated_by "Người cập nhật"
+    }
+
+    DEVICE_REQUESTS {
+        uuid id PK "UUID, khóa chính"
+        string device_code "Mã thiết bị"
+        string device_name "Tên thiết bị"
+        uuid room_id FK "→ rooms.id (null = global)"
+        uuid requested_by FK "→ users.id (người yêu cầu)"
+        string status "enum: PENDING|APPROVED|REJECTED"
+        uuid reviewed_by FK "→ users.id (admin duyệt)"
+        datetime reviewed_at "Thời gian duyệt"
+        string admin_note "Ghi chú admin"
+        datetime created_at "Thời gian tạo"
+        datetime updated_at "Thời gian cập nhật"
+        datetime deleted_at "Soft delete"
+    }
+
+    %% ═══════════════════════════════════════════════════════════
+    %% QUAN HỆ
+    %% ═══════════════════════════════════════════════════════════
+
+    USERS ||--o| TEACHERS : "1:1"
+    USERS ||--o| STUDENTS : "1:1"
+    USERS ||--o{ REFRESH_TOKENS : "1:N"
+    USERS ||--o{ STUDENT_GROUPS : "1:N (advisor)"
+
+    DEPARTMENTS ||--o{ TEACHERS : "1:N"
+    DEPARTMENTS ||--o{ STUDENT_GROUPS : "1:N"
+    DEPARTMENTS ||--o{ COURSES : "1:N"
+
+    STUDENT_GROUPS ||--o{ STUDENTS : "1:N"
+    TEACHERS ||--o{ COURSES : "1:N"
+
+    COURSES ||--o{ COURSE_ENROLLMENTS : "1:N"
+    STUDENTS ||--o{ COURSE_ENROLLMENTS : "1:N"
+    COURSES ||--o{ SCHEDULES : "1:N"
+    SCHEDULES }o--|| TIME_SLOTS : "N:1"
+
+    COURSES ||--o{ SESSIONS : "1:N"
+    SCHEDULES ||--o{ SESSIONS : "1:N"
+    SESSIONS ||--|| ATTENDANCE_CONFIGS : "1:1"
+    SESSIONS ||--o{ ATTENDANCES : "1:N"
+    STUDENTS ||--o{ ATTENDANCES : "1:N"
+    ATTENDANCES }o--|| DEVICES : "N:1"
+    ATTENDANCES ||--o{ ATTENDANCE_AUDIT_LOGS : "1:N"
+
+    STUDENTS ||--o{ FACE_EMBEDDINGS : "1:N"
+    FACE_EMBEDDINGS }o--|| DEVICES : "N:1"
+
+    ROOMS ||--o{ COURSES : "1:N"
+    ROOMS ||--o{ DEVICES : "1:N"
+    ROOMS ||--o{ DEVICE_REQUESTS : "1:N"
+    ROOMS ||--o{ ATTENDANCE_CONFIGS : "1:N"
+
+    DEVICE_REQUESTS }o--|| USERS : "requested_by N:1"
+    DEVICE_REQUESTS }o--|| USERS : "reviewed_by N:1"

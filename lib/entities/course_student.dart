@@ -7,6 +7,10 @@ class CourseStudent {
   final bool hasFace;
   final int embeddingCount;
   final DateTime enrolledAt;
+  final int absentCount;
+  final int leaveCount;
+  final int lateCount;
+  final int onTimeCount;
 
   const CourseStudent({
     required this.studentId,
@@ -17,6 +21,10 @@ class CourseStudent {
     this.hasFace = false,
     this.embeddingCount = 0,
     required this.enrolledAt,
+    this.absentCount = 0,
+    this.leaveCount = 0,
+    this.lateCount = 0,
+    this.onTimeCount = 0,
   });
 
   factory CourseStudent.fromJson(Map<String, dynamic> json) {
@@ -29,6 +37,10 @@ class CourseStudent {
       hasFace: json['has_face'] as bool? ?? false,
       embeddingCount: json['embedding_count'] as int? ?? 0,
       enrolledAt: DateTime.parse(json['enrolled_at'] as String),
+      absentCount: json['absent_count'] as int? ?? 0,
+      leaveCount: json['leave_count'] as int? ?? 0,
+      lateCount: json['late_count'] as int? ?? 0,
+      onTimeCount: json['on_time_count'] as int? ?? 0,
     );
   }
 

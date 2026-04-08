@@ -1,4 +1,4 @@
-from __future__ import annotations
+import uuid
 """Attendance router — real-time check-in and history queries."""
 import uuid
 

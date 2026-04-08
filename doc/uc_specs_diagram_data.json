@@ -1,0 +1,317 @@
+[
+  {
+    "heading": "UC 1 — Quản lý chứng thực",
+    "rows": [
+      ["Mã Use Case", "UC 1"],
+      ["Tên Use Case", "Quản lý chứng thực"],
+      ["Tác nhân chính", "Admin; Giáo viên"],
+      ["Mô tả", "Nhóm chức năng bảo mật và phiên làm việc: điểm vào hệ thống (đăng nhập), kết thúc phiên (đăng xuất), và các thao tác liên quan đến xác thực sau khi người dùng đã được nhận diện."],
+      ["Tiền điều kiện", "Hệ thống sẵn sàng; người dùng có tài khoản hợp lệ (đối với luồng đăng nhập)."],
+      ["Hậu điều kiện", "Tùy luồng con: phiên được thiết lập (UC 1.1) hoặc kết thúc (UC 1.2)."],
+      ["Luồng chính", "Use case tổng quát; luồng chi tiết thực hiện qua UC 1.1 (Đăng nhập) và UC 1.2 (Đăng xuất)."],
+      ["Luồng phụ / ngoại lệ", "Xử lý lỗi thuộc các UC con (sai mật khẩu, tài khoản khóa, mất mạng…)."],
+      ["Quan hệ (Include/Extend)", "UC 1.1 Đăng nhập <<extend>> UC 1. UC 1.2 Đăng xuất <<extend>> UC 1."],
+      ["Yêu cầu phi chức năng", "Tuân thủ chính sách mật khẩu và phiên; ghi nhật ký thao tác nhạy cảm."]
+    ]
+  },
+  {
+    "heading": "UC 1.1 — Đăng nhập",
+    "rows": [
+      ["Mã Use Case", "UC 1.1"],
+      ["Tên Use Case", "Đăng nhập"],
+      ["Tác nhân chính", "Admin; Giáo viên; Học sinh"],
+      ["Mô tả", "Người dùng xác thực danh tính bằng tài khoản (mật khẩu/token) để truy cập chức năng theo vai trò."],
+      ["Tiền điều kiện", "Tài khoản đã được cấp; hệ thống hoạt động; có kết nối mạng (trừ khi hỗ trợ offline)."],
+      ["Hậu điều kiện", "Phiên làm việc hợp lệ; chuyển tới giao diện theo vai trò."],
+      ["Luồng chính", "1. Mở ứng dụng/web.\n2. Nhập tên đăng nhập và mật khẩu.\n3. Hệ thống kiểm tra.\n4. Hợp lệ: tạo phiên, ghi log, hiển thị trang chủ."],
+      ["Luồng phụ / ngoại lệ", "Sai mật khẩu; tài khoản khóa; lỗi mạng/server — thông báo và hướng dẫn thử lại."],
+      ["Quan hệ (Include/Extend)", "<<extend>> UC 1 Quản lý chứng thực. Được <<include>> bởi UC 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13. Được <<extend>> bởi UC 5.1, 6.1, 10.1 (luồng xem sau khi đã đăng nhập, theo sơ đồ)."],
+      ["Yêu cầu phi chức năng", "HTTPS; không lưu mật khẩu dạng plaintext; phản hồi < 3s trong điều kiện mạng bình thường."]
+    ]
+  },
+  {
+    "heading": "UC 1.2 — Đăng xuất",
+    "rows": [
+      ["Mã Use Case", "UC 1.2"],
+      ["Tên Use Case", "Đăng xuất"],
+      ["Tác nhân chính", "Admin; Giáo viên (và các vai trò khác nếu triển khai thống nhất)"],
+      ["Mô tả", "Kết thúc phiên làm việc, vô hiệu hóa token/cookie trên thiết bị và phía máy chủ (nếu có)."],
+      ["Tiền điều kiện", "Người dùng đã đăng nhập (đã hoàn thành UC 1.1)."],
+      ["Hậu điều kiện", "Phiên hết hiệu lực; thao tác tiếp theo yêu cầu đăng nhập lại."],
+      ["Luồng chính", "1. Chọn Đăng xuất.\n2. Hủy phiên server và xóa dữ liệu phiên cục bộ.\n3. Chuyển về màn hình đăng nhập."],
+      ["Luồng phụ / ngoại lệ", "Mất mạng: vẫn xóa cục bộ, đánh dấu phiên không tin cậy."],
+      ["Quan hệ (Include/Extend)", "<<extend>> UC 1 Quản lý chứng thực."],
+      ["Yêu cầu phi chức năng", "Hoàn tất < 2s."]
+    ]
+  },
+  {
+    "heading": "UC 2 — Quản lý người dùng & vai trò",
+    "rows": [
+      ["Mã Use Case", "UC 2"],
+      ["Tên Use Case", "Quản lý người dùng & vai trò"],
+      ["Tác nhân chính", "Admin"],
+      ["Mô tả", "Tạo, sửa, vô hiệu hóa người dùng; gán vai trò (Admin, Giáo viên, Học sinh) và quyền truy cập."],
+      ["Tiền điều kiện", "Admin đã đăng nhập (<<include>> UC 1.1)."],
+      ["Hậu điều kiện", "CSDL người dùng và phân quyền được cập nhật."],
+      ["Luồng chính", "1. Vào quản lý người dùng.\n2. Tìm kiếm/lọc.\n3. Thêm hoặc sửa, gán vai trò.\n4. Lưu; kiểm tra ràng buộc và ghi log."],
+      ["Luồng phụ / ngoại lệ", "Trùng tên đăng nhập: từ chối lưu."],
+      ["Quan hệ (Include/Extend)", "<<include>> UC 1.1 Đăng nhập."],
+      ["Yêu cầu phi chức năng", "Chỉ Admin gọi API quản trị; audit trail."]
+    ]
+  },
+  {
+    "heading": "UC 3 — Quản lý phòng học",
+    "rows": [
+      ["Mã Use Case", "UC 3"],
+      ["Tên Use Case", "Quản lý phòng học"],
+      ["Tác nhân chính", "Admin"],
+      ["Mô tả", "Quản lý danh mục phòng học (mã, sức chứa, vị trí) phục vụ lịch học và thiết bị."],
+      ["Tiền điều kiện", "Admin đã đăng nhập (<<include>> UC 1.1)."],
+      ["Hậu điều kiện", "Danh mục phòng đồng bộ với lịch và phiên điểm danh."],
+      ["Luồng chính", "1. Mở danh mục phòng.\n2. Thêm/sửa thông tin.\n3. Lưu; đảm bảo mã phòng duy nhất."],
+      ["Luồng phụ / ngoại lệ", "Phòng đang có lịch: cảnh báo hoặc hạn chế xóa."],
+      ["Quan hệ (Include/Extend)", "<<include>> UC 1.1 Đăng nhập."],
+      ["Yêu cầu phi chức năng", "Tải danh sách nhanh; tìm theo mã phòng."]
+    ]
+  },
+  {
+    "heading": "UC 4 — Quản lý phiên điểm danh",
+    "rows": [
+      ["Mã Use Case", "UC 4"],
+      ["Tên Use Case", "Quản lý phiên điểm danh"],
+      ["Tác nhân chính", "Admin; Giáo viên"],
+      ["Mô tả", "Xem và quản lý phiên điểm danh: Admin giám sát/toàn hệ thống; Giáo viên vận hành phiên được phân công. Các thao tác mở/thời gian/đóng phiên là luồng mở rộng (UC 4.1–4.3)."],
+      ["Tiền điều kiện", "Đã đăng nhập (<<include>> UC 1.1); có lớp, học phần, lịch tương ứng."],
+      ["Hậu điều kiện", "Thông tin phiên được cập nhật hoặc tra cứu thành công."],
+      ["Luồng chính", "1. Vào mục phiên điểm danh.\n2. Lọc theo ngày, lớp, giáo viên.\n3. Xem chi tiết; Admin có thể can thiệp theo quy định; GV dùng UC 4.1–4.3 khi cần."],
+      ["Luồng phụ / ngoại lệ", "Không đủ quyền: từ chối."],
+      ["Quan hệ (Include/Extend)", "<<include>> UC 1.1. UC 4.1, UC 4.2, UC 4.3 <<extend>> UC 4."],
+      ["Yêu cầu phi chức năng", "Phân quyền theo vai trò; nhật ký đổi trạng thái phiên."]
+    ]
+  },
+  {
+    "heading": "UC 4.1 — Mở phiên điểm danh",
+    "rows": [
+      ["Mã Use Case", "UC 4.1"],
+      ["Tên Use Case", "Mở phiên điểm danh"],
+      ["Tác nhân chính", "Giáo viên"],
+      ["Mô tả", "Kích hoạt phiên điểm danh cho tiết/lớp để học sinh thực hiện điểm danh khuôn mặt."],
+      ["Tiền điều kiện", "Đã đăng nhập; có lịch/học phần hợp lệ; thiết bị (nếu bắt buộc) đã đăng ký."],
+      ["Hậu điều kiện", "Phiên ở trạng thái đang mở; ghi thời điểm mở."],
+      ["Luồng chính", "1. Chọn tiết/lớp.\n2. Xác nhận mở phiên.\n3. Hệ thống tạo bản ghi, hiển thị trạng thái cho lớp."],
+      ["Luồng phụ / ngoại lệ", "Trùng phiên đang mở: cảnh báo hoặc xử lý theo nghiệp vụ."],
+      ["Quan hệ (Include/Extend)", "<<extend>> UC 4 Quản lý phiên điểm danh (ngầm định sau khi đã <<include>> UC 1.1)."],
+      ["Yêu cầu phi chức năng", "Đồng bộ thời gian (NTP); phản hồi mở phiên < 2s."]
+    ]
+  },
+  {
+    "heading": "UC 4.2 — Thiết lập thời gian điểm danh",
+    "rows": [
+      ["Mã Use Case", "UC 4.2"],
+      ["Tên Use Case", "Thiết lập thời gian điểm danh"],
+      ["Tác nhân chính", "Giáo viên"],
+      ["Mô tả", "Cấu hình khung thời gian cho phép điểm danh (bắt đầu/kết thúc hoặc độ dài phiên)."],
+      ["Tiền điều kiện", "Phiên đã tạo hoặc chuẩn bị mở; GV có quyền trên phiên."],
+      ["Hậu điều kiện", "Thông số thời gian được lưu và áp dụng khi học sinh điểm danh."],
+      ["Luồng chính", "1. Vào chi tiết phiên.\n2. Nhập thời gian hoặc chọn preset.\n3. Lưu; server kiểm tra hợp lệ."],
+      ["Luồng phụ / ngoại lệ", "Kết thúc trước bắt đầu: từ chối."],
+      ["Quan hệ (Include/Extend)", "<<extend>> UC 4 Quản lý phiên điểm danh."],
+      ["Yêu cầu phi chức năng", "Múi giờ thống nhất; có thể lưu UTC."]
+    ]
+  },
+  {
+    "heading": "UC 4.3 — Đóng phiên điểm danh",
+    "rows": [
+      ["Mã Use Case", "UC 4.3"],
+      ["Tên Use Case", "Đóng phiên điểm danh"],
+      ["Tác nhân chính", "Giáo viên"],
+      ["Mô tả", "Kết thúc phiên; không ghi nhận điểm danh mới (trừ xử lý ngoại lệ do quản trị nếu có)."],
+      ["Tiền điều kiện", "Phiên đang mở."],
+      ["Hậu điều kiện", "Phiên đã đóng; dữ liệu khóa theo chính sách."],
+      ["Luồng chính", "1. Chọn Đóng phiên.\n2. Xác nhận.\n3. Cập nhật trạng thái và thống kê sĩ số nhanh."],
+      ["Luồng phụ / ngoại lệ", "Yêu cầu mở lại: theo quy trình Admin (ngoài UC chuẩn)."],
+      ["Quan hệ (Include/Extend)", "<<extend>> UC 4 Quản lý phiên điểm danh."],
+      ["Yêu cầu phi chức năng", "Thao tác đóng idempotent an toàn khi lặp yêu cầu."]
+    ]
+  },
+  {
+    "heading": "UC 5 — Quản lý học phần",
+    "rows": [
+      ["Mã Use Case", "UC 5"],
+      ["Tên Use Case", "Quản lý học phần"],
+      ["Tác nhân chính", "Admin"],
+      ["Mô tả", "Quản lý danh mục học phần/môn học (mã, tên, thông tin liên quan) phục vụ lịch và lớp."],
+      ["Tiền điều kiện", "Admin đã đăng nhập (<<include>> UC 1.1)."],
+      ["Hậu điều kiện", "Học phần được cập nhật trong CSDL."],
+      ["Luồng chính", "1. Mở danh mục học phần.\n2. Thêm/sửa.\n3. Lưu; mã học phần duy nhất."],
+      ["Luồng phụ / ngoại lệ", "Đang có lịch: hạn chế xóa hoặc chỉ vô hiệu hóa."],
+      ["Quan hệ (Include/Extend)", "<<include>> UC 1.1 Đăng nhập."],
+      ["Yêu cầu phi chức năng", "Kiểm tra toàn vẹn khi import/export (nếu có)."]
+    ]
+  },
+  {
+    "heading": "UC 5.1 — Xem học phần",
+    "rows": [
+      ["Mã Use Case", "UC 5.1"],
+      ["Tên Use Case", "Xem học phần"],
+      ["Tác nhân chính", "Giáo viên"],
+      ["Mô tả", "Xem danh sách học phần được phân công giảng dạy và thông tin chi tiết (chỉ đọc)."],
+      ["Tiền điều kiện", "Giáo viên đã đăng nhập (UC 1.1)."],
+      ["Hậu điều kiện", "Dữ liệu hiển thị đúng phạm vi giáo viên."],
+      ["Luồng chính", "1. Vào mục học phần.\n2. Hệ thống truy vấn theo giáo viên.\n3. Hiển thị danh sách và chi tiết khi chọn."],
+      ["Luồng phụ / ngoại lệ", "Không có học phần: hiển thị trạng thái rỗng."],
+      ["Quan hệ (Include/Extend)", "<<extend>> UC 1.1 Đăng nhập (theo sơ đồ)."],
+      ["Yêu cầu phi chức năng", "Chỉ đọc; có thể cache ngắn hạn."]
+    ]
+  },
+  {
+    "heading": "UC 6 — Quản lý lịch học",
+    "rows": [
+      ["Mã Use Case", "UC 6"],
+      ["Tên Use Case", "Quản lý lịch học"],
+      ["Tác nhân chính", "Admin"],
+      ["Mô tả", "Tạo và duy trì lịch học: gán lớp, học phần, phòng, giáo viên, ca học."],
+      ["Tiền điều kiện", "Admin đã đăng nhập (<<include>> UC 1.1); có lớp, học phần, phòng, giáo viên."],
+      ["Hậu điều kiện", "Lịch dùng cho GV/HS và tạo phiên điểm danh."],
+      ["Luồng chính", "1. Mở màn hình lịch.\n2. Thêm/sửa tiết.\n3. Kiểm tra trùng phòng/giáo viên.\n4. Lưu."],
+      ["Luồng phụ / ngoại lệ", "Xung đột tài nguyên: báo lỗi, gợi ý điều chỉnh."],
+      ["Quan hệ (Include/Extend)", "<<include>> UC 1.1 Đăng nhập."],
+      ["Yêu cầu phi chức năng", "Hiển thị theo tuần/ngày; hiệu năng khi số tiết lớn."]
+    ]
+  },
+  {
+    "heading": "UC 6.1 — Xem lịch học",
+    "rows": [
+      ["Mã Use Case", "UC 6.1"],
+      ["Tên Use Case", "Xem lịch học"],
+      ["Tác nhân chính", "Giáo viên"],
+      ["Mô tả", "Xem lịch giảng dạy theo ngày/tuần: phòng, lớp, môn (chỉ đọc)."],
+      ["Tiền điều kiện", "Giáo viên đã đăng nhập (UC 1.1)."],
+      ["Hậu điều kiện", "Lịch hiển thị theo bộ lọc thời gian."],
+      ["Luồng chính", "1. Chọn khoảng thời gian.\n2. Tải các tiết được phân công.\n3. Hiển thị dạng bảng/lịch."],
+      ["Luồng phụ / ngoại lệ", "Lỗi mạng: dùng cache (nếu có) kèm cảnh báo."],
+      ["Quan hệ (Include/Extend)", "<<extend>> UC 1.1 Đăng nhập (theo sơ đồ)."],
+      ["Yêu cầu phi chức năng", "Đồng bộ múi giờ với máy chủ."]
+    ]
+  },
+  {
+    "heading": "UC 7 — Quản lý lớp học",
+    "rows": [
+      ["Mã Use Case", "UC 7"],
+      ["Tên Use Case", "Quản lý lớp học"],
+      ["Tác nhân chính", "Admin"],
+      ["Mô tả", "Quản lý lớp (mã, khóa, liên kết phòng ban nếu có), gán học sinh vào lớp."],
+      ["Tiền điều kiện", "Admin đã đăng nhập (<<include>> UC 1.1)."],
+      ["Hậu điều kiện", "Danh sách lớp và thành viên cập nhật."],
+      ["Luồng chính", "1. Mở danh mục lớp.\n2. Tạo/sửa lớp.\n3. Gán/bỏ gán học sinh.\n4. Lưu."],
+      ["Luồng phụ / ngoại lệ", "Xung đột phân lớp theo quy tắc nghiệp vụ: cảnh báo."],
+      ["Quan hệ (Include/Extend)", "<<include>> UC 1.1 Đăng nhập."],
+      ["Yêu cầu phi chức năng", "Phân trang danh sách lớp và học sinh."]
+    ]
+  },
+  {
+    "heading": "UC 8 — Quản lý phòng ban",
+    "rows": [
+      ["Mã Use Case", "UC 8"],
+      ["Tên Use Case", "Quản lý phòng ban"],
+      ["Tác nhân chính", "Admin"],
+      ["Mô tả", "Quản lý cấu trúc phòng ban/khoa phục vụ phân nhóm và báo cáo."],
+      ["Tiền điều kiện", "Admin đã đăng nhập (<<include>> UC 1.1)."],
+      ["Hậu điều kiện", "Cây phòng ban cập nhật; liên kết người dùng/lớp đồng bộ nếu có."],
+      ["Luồng chính", "1. Mở danh mục phòng ban.\n2. Thêm/sửa/vô hiệu hóa đơn vị.\n3. Lưu."],
+      ["Luồng phụ / ngoại lệ", "Đơn vị còn con hoặc còn người: từ chối xóa hoặc yêu cầu chuyển giao."],
+      ["Quan hệ (Include/Extend)", "<<include>> UC 1.1 Đăng nhập."],
+      ["Yêu cầu phi chức năng", "Hỗ trợ cấp cha-con trong giao diện."]
+    ]
+  },
+  {
+    "heading": "UC 9 — Quản lý thiết bị",
+    "rows": [
+      ["Mã Use Case", "UC 9"],
+      ["Tên Use Case", "Quản lý thiết bị"],
+      ["Tác nhân chính", "Admin"],
+      ["Mô tả", "Đăng ký thiết bị điểm danh, gán phòng, bật/tắt hoạt động."],
+      ["Tiền điều kiện", "Admin đã đăng nhập (<<include>> UC 1.1)."],
+      ["Hậu điều kiện", "Thiết bị cấu hình trong hệ thống."],
+      ["Luồng chính", "1. Thêm thiết bị (mã/serial).\n2. Gán phòng.\n3. Kích hoạt/vô hiệu.\n4. Lưu."],
+      ["Luồng phụ / ngoại lệ", "Trùng mã thiết bị: từ chối."],
+      ["Quan hệ (Include/Extend)", "<<include>> UC 1.1 Đăng nhập."],
+      ["Yêu cầu phi chức năng", "Bảo vệ khóa/API key thiết bị nếu gọi backend trực tiếp."]
+    ]
+  },
+  {
+    "heading": "UC 10 — Xem báo cáo & thống kê",
+    "rows": [
+      ["Mã Use Case", "UC 10"],
+      ["Tên Use Case", "Xem báo cáo & thống kê"],
+      ["Tác nhân chính", "Admin; Giáo viên"],
+      ["Mô tả", "Xem báo cáo tổng hợp (lớp, ngày, học phần…) trong phạm vi quyền Admin hoặc Giáo viên."],
+      ["Tiền điều kiện", "Đã đăng nhập (<<include>> UC 1.1); có dữ liệu điểm danh/lịch tương ứng."],
+      ["Hậu điều kiện", "Bảng số/biểu đồ (nếu có) theo bộ lọc."],
+      ["Luồng chính", "1. Vào báo cáo.\n2. Chọn kỳ, lớp, môn.\n3. Truy vấn và hiển thị.\n4. (Tuỳ chọn) Xuất file."],
+      ["Luồng phụ / ngoại lệ", "Không đủ dữ liệu: thông báo trạng thái rỗng."],
+      ["Quan hệ (Include/Extend)", "<<include>> UC 1.1 Đăng nhập."],
+      ["Yêu cầu phi chức năng", "Không lộ dữ liệu ngoài phạm vi vai trò; thời gian hợp lý với khối lượng dữ liệu chuẩn."]
+    ]
+  },
+  {
+    "heading": "UC 10.1 — Xem lịch sử điểm danh",
+    "rows": [
+      ["Mã Use Case", "UC 10.1"],
+      ["Tên Use Case", "Xem lịch sử điểm danh"],
+      ["Tác nhân chính", "Học sinh"],
+      ["Mô tả", "Xem các lần điểm danh của bản thân theo ngày/môn/lớp."],
+      ["Tiền điều kiện", "Học sinh đã đăng nhập (UC 1.1); có dữ liệu lịch sử."],
+      ["Hậu điều kiện", "Chỉ hiển thị dữ liệu của học sinh hiện tại."],
+      ["Luồng chính", "1. Vào mục lịch sử.\n2. Chọn bộ lọc.\n3. Truy vấn và hiển thị."],
+      ["Luồng phụ / ngoại lệ", "Dữ liệu đang đồng bộ: thông báo chờ cập nhật."],
+      ["Quan hệ (Include/Extend)", "<<extend>> UC 1.1 Đăng nhập (theo sơ đồ Draw.io)."],
+      ["Yêu cầu phi chức năng", "Không truy vấn chéo học sinh khác; phân trang."]
+    ]
+  },
+  {
+    "heading": "UC 11 — Quản lý thời gian đồng bộ dữ liệu",
+    "rows": [
+      ["Mã Use Case", "UC 11"],
+      ["Tên Use Case", "Quản lý thời gian đồng bộ dữ liệu"],
+      ["Tác nhân chính", "Admin"],
+      ["Mô tả", "Cấu hình lịch hoặc khoảng thời gian đồng bộ dữ liệu điểm danh lên hệ thống trung tâm hoặc sao lưu."],
+      ["Tiền điều kiện", "Admin đã đăng nhập (<<include>> UC 1.1); tích hợp đồng bộ đã khai báo."],
+      ["Hậu điều kiện", "Thông số lưu trữ; job nền chạy theo lịch mới."],
+      ["Luồng chính", "1. Mở cài đặt đồng bộ.\n2. Chọn tần suất hoặc khung giờ.\n3. Lưu; kiểm tra kết nối."],
+      ["Luồng phụ / ngoại lệ", "Kết nối thất bại: log cảnh báo, giữ cấu hình để thử lại."],
+      ["Quan hệ (Include/Extend)", "<<include>> UC 1.1 Đăng nhập."],
+      ["Yêu cầu phi chức năng", "Đồng bộ nền; retry với backoff."]
+    ]
+  },
+  {
+    "heading": "UC 12 — Điểm danh khuôn mặt",
+    "rows": [
+      ["Mã Use Case", "UC 12"],
+      ["Tên Use Case", "Điểm danh khuôn mặt"],
+      ["Tác nhân chính", "Học sinh"],
+      ["Mô tả", "Xác thực bằng khuôn mặt trong phiên đang mở; so khớp embedding và ghi nhận điểm danh."],
+      ["Tiền điều kiện", "Đã đăng nhập (<<include>> UC 1.1); đã đăng ký khuôn mặt; phiên mở và trong khung giờ cho phép."],
+      ["Hậu điều kiện", "Bản ghi điểm danh tạo/cập nhật; timestamp theo chính sách."],
+      ["Luồng chính", "1. Chọn/quét phiên.\n2. Bật camera; liveness nếu có.\n3. Trích đặc trưng, gửi server.\n4. So khớp ngưỡng tin cậy.\n5. Phản hồi thành công/thất bại."],
+      ["Luồng phụ / ngoại lệ", "Không khớp: thử lại giới hạn số lần; ánh sáng kém: hướng dẫn."],
+      ["Quan hệ (Include/Extend)", "<<include>> UC 1.1 Đăng nhập."],
+      ["Yêu cầu phi chức năng", "Độ trễ hợp lý theo thiết bị; mã hóa đường truyền; bảo vệ dữ liệu sinh trắc."]
+    ]
+  },
+  {
+    "heading": "UC 13 — Đăng ký khuôn mặt",
+    "rows": [
+      ["Mã Use Case", "UC 13"],
+      ["Tên Use Case", "Đăng ký khuôn mặt"],
+      ["Tác nhân chính", "Học sinh"],
+      ["Mô tả", "Thu thập khuôn mặt, tạo embedding/template, lưu server và gắn với tài khoản."],
+      ["Tiền điều kiện", "Đã đăng nhập (<<include>> UC 1.1); được phép đăng ký hoặc cập nhật theo quy định."],
+      ["Hậu điều kiện", "Template hợp lệ; trạng thái đã đăng ký khuôn mặt."],
+      ["Luồng chính", "1. Vào đăng ký khuôn mặt.\n2. Hướng dẫn pose/liveness.\n3. Chụp/ghi; gửi đặc trưng.\n4. Server kiểm tra chất lượng, lưu.\n5. Xác nhận hoàn tất."],
+      ["Luồng phụ / ngoại lệ", "Ảnh mờ/trùng người khác: từ chối, yêu cầu làm lại."],
+      ["Quan hệ (Include/Extend)", "<<include>> UC 1.1 Đăng nhập."],
+      ["Yêu cầu phi chức năng", "Lưu template an toàn; có thể mã hóa at-rest; giới hạn số lần đăng ký chống lạm dụng."]
+    ]
+  }
+]

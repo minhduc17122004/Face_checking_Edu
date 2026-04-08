@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "clear_faces.py", line 8, in <module>
+    from app.core.database import AsyncSessionLocal
+  File "c:\Users\ADMIN\Desktop\MIS\hrm-flutter_dev_2.0\hrm-flutter_dev_2.0\face_time_keeping\backend\app\core\database.py", line 2, in <module>
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+ModuleNotFoundError: No module named 'sqlalchemy'

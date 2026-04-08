@@ -18,10 +18,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column('courses', sa.Column('course_start_date', sa.Date(), nullable=True))
-    op.add_column('courses', sa.Column('course_end_date', sa.Date(), nullable=True))
+    op.add_column('courses', sa.Column('total_sessions', sa.Integer(), nullable=True))
+    op.add_column('courses', sa.Column('credits', sa.Integer(), nullable=True))
 
 
 def downgrade() -> None:
-    op.drop_column('courses', 'course_end_date')
-    op.drop_column('courses', 'course_start_date')
+    op.drop_column('courses', 'credits')
+    op.drop_column('courses', 'total_sessions')

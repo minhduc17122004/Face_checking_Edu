@@ -1,0 +1,501 @@
+time="2026-03-29T01:58:48+07:00" level=warning msg="c:\\Users\\ADMIN\\Desktop\\MIS\\hrm-flutter_dev_2.0\\hrm-flutter_dev_2.0\\face_time_keeping\\backend\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/asyncpg/connection.py", line 433, in _get_statement
+api-1  |     statement = await self._protocol.prepare(
+api-1  |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+api-1  | asyncpg.exceptions.UndefinedColumnError: column courses.custom_window_start_minutes does not exist
+api-1  | 
+api-1  | The above exception was the direct cause of the following exception:
+api-1  | 
+api-1  | Traceback (most recent call last):
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+api-1  |     self.dialect.do_execute(
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 924, in do_execute
+api-1  |     cursor.execute(statement, parameters)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 572, in execute
+api-1  |     self._adapt_connection.await_(
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 131, in await_only
+api-1  |     return current.driver.switch(awaitable)  # type: ignore[no-any-return]
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+api-1  |     value = await result
+api-1  |             ^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 550, in _prepare_and_execute
+api-1  |     self._handle_exception(error)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 501, in _handle_exception
+api-1  |     self._adapt_connection._handle_exception(error)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 789, in _handle_exception
+api-1  |     raise translated_error from error
+api-1  | sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.ProgrammingError: <class 'asyncpg.exceptions.UndefinedColumnError'>: column courses.custom_window_start_minutes does not exist
+api-1  | 
+api-1  | The above exception was the direct cause of the following exception:
+api-1  | 
+api-1  | Traceback (most recent call last):
+api-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/http/httptools_impl.py", line 411, in run_asgi
+api-1  |     result = await app(  # type: ignore[func-returns-value]
+api-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py", line 69, in __call__
+api-1  |     return await self.app(scope, receive, send)
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/applications.py", line 1054, in __call__
+api-1  |     await super().__call__(scope, receive, send)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/applications.py", line 123, in __call__
+api-1  |     await self.middleware_stack(scope, receive, send)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/errors.py", line 186, in __call__
+api-1  |     raise exc
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/errors.py", line 164, in __call__
+api-1  |     await self.app(scope, receive, _send)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/cors.py", line 85, in __call__
+api-1  |     await self.app(scope, receive, send)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 65, in __call__
+api-1  |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+api-1  |     raise exc
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+api-1  |     await app(scope, receive, sender)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 756, in __call__
+api-1  |     await self.middleware_stack(scope, receive, send)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 776, in app
+api-1  |     await route.handle(scope, receive, send)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 297, in handle
+api-1  |     await self.app(scope, receive, send)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 77, in app
+api-1  |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+api-1  |     raise exc
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+api-1  |     await app(scope, receive, sender)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 72, in app
+api-1  |     response = await func(request)
+api-1  |                ^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/routing.py", line 278, in app
+api-1  |     raw_response = await run_endpoint_function(
+api-1  |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/routing.py", line 191, in run_endpoint_function
+api-1  |     return await dependant.call(**values)
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/app/app/routers/v1/courses.py", line 69, in list_courses
+api-1  |     return await svc.list_courses(skip=skip, limit=limit, department_id=department_id)
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/app/app/services/course_service.py", line 272, in list_courses
+api-1  |     courses = await self.repo.get_all(skip=skip, limit=limit)
+api-1  |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/app/app/repositories/course_repository.py", line 39, in get_all
+api-1  |     result = await self.db.execute(
+api-1  |              ^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/session.py", line 461, in execute
+api-1  |     result = await greenlet_spawn(
+api-1  |              ^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 201, in greenlet_spawn
+api-1  |     result = context.throw(*sys.exc_info())
+api-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+api-1  |     return self._execute_internal(
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2236, in _execute_internal
+api-1  |     result: Result[Any] = compile_state_cls.orm_execute_statement(
+api-1  |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/context.py", line 293, in orm_execute_statement
+api-1  |     result = conn.execute(
+api-1  |              ^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+api-1  |     return meth(
+api-1  |            ^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 515, in _execute_on_connection
+api-1  |     return connection._execute_clauseelement(
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1640, in _execute_clauseelement
+api-1  |     ret = self._execute_context(
+api-1  |           ^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+api-1  |     return self._exec_single_context(
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+api-1  |     self._handle_dbapi_exception(
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2353, in _handle_dbapi_exception
+api-1  |     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+api-1  |     self.dialect.do_execute(
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 924, in do_execute
+api-1  |     cursor.execute(statement, parameters)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 572, in execute
+api-1  |     self._adapt_connection.await_(
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 131, in await_only
+api-1  |     return current.driver.switch(awaitable)  # type: ignore[no-any-return]
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+api-1  |     value = await result
+api-1  |             ^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 550, in _prepare_and_execute
+api-1  |     self._handle_exception(error)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 501, in _handle_exception
+api-1  |     self._adapt_connection._handle_exception(error)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 789, in _handle_exception
+api-1  |     raise translated_error from error
+api-1  | sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedColumnError'>: column courses.custom_window_start_minutes does not exist
+api-1  | [SQL: SELECT courses.id, courses.course_name, courses.course_code, courses.teacher_id, courses.department_id, courses.room_id, courses.attendance_mode, courses.custom_window_start_minutes, courses.custom_window_end_minutes, courses.created_at, courses.updated_at, courses.deleted_at, courses.created_by, courses.updated_by, users_1.id AS id_1, users_1.email, users_1.password_hash, users_1.full_name, users_1.role, users_1.avatar_url, users_1.created_at AS created_at_1, users_1.updated_at AS updated_at_1, users_1.deleted_at AS deleted_at_1, teachers_1.id AS id_2, teachers_1.user_id, teachers_1.teacher_id AS teacher_id_1, teachers_1.phone, teachers_1.department_id AS department_id_1, teachers_1.created_at AS created_at_2, teachers_1.updated_at AS updated_at_2, teachers_1.deleted_at AS deleted_at_2, departments_1.id AS id_3, departments_1.code, departments_1.name, departments_1.created_at AS created_at_3, departments_1.updated_at AS updated_at_3, departments_1.deleted_at AS deleted_at_3, departments_1.created_by AS created_by_1, departments_1.updated_by AS updated_by_1, rooms_1.id AS id_4, rooms_1.code AS code_1, rooms_1.name AS name_1, rooms_1.building, rooms_1.floor, rooms_1.capacity, rooms_1.created_at AS created_at_4, rooms_1.updated_at AS updated_at_4, rooms_1.deleted_at AS deleted_at_4, rooms_1.created_by AS created_by_2, rooms_1.updated_by AS updated_by_2 
+api-1  | FROM courses LEFT OUTER JOIN teachers AS teachers_1 ON teachers_1.id = courses.teacher_id LEFT OUTER JOIN users AS users_1 ON users_1.id = teachers_1.user_id LEFT OUTER JOIN departments AS departments_1 ON departments_1.id = courses.department_id LEFT OUTER JOIN rooms AS rooms_1 ON rooms_1.id = courses.room_id 
+api-1  | WHERE courses.deleted_at IS NULL ORDER BY courses.created_at DESC 
+api-1  |  LIMIT $1::INTEGER OFFSET $2::INTEGER]
+api-1  | [parameters: (200, 0)]
+api-1  | (Background on this error at: https://sqlalche.me/e/20/f405)
+api-1  | INFO:     172.18.0.1:41820 - "GET /uploads/avatars/19c0116c-3b56-484e-a567-e0289afcf8a0.jpg?t=1774614016710 HTTP/1.1" 200 OK
+api-1  | {"timestamp": "2026-03-27T12:20:17.317971+00:00", "level": "ERROR", "logger": "app", "message": "Unhandled server error", "exception": "Traceback (most recent call last):\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 514, in _prepare_and_execute\n    prepared_stmt, attributes = await adapt_connection._prepare(\n                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 765, in _prepare\n    prepared_stmt = await self._connection.prepare(\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/asyncpg/connection.py\", line 636, in prepare\n    return await self._prepare(\n           ^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/asyncpg/connection.py\", line 654, in _prepare\n    stmt = await self._get_statement(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/asyncpg/connection.py\", line 433, in _get_statement\n    statement = await self._protocol.prepare(\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"asyncpg/protocol/protocol.pyx\", line 166, in prepare\nasyncpg.exceptions.UndefinedColumnError: column courses.custom_window_start_minutes does not exist\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 1967, in _exec_single_context\n    self.dialect.do_execute(\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py\", line 924, in do_execute\n    cursor.execute(statement, parameters)\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 572, in execute\n    self._adapt_connection.await_(\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py\", line 131, in await_only\n    return current.driver.switch(awaitable)  # type: ignore[no-any-return]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py\", line 196, in greenlet_spawn\n    value = await result\n            ^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 550, in _prepare_and_execute\n    self._handle_exception(error)\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 501, in _handle_exception\n    self._adapt_connection._handle_exception(error)\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 789, in _handle_exception\n    raise translated_error from error\nsqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.ProgrammingError: <class 'asyncpg.exceptions.UndefinedColumnError'>: column courses.custom_window_start_minutes does not exist\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/usr/local/lib/python3.11/site-packages/starlette/middleware/errors.py\", line 164, in __call__\n    await self.app(scope, receive, _send)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/middleware/cors.py\", line 85, in __call__\n    await self.app(scope, receive, send)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/middleware/exceptions.py\", line 65, in __call__\n    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py\", line 64, in wrapped_app\n    raise exc\n  File \"/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app\n    await app(scope, receive, sender)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/routing.py\", line 756, in __call__\n    await self.middleware_stack(scope, receive, send)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/routing.py\", line 776, in app\n    await route.handle(scope, receive, send)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/routing.py\", line 297, in handle\n    await self.app(scope, receive, send)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/routing.py\", line 77, in app\n    await wrap_app_handling_exceptions(app, request)(scope, receive, send)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py\", line 64, in wrapped_app\n    raise exc\n  File \"/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app\n    await app(scope, receive, sender)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/routing.py\", line 72, in app\n    response = await func(request)\n               ^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/fastapi/routing.py\", line 278, in app\n    raw_response = await run_endpoint_function(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/fastapi/routing.py\", line 191, in run_endpoint_function\n    return await dependant.call(**values)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/app/app/routers/v1/attendance.py\", line 61, in get_attendance_history\n    return await svc.get_role_based_history(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/app/app/services/attendance_service.py\", line 798, in get_role_based_history\n    raise e\n  File \"/app/app/services/attendance_service.py\", line 765, in get_role_based_history\n    count_result = await self.db.execute(count_stmt)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/session.py\", line 461, in execute\n    result = await greenlet_spawn(\n             ^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py\", line 201, in greenlet_spawn\n    result = context.throw(*sys.exc_info())\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py\", line 2351, in execute\n    return self._execute_internal(\n           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py\", line 2236, in _execute_internal\n    result: Result[Any] = compile_state_cls.orm_execute_statement(\n                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/context.py\", line 293, in orm_execute_statement\n    result = conn.execute(\n             ^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 1418, in execute\n    return meth(\n           ^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/sql/elements.py\", line 515, in _execute_on_connection\n    return connection._execute_clauseelement(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 1640, in _execute_clauseelement\n    ret = self._execute_context(\n          ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 1846, in _execute_context\n    return self._exec_single_context(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 1986, in _exec_single_context\n    self._handle_dbapi_exception(\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 2353, in _handle_dbapi_exception\n    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 1967, in _exec_single_context\n    self.dialect.do_execute(\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py\", line 924, in do_execute\n    cursor.execute(statement, parameters)\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 572, in execute\n    self._adapt_connection.await_(\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py\", line 131, in await_only\n    return current.driver.switch(awaitable)  # type: ignore[no-any-return]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py\", line 196, in greenlet_spawn\n    value = await result\n            ^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 550, in _prepare_and_execute\n    self._handle_exception(error)\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 501, in _handle_exception\n    self._adapt_connection._handle_exception(error)\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py\", line 789, in _handle_exception\n    raise translated_error from error\nsqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedColumnError'>: column courses.custom_window_start_minutes does not exist\n[SQL: SELECT count(attendance.id) AS count_1 \nFROM (SELECT attendance.id AS id, attendance.session_id AS session_id, attendance.student_id AS student_id, attendance.checkin_time AS checkin_time, attendance.sync_time AS sync_time, attendance.status AS status, attendance.confidence AS confidence, attendance.device_id AS device_id, attendance.minutes_diff AS minutes_diff, attendance.created_at AS created_at, attendance.deleted_at AS deleted_at, students.id AS id_1, students.user_id AS user_id, students.student_code AS student_code, students.pin AS pin, students.student_group_id AS student_group_id, students.created_at AS created_at_1, students.updated_at AS updated_at, students.deleted_at AS deleted_at_1, students.created_by AS created_by, students.updated_by AS updated_by, sessions.id AS id_2, sessions.course_id AS course_id, sessions.schedule_id AS schedule_id, sessions.session_date AS session_date, sessions.start_time AS start_time, sessions.end_time AS end_time, sessions.checkin_window_start AS checkin_window_start, sessions.checkin_window_end AS checkin_window_end, sessions.status AS status_1, sessions.created_at AS created_at_2, sessions.updated_at AS updated_at_1, sessions.deleted_at AS deleted_at_2, courses.id AS id_3, courses.course_name AS course_name, courses.course_code AS course_code, courses.teacher_id AS teacher_id, courses.department_id AS department_id, courses.room_id AS room_id, courses.attendance_mode AS attendance_mode, courses.custom_window_start_minutes AS custom_window_start_minutes, courses.custom_window_end_minutes AS custom_window_end_minutes, courses.created_at AS created_at_3, courses.updated_at AS updated_at_2, courses.deleted_at AS deleted_at_3, courses.created_by AS created_by_1, courses.updated_by AS updated_by_1, rooms.id AS id_4, rooms.code AS code, rooms.name AS name, rooms.building AS building, rooms.floor AS floor, rooms.capacity AS capacity, rooms.created_at AS created_at_4, rooms.updated_at AS updated_at_3, rooms.deleted_at AS deleted_at_4, rooms.created_by AS created_by_2, rooms.updated_by AS updated_by_2, users.id AS id_5, users.email AS email, users.password_hash AS password_hash, users.full_name AS full_name, users.role AS role, users.avatar_url AS avatar_url, users.created_at AS created_at_5, users.updated_at AS updated_at_4, users.deleted_at AS deleted_at_5 \nFROM attendance JOIN students ON attendance.student_id = students.id JOIN users ON students.user_id = users.id JOIN sessions ON attendance.session_id = sessions.id JOIN courses ON sessions.course_id = courses.id LEFT OUTER JOIN rooms ON courses.room_id = rooms.id \nWHERE attendance.deleted_at IS NULL) AS anon_1, attendance]\n(Background on this error at: https://sqlalche.me/e/20/f405)", "levelno": 40, "path": "/api/v1/attendance/history", "method": "GET", "error": "(sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedColumnError'>: column courses.custom_window_start_minutes does not exist\n[SQL: SELECT count(attendance.id) AS count_1 \nFROM (SELECT attendance.id AS id, attendance.session_id AS session_id, attendance.student_id AS student_id, attendance.checkin_time AS checkin_time, attendance.sync_time AS sync_time, attendance.status AS status, attendance.confidence AS confidence, attendance.device_id AS device_id, attendance.minutes_diff AS minutes_diff, attendance.created_at AS created_at, attendance.deleted_at AS deleted_at, students.id AS id_1, students.user_id AS user_id, students.student_code AS student_code, students.pin AS pin, students.student_group_id AS student_group_id, students.created_at AS created_at_1, students.updated_at AS updated_at, students.deleted_at AS deleted_at_1, students.created_by AS created_by, students.updated_by AS updated_by, sessions.id AS id_2, sessions.course_id AS course_id, sessions.schedule_id AS schedule_id, sessions.session_date AS session_date, sessions.start_time AS start_time, sessions.end_time AS end_time, sessions.checkin_window_start AS checkin_window_start, sessions.checkin_window_end AS checkin_window_end, sessions.status AS status_1, sessions.created_at AS created_at_2, sessions.updated_at AS updated_at_1, sessions.deleted_at AS deleted_at_2, courses.id AS id_3, courses.course_name AS course_name, courses.course_code AS course_code, courses.teacher_id AS teacher_id, courses.department_id AS department_id, courses.room_id AS room_id, courses.attendance_mode AS attendance_mode, courses.custom_window_start_minutes AS custom_window_start_minutes, courses.custom_window_end_minutes AS custom_window_end_minutes, courses.created_at AS created_at_3, courses.updated_at AS updated_at_2, courses.deleted_at AS deleted_at_3, courses.created_by AS created_by_1, courses.updated_by AS updated_by_1, rooms.id AS id_4, rooms.code AS code, rooms.name AS name, rooms.building AS building, rooms.floor AS floor, rooms.capacity AS capacity, rooms.created_at AS created_at_4, rooms.updated_at AS updated_at_3, rooms.deleted_at AS deleted_at_4, rooms.created_by AS created_by_2, rooms.updated_by AS updated_by_2, users.id AS id_5, users.email AS email, users.password_hash AS password_hash, users.full_name AS full_name, users.role AS role, users.avatar_url AS avatar_url, users.created_at AS created_at_5, users.updated_at AS updated_at_4, users.deleted_at AS deleted_at_5 \nFROM attendance JOIN students ON attendance.student_id = students.id JOIN users ON students.user_id = users.id JOIN sessions ON attendance.session_id = sessions.id JOIN courses ON sessions.course_id = courses.id LEFT OUTER JOIN rooms ON courses.room_id = rooms.id \nWHERE attendance.deleted_at IS NULL) AS anon_1, attendance]\n(Background on this error at: https://sqlalche.me/e/20/f405)"}
+api-1  | INFO:     172.18.0.1:41802 - "GET /api/v1/attendance/history?skip=0&limit=50 HTTP/1.1" 500 Internal Server Error
+api-1  | ERROR:    Exception in ASGI application
+api-1  | Traceback (most recent call last):
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 514, in _prepare_and_execute
+api-1  |     prepared_stmt, attributes = await adapt_connection._prepare(
+api-1  |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 765, in _prepare
+api-1  |     prepared_stmt = await self._connection.prepare(
+api-1  |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/asyncpg/connection.py", line 636, in prepare
+api-1  |     return await self._prepare(
+api-1  |            ^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/asyncpg/connection.py", line 654, in _prepare
+api-1  |     stmt = await self._get_statement(
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/asyncpg/connection.py", line 433, in _get_statement
+api-1  |     statement = await self._protocol.prepare(
+api-1  |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "asyncpg/protocol/protocol.pyx", line 166, in prepare
+api-1  | asyncpg.exceptions.UndefinedColumnError: column courses.custom_window_start_minutes does not exist
+api-1  | 
+api-1  | The above exception was the direct cause of the following exception:
+api-1  | 
+api-1  | Traceback (most recent call last):
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+api-1  |     self.dialect.do_execute(
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 924, in do_execute
+api-1  |     cursor.execute(statement, parameters)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 572, in execute
+api-1  |     self._adapt_connection.await_(
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 131, in await_only
+api-1  |     return current.driver.switch(awaitable)  # type: ignore[no-any-return]
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+api-1  |     value = await result
+api-1  |             ^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 550, in _prepare_and_execute
+api-1  |     self._handle_exception(error)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 501, in _handle_exception
+api-1  |     self._adapt_connection._handle_exception(error)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 789, in _handle_exception
+api-1  |     raise translated_error from error
+api-1  | sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.ProgrammingError: <class 'asyncpg.exceptions.UndefinedColumnError'>: column courses.custom_window_start_minutes does not exist
+api-1  | 
+api-1  | The above exception was the direct cause of the following exception:
+api-1  | 
+api-1  | Traceback (most recent call last):
+api-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/http/httptools_impl.py", line 411, in run_asgi
+api-1  |     result = await app(  # type: ignore[func-returns-value]
+api-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py", line 69, in __call__
+api-1  |     return await self.app(scope, receive, send)
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/applications.py", line 1054, in __call__
+api-1  |     await super().__call__(scope, receive, send)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/applications.py", line 123, in __call__
+api-1  |     await self.middleware_stack(scope, receive, send)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/errors.py", line 186, in __call__
+api-1  |     raise exc
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/errors.py", line 164, in __call__
+api-1  |     await self.app(scope, receive, _send)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/cors.py", line 85, in __call__
+api-1  |     await self.app(scope, receive, send)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 65, in __call__
+api-1  |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+api-1  |     raise exc
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+api-1  |     await app(scope, receive, sender)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 756, in __call__
+api-1  |     await self.middleware_stack(scope, receive, send)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 776, in app
+api-1  |     await route.handle(scope, receive, send)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 297, in handle
+api-1  |     await self.app(scope, receive, send)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 77, in app
+api-1  |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 64, in wrapped_app
+api-1  |     raise exc
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+api-1  |     await app(scope, receive, sender)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 72, in app
+api-1  |     response = await func(request)
+api-1  |                ^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/routing.py", line 278, in app
+api-1  |     raw_response = await run_endpoint_function(
+api-1  |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/routing.py", line 191, in run_endpoint_function
+api-1  |     return await dependant.call(**values)
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/app/app/routers/v1/attendance.py", line 61, in get_attendance_history
+api-1  |     return await svc.get_role_based_history(
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/app/app/services/attendance_service.py", line 798, in get_role_based_history
+api-1  |     raise e
+api-1  |   File "/app/app/services/attendance_service.py", line 765, in get_role_based_history
+api-1  |     count_result = await self.db.execute(count_stmt)
+api-1  |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/session.py", line 461, in execute
+api-1  |     result = await greenlet_spawn(
+api-1  |              ^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 201, in greenlet_spawn
+api-1  |     result = context.throw(*sys.exc_info())
+api-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+api-1  |     return self._execute_internal(
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2236, in _execute_internal
+api-1  |     result: Result[Any] = compile_state_cls.orm_execute_statement(
+api-1  |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/context.py", line 293, in orm_execute_statement
+api-1  |     result = conn.execute(
+api-1  |              ^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+api-1  |     return meth(
+api-1  |            ^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 515, in _execute_on_connection
+api-1  |     return connection._execute_clauseelement(
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1640, in _execute_clauseelement
+api-1  |     ret = self._execute_context(
+api-1  |           ^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+api-1  |     return self._exec_single_context(
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+api-1  |     self._handle_dbapi_exception(
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2353, in _handle_dbapi_exception
+api-1  |     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+api-1  |     self.dialect.do_execute(
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 924, in do_execute
+api-1  |     cursor.execute(statement, parameters)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 572, in execute
+api-1  |     self._adapt_connection.await_(
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 131, in await_only
+api-1  |     return current.driver.switch(awaitable)  # type: ignore[no-any-return]
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+api-1  |     value = await result
+api-1  |             ^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 550, in _prepare_and_execute
+api-1  |     self._handle_exception(error)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 501, in _handle_exception
+api-1  |     self._adapt_connection._handle_exception(error)
+api-1  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 789, in _handle_exception
+api-1  |     raise translated_error from error
+api-1  | sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedColumnError'>: column courses.custom_window_start_minutes does not exist
+api-1  | [SQL: SELECT count(attendance.id) AS count_1 
+api-1  | FROM (SELECT attendance.id AS id, attendance.session_id AS session_id, attendance.student_id AS student_id, attendance.checkin_time AS checkin_time, attendance.sync_time AS sync_time, attendance.status AS status, attendance.confidence AS confidence, attendance.device_id AS device_id, attendance.minutes_diff AS minutes_diff, attendance.created_at AS created_at, attendance.deleted_at AS deleted_at, students.id AS id_1, students.user_id AS user_id, students.student_code AS student_code, students.pin AS pin, students.student_group_id AS student_group_id, students.created_at AS created_at_1, students.updated_at AS updated_at, students.deleted_at AS deleted_at_1, students.created_by AS created_by, students.updated_by AS updated_by, sessions.id AS id_2, sessions.course_id AS course_id, sessions.schedule_id AS schedule_id, sessions.session_date AS session_date, sessions.start_time AS start_time, sessions.end_time AS end_time, sessions.checkin_window_start AS checkin_window_start, sessions.checkin_window_end AS checkin_window_end, sessions.status AS status_1, sessions.created_at AS created_at_2, sessions.updated_at AS updated_at_1, sessions.deleted_at AS deleted_at_2, courses.id AS id_3, courses.course_name AS course_name, courses.course_code AS course_code, courses.teacher_id AS teacher_id, courses.department_id AS department_id, courses.room_id AS room_id, courses.attendance_mode AS attendance_mode, courses.custom_window_start_minutes AS custom_window_start_minutes, courses.custom_window_end_minutes AS custom_window_end_minutes, courses.created_at AS created_at_3, courses.updated_at AS updated_at_2, courses.deleted_at AS deleted_at_3, courses.created_by AS created_by_1, courses.updated_by AS updated_by_1, rooms.id AS id_4, rooms.code AS code, rooms.name AS name, rooms.building AS building, rooms.floor AS floor, rooms.capacity AS capacity, rooms.created_at AS created_at_4, rooms.updated_at AS updated_at_3, rooms.deleted_at AS deleted_at_4, rooms.created_by AS created_by_2, rooms.updated_by AS updated_by_2, users.id AS id_5, users.email AS email, users.password_hash AS password_hash, users.full_name AS full_name, users.role AS role, users.avatar_url AS avatar_url, users.created_at AS created_at_5, users.updated_at AS updated_at_4, users.deleted_at AS deleted_at_5 
+api-1  | FROM attendance JOIN students ON attendance.student_id = students.id JOIN users ON students.user_id = users.id JOIN sessions ON attendance.session_id = sessions.id JOIN courses ON sessions.course_id = courses.id LEFT OUTER JOIN rooms ON courses.room_id = rooms.id 
+api-1  | WHERE attendance.deleted_at IS NULL) AS anon_1, attendance]
+api-1  | (Background on this error at: https://sqlalche.me/e/20/f405)
+api-1  | WARNING:  WatchFiles detected changes in 'check_db.py'. Reloading...
+api-1  | INFO:     Shutting down
+api-1  | INFO:     Waiting for application shutdown.
+api-1  | INFO:     Application shutdown complete.
+api-1  | INFO:     Finished server process [85]
+api-1  | INFO:     Started server process [93]
+api-1  | INFO:     Waiting for application startup.
+api-1  | INFO:     Application startup complete.
+api-1  | WARNING:  WatchFiles detected changes in 'app/services/course_service.py'. Reloading...
+api-1  | INFO:     Shutting down
+api-1  | INFO:     Waiting for application shutdown.
+api-1  | INFO:     Application shutdown complete.
+api-1  | INFO:     Finished server process [93]
+api-1  | INFO:     Started server process [99]
+api-1  | INFO:     Waiting for application startup.
+api-1  | INFO:     Application startup complete.
+api-1  | WARNING:  WatchFiles detected changes in 'app/services/session_generator_service.py'. Reloading...
+api-1  | INFO:     Shutting down
+api-1  | INFO:     Waiting for application shutdown.
+api-1  | INFO:     Application shutdown complete.
+api-1  | INFO:     Finished server process [99]
+api-1  | INFO:     Started server process [105]
+api-1  | INFO:     Waiting for application startup.
+api-1  | INFO:     Application startup complete.
+api-1  | WARNING:  WatchFiles detected changes in 'test_fetch.py'. Reloading...
+api-1  | INFO:     Shutting down
+api-1  | INFO:     Waiting for application shutdown.
+api-1  | INFO:     Application shutdown complete.
+api-1  | INFO:     Finished server process [105]
+api-1  | INFO:     Started server process [111]
+api-1  | INFO:     Waiting for application startup.
+api-1  | INFO:     Application startup complete.
+api-1  | WARNING:  WatchFiles detected changes in 'check_schema_raw.py'. Reloading...
+api-1  | INFO:     Shutting down
+api-1  | INFO:     Waiting for application shutdown.
+api-1  | INFO:     Application shutdown complete.
+api-1  | INFO:     Finished server process [111]
+api-1  | INFO:     Started server process [117]
+api-1  | INFO:     Waiting for application startup.
+api-1  | INFO:     Application startup complete.
+api-1  | INFO:     172.18.0.1:35586 - "GET /health HTTP/1.1" 200 OK
+api-1  | sys:1: SAWarning: SELECT statement has a cartesian product between FROM element(s) "anon_1" and FROM element "attendance".  Apply join condition(s) between each element to resolve.
+api-1  | INFO:     172.18.0.1:42584 - "GET /uploads/avatars/19c0116c-3b56-484e-a567-e0289afcf8a0.jpg?t=1774614670627 HTTP/1.1" 200 OK
+api-1  | INFO:     172.18.0.1:42582 - "GET /uploads/avatars/19c0116c-3b56-484e-a567-e0289afcf8a0.jpg?t=1774614669473 HTTP/1.1" 200 OK
+api-1  | INFO:     172.18.0.1:42558 - "GET /api/v1/attendance/history?skip=0&limit=50 HTTP/1.1" 200 OK
+api-1  | INFO:     172.18.0.1:42574 - "GET /api/v1/courses/ HTTP/1.1" 200 OK
+api-1  | INFO:     172.18.0.1:51412 - "GET /api/v1/courses/1509482e-293e-4ebc-8786-5ff9a674edd8 HTTP/1.1" 200 OK
+api-1  | INFO:     172.18.0.1:51394 - "GET /api/v1/schedules/?course_id=1509482e-293e-4ebc-8786-5ff9a674edd8 HTTP/1.1" 200 OK
+api-1  | INFO:     172.18.0.1:51402 - "GET /api/v1/courses/1509482e-293e-4ebc-8786-5ff9a674edd8/students HTTP/1.1" 200 OK
+api-1  | INFO:     172.18.0.1:58192 - "GET /api/v1/courses/d930c708-bf9d-4800-985e-f578abe11473 HTTP/1.1" 200 OK
+api-1  | INFO:     172.18.0.1:58176 - "GET /api/v1/courses/d930c708-bf9d-4800-985e-f578abe11473/students HTTP/1.1" 200 OK
+api-1  | INFO:     172.18.0.1:58200 - "GET /api/v1/schedules/?course_id=d930c708-bf9d-4800-985e-f578abe11473 HTTP/1.1" 200 OK
+api-1  | INFO:     172.18.0.1:42186 - "POST /api/v1/sessions/generate-daily?target_date=2026-03-27 HTTP/1.1" 200 OK
+api-1  | INFO:     172.18.0.1:42186 - "GET /api/v1/sessions/teacher HTTP/1.1" 200 OK
+api-1  | INFO:     172.18.0.1:41086 - "GET /api/v1/rooms/ HTTP/1.1" 307 Temporary Redirect
+api-1  | INFO:     172.18.0.1:41086 - "GET /api/v1/rooms HTTP/1.1" 200 OK
+api-1  | INFO:     172.18.0.1:41086 - "GET /api/v1/device-requests/me?device_code=UP1A.231005.007 HTTP/1.1" 200 OK
+api-1  | INFO:     172.18.0.1:41086 - "GET /api/v1/rooms/ HTTP/1.1" 307 Temporary Redirect
+api-1  | INFO:     172.18.0.1:41086 - "GET /api/v1/rooms HTTP/1.1" 200 OK
+api-1  | INFO:     172.18.0.1:41086 - "GET /api/v1/rooms/d7e7c387-5acf-4e4d-b06b-a23467983191/active-session HTTP/1.1" 200 OK
+api-1  | Traceback (most recent call last):
+api-1  |   File "/usr/local/bin/uvicorn", line 6, in <module>
+api-1  |     sys.exit(main())
+api-1  |              ^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/click/core.py", line 1485, in __call__
+api-1  |     return self.main(*args, **kwargs)
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/click/core.py", line 1406, in main
+api-1  |     rv = self.invoke(ctx)
+api-1  |          ^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/click/core.py", line 1269, in invoke
+api-1  |     return ctx.invoke(self.callback, **ctx.params)
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/click/core.py", line 824, in invoke
+api-1  |     return callback(*args, **kwargs)
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/main.py", line 409, in main
+api-1  |     run(
+api-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/main.py", line 570, in run
+api-1  |     ChangeReload(config, target=server.run, sockets=[sock]).run()
+api-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/supervisors/basereload.py", line 52, in run
+api-1  |     for changes in self:
+api-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/supervisors/basereload.py", line 71, in __next__
+api-1  |     return self.should_restart()
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/supervisors/watchfilesreload.py", line 84, in should_restart
+api-1  |     changes = next(self.watcher)
+api-1  |               ^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/watchfiles/main.py", line 130, in watch
+api-1  |     raw_changes = watcher.watch(debounce, step, rust_timeout, stop_event)
+api-1  |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  | _rust_notify.WatchfilesRustInternalError: error in underlying watcher: Input/output error (os error 5)
+api-1  | ⏳  Waiting for database to be ready...
+api-1  |    DB not ready yet — retrying in 2s...
+api-1  | ✅  Database is ready.
+api-1  | 🔄  Running Alembic migrations...
+api-1  | INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+api-1  | INFO  [alembic.runtime.migration] Will assume transactional DDL.
+api-1  | INFO  [alembic.runtime.migration] Running upgrade rename_course_fields -> add_course_dates, add_course_start_end_dates
+api-1  | ✅  Migrations complete.
+api-1  | 🚀  Starting Vedura API server...
+api-1  | INFO:     Will watch for changes in these directories: ['/app']
+api-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+api-1  | INFO:     Started reloader process [1] using WatchFiles
+api-1  | INFO:     Started server process [18]
+api-1  | INFO:     Waiting for application startup.
+api-1  | {"timestamp": "2026-03-27T18:00:19.036962+00:00", "level": "INFO", "logger": "app.services.session_auto_close", "message": "Auto-closed 1 expired sessions: [UUID('ad1a980a-3489-415a-a4dd-ea95aea02d59')]", "levelno": 20}
+api-1  | {"timestamp": "2026-03-27T18:00:19.037114+00:00", "level": "INFO", "logger": "app.main", "message": "Session auto-update on startup: 0 activated, 1 closed", "levelno": 20}
+api-1  | INFO:     Application startup complete.
+api-1  | WARNING:  WatchFiles detected changes in 'check_columns.py'. Reloading...
+api-1  | INFO:     Shutting down
+api-1  | INFO:     Waiting for application shutdown.
+api-1  | INFO:     Application shutdown complete.
+api-1  | INFO:     Finished server process [18]
+api-1  | INFO:     Started server process [41]
+api-1  | INFO:     Waiting for application startup.
+api-1  | INFO:     Application startup complete.
+api-1  | WARNING:  WatchFiles detected changes in 'app/schemas/v1/course.py'. Reloading...
+api-1  | INFO:     Shutting down
+api-1  | INFO:     Waiting for application shutdown.
+api-1  | INFO:     Application shutdown complete.
+api-1  | INFO:     Finished server process [41]
+api-1  | INFO:     Started server process [47]
+api-1  | INFO:     Waiting for application startup.
+api-1  | INFO:     Application startup complete.
+api-1  | WARNING:  WatchFiles detected changes in 'app/schemas/v1/course.py'. Reloading...
+api-1  | INFO:     Shutting down
+api-1  | INFO:     Waiting for application shutdown.
+api-1  | INFO:     Application shutdown complete.
+api-1  | INFO:     Finished server process [47]
+api-1  | INFO:     Started server process [53]
+api-1  | INFO:     Waiting for application startup.
+api-1  | INFO:     Application startup complete.
+api-1  | Traceback (most recent call last):
+api-1  |   File "/usr/local/bin/uvicorn", line 6, in <module>
+api-1  |     sys.exit(main())
+api-1  |              ^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/click/core.py", line 1485, in __call__
+api-1  |     return self.main(*args, **kwargs)
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/click/core.py", line 1406, in main
+api-1  |     rv = self.invoke(ctx)
+api-1  |          ^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/click/core.py", line 1269, in invoke
+api-1  |     return ctx.invoke(self.callback, **ctx.params)
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/click/core.py", line 824, in invoke
+api-1  |     return callback(*args, **kwargs)
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/main.py", line 409, in main
+api-1  |     run(
+api-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/main.py", line 570, in run
+api-1  |     ChangeReload(config, target=server.run, sockets=[sock]).run()
+api-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/supervisors/basereload.py", line 52, in run
+api-1  |     for changes in self:
+api-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/supervisors/basereload.py", line 71, in __next__
+api-1  |     return self.should_restart()
+api-1  |            ^^^^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/supervisors/watchfilesreload.py", line 84, in should_restart
+api-1  |     changes = next(self.watcher)
+api-1  |               ^^^^^^^^^^^^^^^^^^
+api-1  |   File "/usr/local/lib/python3.11/site-packages/watchfiles/main.py", line 130, in watch
+api-1  |     raw_changes = watcher.watch(debounce, step, rust_timeout, stop_event)
+api-1  |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api-1  | _rust_notify.WatchfilesRustInternalError: error in underlying watcher: Input/output error (os error 5)
+api-1  | ⏳  Waiting for database to be ready...
+api-1  |    DB not ready yet — retrying in 2s...
+api-1  | ✅  Database is ready.
+api-1  | 🔄  Running Alembic migrations...
+api-1  | INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+api-1  | INFO  [alembic.runtime.migration] Will assume transactional DDL.
+api-1  | INFO  [alembic.runtime.migration] Running upgrade add_course_dates -> add_enrollment_counts, add_enrollment_counts
+api-1  | ✅  Migrations complete.
+api-1  | 🚀  Starting Vedura API server...
+api-1  | INFO:     Will watch for changes in these directories: ['/app']
+api-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+api-1  | INFO:     Started reloader process [1] using WatchFiles
+api-1  | INFO:     Started server process [18]
+api-1  | INFO:     Waiting for application startup.
+api-1  | INFO:     Application startup complete.
+api-1  | WARNING:  WatchFiles detected changes in 'test_import.py'. Reloading...
+api-1  | INFO:     Shutting down
+api-1  | INFO:     Waiting for application shutdown.
+api-1  | INFO:     Application shutdown complete.
+api-1  | INFO:     Finished server process [18]
+api-1  | INFO:     Started server process [25]
+api-1  | INFO:     Waiting for application startup.
+api-1  | INFO:     Application startup complete.
+api-1  | WARNING:  WatchFiles detected changes in 'test_import.py'. Reloading...
+api-1  | INFO:     Shutting down
+api-1  | INFO:     Waiting for application shutdown.
+api-1  | INFO:     Application shutdown complete.
+api-1  | INFO:     Finished server process [25]
+api-1  | INFO:     Started server process [31]
+api-1  | INFO:     Waiting for application startup.
+api-1  | INFO:     Application startup complete.
+api-1  | WARNING:  WatchFiles detected changes in 'fetch_logs.py'. Reloading...
+api-1  | INFO:     Shutting down
+api-1  | INFO:     Waiting for application shutdown.
+api-1  | INFO:     Application shutdown complete.
+api-1  | INFO:     Finished server process [31]
+api-1  | INFO:     Started server process [37]
+api-1  | INFO:     Waiting for application startup.
+api-1  | INFO:     Application startup complete.

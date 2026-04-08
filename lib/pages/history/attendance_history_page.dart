@@ -34,128 +34,208 @@ class _AttendanceHistoryViewState extends State<_AttendanceHistoryView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: AppBar(
-        centerTitle: true,
-        title: const Text(
-          'Lịch sử điểm danh',
-          style: TextStyle(
-            color: AppColors.slate900,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        automaticallyImplyLeading: false,
-      ),
-      body: BlocConsumer<AttendanceHistoryBloc, AttendanceHistoryState>(
-        listener: (context, state) {
-          if (state.requestStatus == RequestStatus.failed &&
-              state.message != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message!),
-                backgroundColor: AppColors.red600,
-              ),
-            );
-          }
-        },
-        builder: (context, state) {
-          if (state.requestStatus == RequestStatus.requesting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (state.items.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.history,
-                    size: 72,
-                    color: AppColors.slate500.withValues(alpha: 0.5),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Chưa có lịch sử điểm danh',
-                    style: TextStyle(
-                      color: AppColors.slate500,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton.icon(
-                    onPressed: () => context.read<AttendanceHistoryBloc>().loadHistory(),
-                    icon: const Icon(Icons.refresh, size: 18),
-                    label: const Text('Tải lại'),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          // Group items by date
-          final grouped = _groupByDate(state.items);
-
-          return RefreshIndicator(
-            onRefresh: () async => context.read<AttendanceHistoryBloc>().loadHistory(),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: grouped.length,
-              itemBuilder: (context, index) {
-                final entry = grouped.entries.elementAt(index);
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Date header
-                    Padding(
-                      padding: EdgeInsets.only(bottom: 8, top: index > 0 ? 16 : 0),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 4,
-                            height: 16,
-                            decoration: BoxDecoration(
-                              color: AppColors.blue,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            entry.key,
-                            style: const TextStyle(
-                              color: AppColors.slate900,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.blue.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '${entry.value.length}',
-                              style: const TextStyle(
-                                color: AppColors.blue,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(context),
+            Expanded(
+              child:
+                  BlocConsumer<AttendanceHistoryBloc, AttendanceHistoryState>(
+                listener: (context, state) {
+                  if (state.requestStatus == RequestStatus.failed &&
+                      state.message != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const Icon(Icons.error_outline,
+                                color: Colors.white, size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(child: Text(state.message!)),
+                          ],
+                        ),
+                        backgroundColor: AppColors.red600,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
+                    );
+                  }
+                },
+                builder: (context, state) {
+                  if (state.requestStatus == RequestStatus.requesting) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                        strokeWidth: 2.5,
+                      ),
+                    );
+                  }
+
+                  if (state.items.isEmpty) {
+                    return _buildEmptyState(context);
+                  }
+
+                  final grouped = _groupByDate(state.items);
+
+                  return RefreshIndicator(
+                    onRefresh: () async =>
+                        context.read<AttendanceHistoryBloc>().loadHistory(),
+                    color: AppColors.primary,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                      itemCount: grouped.length,
+                      itemBuilder: (context, index) {
+                        final entry = grouped.entries.elementAt(index);
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildDateHeader(entry.key, entry.value.length,
+                                isFirst: index == 0),
+                            ...entry.value.map(_buildHistoryItem),
+                          ],
+                        );
+                      },
                     ),
-                    // Items for this date
-                    ...entry.value.map(_buildHistoryItem),
-                  ],
-                );
-              },
+                  );
+                },
+              ),
             ),
-          );
-        },
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Header (matches home_page style) ─────────────────────
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: AppColors.slate200, width: 0.5),
+        ),
+      ),
+      alignment: Alignment.center,
+      child: const Text(
+        'LỊCH SỬ ĐIỂM DANH',
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: AppColors.slate900,
+        ),
+      ),
+    );
+  }
+
+  // ── Empty State ───────────────────────────────────────────
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.history_edu_outlined,
+                size: 48,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Chưa có lịch sử',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.slate900,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Các buổi điểm danh của bạn\nsẽ xuất hiện tại đây',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.slate500,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () =>
+                  context.read<AttendanceHistoryBloc>().loadHistory(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text(
+                'Tải lại',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Date section header ───────────────────────────────────
+  Widget _buildDateHeader(String date, int count, {bool isFirst = false}) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 10, top: isFirst ? 16 : 20),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 18,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            date,
+            style: const TextStyle(
+              color: AppColors.slate900,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(99),
+            ),
+            child: Text(
+              '$count',
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -172,53 +252,72 @@ class _AttendanceHistoryViewState extends State<_AttendanceHistoryView> {
     return grouped;
   }
 
+  // ── History card ──────────────────────────────────────────
   Widget _buildHistoryItem(AttendanceHistoryItem item) {
     Color statusColor;
     IconData statusIcon;
+    Color iconBg;
 
     switch (item.status) {
       case 'early':
         statusColor = AppColors.teal600;
+        iconBg = AppColors.teal50;
         statusIcon = Icons.alarm;
         break;
       case 'on_time':
-        statusColor = AppColors.green;
+        statusColor = AppColors.green600;
+        iconBg = AppColors.green100;
         statusIcon = Icons.check_circle;
         break;
       case 'late':
         statusColor = AppColors.orange;
-        statusIcon = Icons.access_time;
+        iconBg = AppColors.orange50;
+        statusIcon = Icons.access_time_filled;
         break;
       case 'present':
-        statusColor = AppColors.green;
-        statusIcon = Icons.check;
+        statusColor = AppColors.green600;
+        iconBg = AppColors.green100;
+        statusIcon = Icons.check_circle;
         break;
       case 'absent':
-        statusColor = AppColors.red;
+        statusColor = AppColors.red600;
+        iconBg = AppColors.red100;
         statusIcon = Icons.cancel;
         break;
       default:
         statusColor = AppColors.slate500;
+        iconBg = AppColors.slate200;
         statusIcon = Icons.help_outline;
     }
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.slate900.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         child: Row(
           children: [
             // Status icon
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: statusColor.withValues(alpha: 0.1),
-              child: Icon(statusIcon, color: statusColor, size: 20),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(statusIcon, color: statusColor, size: 22),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             // Info
             Expanded(
               child: Column(
@@ -227,33 +326,47 @@ class _AttendanceHistoryViewState extends State<_AttendanceHistoryView> {
                   Text(
                     item.courseName ?? 'Không rõ học phần',
                     style: const TextStyle(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       fontSize: 14,
+                      color: AppColors.slate900,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 2),
-                  if (item.studentName != null)
+                  if (item.studentName != null) ...[
+                    const SizedBox(height: 2),
                     Text(
-                      '${item.studentName}${item.studentCode != null ? ' (${item.studentCode})' : ''}',
+                      '${item.studentName}${item.studentCode != null ? ' • ${item.studentCode}' : ''}',
                       style: const TextStyle(
                         color: AppColors.slate500,
                         fontSize: 12,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  if (item.roomName != null)
-                    Text(
-                      'Phòng: ${item.roomName}',
-                      style: const TextStyle(
-                        color: AppColors.slate500,
-                        fontSize: 11,
-                      ),
+                  ],
+                  if (item.roomName != null) ...[
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const Icon(Icons.meeting_room_outlined,
+                            size: 11, color: AppColors.slate500),
+                        const SizedBox(width: 3),
+                        Text(
+                          item.roomName!,
+                          style: const TextStyle(
+                            color: AppColors.slate500,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
                     ),
+                  ],
                 ],
               ),
             ),
-            // Time + status badge
+            const SizedBox(width: 8),
+            // Time + badge
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -262,15 +375,16 @@ class _AttendanceHistoryViewState extends State<_AttendanceHistoryView> {
                   style: TextStyle(
                     color: statusColor,
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 15,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                   decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(99),
                   ),
                   child: Text(
                     item.statusLabel,
@@ -281,23 +395,20 @@ class _AttendanceHistoryViewState extends State<_AttendanceHistoryView> {
                     ),
                   ),
                 ),
-                if (item.minutesDiff != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      item.minutesDiff! < 0
-                          ? '${item.minutesDiff!.abs()} phút sớm'
-                          : item.minutesDiff! > 0
-                              ? '${item.minutesDiff!} phút trễ'
-                              : 'Đúng giờ',
-                      style: TextStyle(
-                        color: item.minutesDiff! > 0
-                            ? AppColors.orange
-                            : AppColors.slate500,
-                        fontSize: 10,
-                      ),
+                if (item.minutesDiff != null && item.minutesDiff != 0) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    item.minutesDiff! < 0
+                        ? '${item.minutesDiff!.abs()} phút sớm'
+                        : '${item.minutesDiff!} phút trễ',
+                    style: TextStyle(
+                      color: item.minutesDiff! > 0
+                          ? AppColors.orange
+                          : AppColors.slate500,
+                      fontSize: 10,
                     ),
                   ),
+                ],
               ],
             ),
           ],

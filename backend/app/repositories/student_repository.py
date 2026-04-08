@@ -52,8 +52,18 @@ class StudentRepository:
                 Student.deleted_at.is_(None),
             )
         )
-        # return the first one found
         return result.scalars().first()
+
+    async def get_by_code(self, student_code: str) -> Student | None:
+        """Find by student_code (MSSV) — unique, stable across DB resets."""
+        result = await self.db.execute(
+            select(Student).where(
+                Student.student_code == student_code,
+                Student.deleted_at.is_(None),
+            )
+        )
+        return result.scalar_one_or_none()
+
 
     async def get_all(self, skip: int = 0, limit: int = 500) -> Sequence[Student]:
         """Return all students ordered by ID ascending (Flutter sync order)."""

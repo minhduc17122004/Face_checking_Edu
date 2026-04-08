@@ -1,0 +1,74 @@
+{
+  "items": [
+    {
+      "id": "1",
+      "student_id": 101,
+      "student_name": "Nguyên Khang",
+      "student_code": "SV001",
+      "session_id": "ss1",
+      "session_date": "2024-03-29",
+      "course_name": "Công nghệ phần mềm",
+      "course_id": "SE102",
+      "room_name": "Phòng E.3.1",
+      "checkin_time": "2024-03-29T07:20:00Z",
+      "status": "early",
+      "minutes_diff": -10
+    },
+    {
+      "id": "2",
+      "student_id": 101,
+      "student_name": "Nguyên Khang",
+      "student_code": "SV001",
+      "session_id": "ss2",
+      "session_date": "2024-03-29",
+      "course_name": "Hệ quản trị CSDL",
+      "course_id": "IT103",
+      "room_name": "Phòng E.3.2",
+      "checkin_time": "2024-03-29T09:35:00Z",
+      "status": "late",
+      "minutes_diff": 5
+    },
+    {
+      "id": "3",
+      "student_id": 101,
+      "student_name": "Nguyên Khang",
+      "student_code": "SV001",
+      "session_id": "ss3",
+      "session_date": "2024-03-28",
+      "course_name": "An toàn thông tin",
+      "course_id": "CS104",
+      "room_name": "Phòng E.4.1",
+      "checkin_time": "2024-03-28T07:30:00Z",
+      "status": "on_time",
+      "minutes_diff": 0
+    },
+    {
+      "id": "4",
+      "student_id": 101,
+      "student_name": "Nguyên Khang",
+      "student_code": "SV001",
+      "session_id": "ss4",
+      "session_date": "2024-03-27",
+      "course_name": "Mạng máy tính",
+      "course_id": "NT101",
+      "room_name": "Phòng C.1.1",
+      "checkin_time": "2024-03-27T13:00:00Z",
+      "status": "absent",
+      "minutes_diff": null
+    },
+    {
+      "id": "5",
+      "student_id": 101,
+      "student_name": "Nguyên Khang",
+      "student_code": "SV001",
+      "session_id": "ss5",
+      "session_date": "2024-03-26",
+      "course_name": "Thiết kế giao diện",
+      "course_id": "UI101",
+      "room_name": "Phòng E.2.1",
+      "checkin_time": "2024-03-26T07:15:00Z",
+      "status": "early",
+      "minutes_diff": -15
+    }
+  ]
+}

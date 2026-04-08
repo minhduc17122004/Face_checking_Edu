@@ -84,6 +84,8 @@ class CourseBloc extends Cubit<CourseState> with EventBusMixin {
     int customWindowEndMinutes = 30,
     int? dayOfWeek,
     int? timeSlotId,
+    int? totalSessions,
+    int? credits,
   }) async {
     emit(state.copyWith(requestStatus: RequestStatus.requesting));
     final result = await _courseService.createCourse(
@@ -97,6 +99,8 @@ class CourseBloc extends Cubit<CourseState> with EventBusMixin {
       customWindowEndMinutes: customWindowEndMinutes,
       dayOfWeek: dayOfWeek,
       timeSlotId: timeSlotId,
+      totalSessions: totalSessions,
+      credits: credits,
     );
     if (result.isSuccess) {
       emit(state.copyWith(
@@ -126,6 +130,8 @@ class CourseBloc extends Cubit<CourseState> with EventBusMixin {
     int? customWindowEndMinutes,
     int? dayOfWeek,
     int? timeSlotId,
+    int? totalSessions,
+    int? credits,
   }) async {
     emit(state.copyWith(requestStatus: RequestStatus.requesting));
     final result = await _courseService.updateCourse(
@@ -140,6 +146,8 @@ class CourseBloc extends Cubit<CourseState> with EventBusMixin {
       customWindowEndMinutes: customWindowEndMinutes,
       dayOfWeek: dayOfWeek,
       timeSlotId: timeSlotId,
+      totalSessions: totalSessions,
+      credits: credits,
     );
     if (result.isSuccess) {
       emit(state.copyWith(

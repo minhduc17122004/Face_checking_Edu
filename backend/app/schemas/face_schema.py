@@ -52,7 +52,7 @@ class FaceEmbeddingOut(BaseModel):
 
     id: uuid.UUID
     student_id: int
-    embedding_data: list  # list[float] or list[list[float]]
+    embedding: list  # list[float] or list[list[float]]
     created_at: datetime
     updated_at: datetime
 
@@ -74,30 +74,60 @@ class FaceDataOut(BaseModel):
     """Single student's face data in the Flutter export format.
 
     Flutter contract:
-        { "studentId": <int>, "listFaceEmbedding": [[...], ...], "updatedTime": "..." }
+        {
+            "studentId": <int>,
+            "studentCode": <str|null>,
+            "listFaceEmbedding": [[...], ...],
+            "updatedTime": "...",
+            "embedding_hash": "<sha256-hex>"
+        }
     """
 
     studentId: int
+    studentCode: Optional[str] = Field(
+        None,
+        description="Student code (MSSV / PIN) — stable across DB resets.",
+    )
+    personName: Optional[str] = Field(
+        None,
+        description="Full name of the student for display.",
+    )
     listFaceEmbedding: list[list[float]]
     updatedTime: str = Field(
         ..., description="ISO-8601 datetime string of the latest embedding update."
     )
+    embedding_hash: str = Field(
+        "",
+        description="SHA-256 hex digest of the canonical embedding content. "
+                    "Clients compare this to skip redundant imports.",
+    )
 
     @classmethod
-    def from_orm(cls, student_id: int, embeddings: list, updated_at: datetime) -> "FaceDataOut":
+    def build(
+        cls,
+        student_id: int,
+        embeddings: list,
+        updated_at: datetime,
+        student_code: str | None = None,
+        person_name: str | None = None,
+        embedding_hash: str = "",
+    ) -> "FaceDataOut":
         """Build from raw ORM data."""
-        # Each embedding_data may be a flat list (single vector) or list of lists
+        # Each embedding may be a flat list (single vector) or list of lists
         all_vectors: list[list[float]] = []
         for emb in embeddings:
-            data = emb.embedding_data
+            data = emb.embedding
             if data and isinstance(data[0], list):
                 all_vectors.extend(data)          # already list-of-lists
             else:
                 all_vectors.append(data)          # flat list → wrap
         return cls(
             studentId=student_id,
+            studentCode=student_code,
+            personName=person_name,
             listFaceEmbedding=all_vectors,
             updatedTime=updated_at.isoformat(),
+            embedding_hash=embedding_hash,
         )
 
 

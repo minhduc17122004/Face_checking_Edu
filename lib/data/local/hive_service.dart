@@ -1,10 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:face_time_keeping/common/utils/log_util.dart';
-import 'package:face_time_keeping/data/local/local_service.dart';
-import 'package:face_time_keeping/di/injection.dart';
 import 'package:face_time_keeping/entities/pending_edu_check_in.dart';
 import 'package:face_time_keeping/entities/person.dart';
-import 'package:face_time_keeping/entities/tenant.dart';
 import 'package:hive/hive.dart';
 import 'package:face_time_keeping/entities/check_in_out.dart';
 import 'package:injectable/injectable.dart';
@@ -20,19 +17,17 @@ abstract class HiveService {
   Future<void> clearCheckInOut();
   Future<void> savePerson(Person person);
   Future<Person?> getPerson(int studentId);
+  Future<Person?> getPersonByPin(String pin);
   Future<void> deletePerson(int studentId);
   Future<void> updatePerson(Person person);
   Future<void> clearPersons();
   Future<List<CheckInOut>> getUnSyncedCheckInOuts();
   Future<void> updateCheckInOutFlag(int ioId, bool isSynced);
-  Future<void> init(String tenantKey);
-  Future<int> addTenant(Tenant tenant);
-  Future<int?> getTenantId(String url, String dbName);
+  Future<void> init();
   Future<List<Person>> getAllPersons();
   Future<void> refreshCheckInOutBox();
   Future<void> refreshPersonBox();
   Future<void> updatePersonSynced(int studentId, bool isSynced);
-  Future<void> cloneDataFromOldTenant(String oldTenantKey, String newTenantKey);
 
   // --- EDU Pending Check-In (offline queue) ---
   Future<int> savePendingEduCheckIn(PendingEduCheckIn item);
@@ -41,39 +36,32 @@ abstract class HiveService {
   Future<void> incrementEduRetryCount(String localId);
   Future<void> clearSyncedEduCheckIns();
   Future<void> clearAllEduCheckIns();
+  Future<int> purgeInvalidEduCheckIns();
 }
 
 @LazySingleton(as: HiveService)
 class HiveServiceImplement implements HiveService {
   static const String _checkInOutBoxName = 'checkIO_box';
   static const String _personBoxName = 'person_box';
-  static const String _tenantBoxName = 'tenant_box';
   static const String _pendingEduBoxName = 'pending_edu_checkin_box';
   Box<CheckInOut>? _checkInOutBox;
   Box<Person>? _personBox;
   Box<PendingEduCheckIn>? _pendingEduBox;
-  late final Future<Box<Tenant>> _tenantBox;
-  String? _tenantKey;
 
-  HiveServiceImplement() {
-    _tenantBox = Hive.openBox<Tenant>(_tenantBoxName);
-  }
+  HiveServiceImplement() {}
 
   @override
-  Future<void> init(String tenantKey) async {
+  Future<void> init() async {
     try {
-      if (_tenantKey != null && tenantKey == _tenantKey) return;
-      _tenantKey = tenantKey;
       if (_checkInOutBox?.isOpen ?? false) {
         await _checkInOutBox?.close();
       }
       if (_personBox?.isOpen ?? false) {
         await _personBox?.close();
       }
-      _checkInOutBox =
-          await Hive.openBox<CheckInOut>('$_checkInOutBoxName-$_tenantKey');
+      _checkInOutBox = await Hive.openBox<CheckInOut>(_checkInOutBoxName);
 
-      _personBox = await Hive.openBox<Person>('$_personBoxName-$_tenantKey');
+      _personBox = await Hive.openBox<Person>(_personBoxName);
     } catch (e, stackTrace) {
       await pushLog('Error initializing Hive: $e\n$stackTrace');
       rethrow;
@@ -83,12 +71,10 @@ class HiveServiceImplement implements HiveService {
   @override
   Future<void> refreshCheckInOutBox() async {
     try {
-      await checkTenantKey();
       if (_checkInOutBox?.isOpen ?? false) {
         await _checkInOutBox?.close();
       }
-      _checkInOutBox =
-          await Hive.openBox<CheckInOut>('$_checkInOutBoxName-$_tenantKey');
+      _checkInOutBox = await Hive.openBox<CheckInOut>(_checkInOutBoxName);
     } catch (e, stackTrace) {
       await pushLog('Error refreshing CheckInOut box: $e\n$stackTrace');
       rethrow;
@@ -98,62 +84,27 @@ class HiveServiceImplement implements HiveService {
   @override
   Future<void> refreshPersonBox() async {
     try {
-      await checkTenantKey();
       if (_personBox?.isOpen ?? false) {
         await _personBox?.close();
       }
-      _personBox = await Hive.openBox<Person>('$_personBoxName-$_tenantKey');
+      _personBox = await Hive.openBox<Person>(_personBoxName);
     } catch (e, stackTrace) {
       await pushLog('Error refreshing Person box: $e\n$stackTrace');
       rethrow;
     }
   }
 
-  Future<void> checkTenantKey() async {
-    try {
-      if (_tenantKey == null) {
-        final tenantId = await getIt<LocalService>().getTenantId();
-        _tenantKey = tenantId.toString();
-      }
-    } catch (e, stackTrace) {
-      await pushLog('Error in checkTenantKey: $e\n$stackTrace');
-      rethrow;
-    }
-  }
-
   @override
   Future<List<Person>> getAllPersons() async {
-    await checkTenantKey();
-    _personBox ??= await Hive.openBox<Person>('$_personBoxName-$_tenantKey');
+    _personBox ??= await Hive.openBox<Person>(_personBoxName);
     final result = _personBox!.values.toList();
     return result;
   }
 
   @override
-  Future<int> addTenant(Tenant tenant) async {
-    final box = await _tenantBox;
-    return await box.add(tenant);
-  }
-
-  @override
-  Future<int?> getTenantId(String url, String dbName) async {
-    try {
-      final box = await _tenantBox;
-      final tenant = box.values
-          .firstWhereOrNull((e) => e.url == url && e.databaseName == dbName);
-      return tenant?.key;
-    } catch (e, stackTrace) {
-      await pushLog('Error getting tenant: $e\n$stackTrace');
-      return null;
-    }
-  }
-
-  @override
   Future<void> updateCheckInOutFlag(int ioId, bool isSynced) async {
     try {
-      await checkTenantKey();
-      _checkInOutBox ??=
-          await Hive.openBox<CheckInOut>('$_checkInOutBoxName-$_tenantKey');
+      _checkInOutBox ??= await Hive.openBox<CheckInOut>(_checkInOutBoxName);
       final checkInOut = _checkInOutBox!.get(ioId);
       if (checkInOut != null) {
         await _checkInOutBox?.put(
@@ -173,18 +124,14 @@ class HiveServiceImplement implements HiveService {
   // CheckInOut methods
   @override
   Future<int> saveCheckInOut(CheckInOut checkInOut) async {
-    await checkTenantKey();
-    _checkInOutBox ??=
-        await Hive.openBox<CheckInOut>('$_checkInOutBoxName-$_tenantKey');
+    _checkInOutBox ??= await Hive.openBox<CheckInOut>(_checkInOutBoxName);
     final id = await _checkInOutBox!.add(checkInOut);
     return id;
   }
 
   @override
   Future<CheckInOut?> getCheckInOut(int id) async {
-    await checkTenantKey();
-    _checkInOutBox ??=
-        await Hive.openBox<CheckInOut>('$_checkInOutBoxName-$_tenantKey');
+    _checkInOutBox ??= await Hive.openBox<CheckInOut>(_checkInOutBoxName);
     final checkInOut = _checkInOutBox!.get(id);
     if (checkInOut == null) return null;
     return checkInOut.copyWith(id: id);
@@ -192,9 +139,7 @@ class HiveServiceImplement implements HiveService {
 
   @override
   Future<List<CheckInOut>> getAllCheckInOuts() async {
-    await checkTenantKey();
-    _checkInOutBox ??=
-        await Hive.openBox<CheckInOut>('$_checkInOutBoxName-$_tenantKey');
+    _checkInOutBox ??= await Hive.openBox<CheckInOut>(_checkInOutBoxName);
     final entries = _checkInOutBox!.toMap().entries;
     final items =
         entries.map((e) => e.value.copyWith(id: e.key)).toList(growable: false);
@@ -211,9 +156,7 @@ class HiveServiceImplement implements HiveService {
 
   @override
   Future<List<CheckInOut>> getCheckInOutsOnOrAfter(DateTime? date) async {
-    await checkTenantKey();
-    _checkInOutBox ??=
-        await Hive.openBox<CheckInOut>('$_checkInOutBoxName-$_tenantKey');
+    _checkInOutBox ??= await Hive.openBox<CheckInOut>(_checkInOutBoxName);
     final entries = _checkInOutBox!.toMap().entries;
     final items =
         entries.map((e) => e.value.copyWith(id: e.key)).toList(growable: false);
@@ -224,48 +167,45 @@ class HiveServiceImplement implements HiveService {
 
   @override
   Future<void> updateCheckInOut(CheckInOut checkInOut) async {
-    await checkTenantKey();
-    _checkInOutBox ??=
-        await Hive.openBox<CheckInOut>('$_checkInOutBoxName-$_tenantKey');
+    _checkInOutBox ??= await Hive.openBox<CheckInOut>(_checkInOutBoxName);
     await _checkInOutBox!.put(checkInOut.id, checkInOut);
   }
 
   @override
   Future<void> deleteCheckInOut(int id) async {
-    await checkTenantKey();
-    _checkInOutBox ??=
-        await Hive.openBox<CheckInOut>('$_checkInOutBoxName-$_tenantKey');
+    _checkInOutBox ??= await Hive.openBox<CheckInOut>(_checkInOutBoxName);
     await _checkInOutBox!.delete(id);
   }
 
   @override
   Future<void> clearCheckInOut() async {
-    await checkTenantKey();
-    _checkInOutBox ??=
-        await Hive.openBox<CheckInOut>('$_checkInOutBoxName-$_tenantKey');
+    _checkInOutBox ??= await Hive.openBox<CheckInOut>(_checkInOutBoxName);
     await _checkInOutBox!.clear();
   }
 
   // Person methods
   @override
   Future<void> savePerson(Person person) async {
-    await checkTenantKey();
-    _personBox ??= await Hive.openBox<Person>('$_personBoxName-$_tenantKey');
+    _personBox ??= await Hive.openBox<Person>(_personBoxName);
 
     await _personBox!.put(person.studentId, person);
   }
 
   @override
   Future<Person?> getPerson(int studentId) async {
-    await checkTenantKey();
-    _personBox ??= await Hive.openBox<Person>('$_personBoxName-$_tenantKey');
+    _personBox ??= await Hive.openBox<Person>(_personBoxName);
     return _personBox!.get(studentId);
   }
 
   @override
+  Future<Person?> getPersonByPin(String pin) async {
+    _personBox ??= await Hive.openBox<Person>(_personBoxName);
+    return _personBox!.values.firstWhereOrNull((p) => p.pin == pin);
+  }
+
+  @override
   Future<void> updatePerson(Person person) async {
-    await checkTenantKey();
-    _personBox ??= await Hive.openBox<Person>('$_personBoxName-$_tenantKey');
+    _personBox ??= await Hive.openBox<Person>(_personBoxName);
     final key = (_personBox?.keys ?? []).firstWhereOrNull(
       (k) {
         final p = _personBox!.get(k);
@@ -279,8 +219,7 @@ class HiveServiceImplement implements HiveService {
 
   @override
   Future<void> deletePerson(int studentId) async {
-    await checkTenantKey();
-    _personBox ??= await Hive.openBox<Person>('$_personBoxName-$_tenantKey');
+    _personBox ??= await Hive.openBox<Person>(_personBoxName);
     final key = (_personBox?.keys ?? []).firstWhereOrNull(
       (k) {
         final p = _personBox!.get(k);
@@ -295,8 +234,7 @@ class HiveServiceImplement implements HiveService {
   @override
   Future<void> clearPersons() async {
     try {
-      await checkTenantKey();
-      _personBox ??= await Hive.openBox<Person>('$_personBoxName-$_tenantKey');
+      _personBox ??= await Hive.openBox<Person>(_personBoxName);
       // clear all person
       await _personBox!.clear();
     } catch (e, stackTrace) {
@@ -307,19 +245,25 @@ class HiveServiceImplement implements HiveService {
   @override
   Future<void> updatePersonSynced(int studentId, bool isSynced) async {
     try {
-      await checkTenantKey();
-      _personBox ??= await Hive.openBox<Person>('$_personBoxName-$_tenantKey');
+      _personBox ??= await Hive.openBox<Person>(_personBoxName);
       final currentPerson = _personBox!.get(studentId);
-      await _personBox!.put(
-          studentId,
-          Person(
-            studentId: studentId,
-            updatedTime: DateTime.now(),
-            isSynced: isSynced,
-            name: currentPerson?.name ?? '',
-            pin: currentPerson?.pin,
-            jobTitle: currentPerson?.jobTitle,
-          ));
+      if (currentPerson != null) {
+        await _personBox!.put(
+            studentId,
+            currentPerson.copyWith(
+              updatedTime: DateTime.now(),
+              isSynced: isSynced,
+            ));
+      } else {
+        await _personBox!.put(
+            studentId,
+            Person(
+              studentId: studentId,
+              updatedTime: DateTime.now(),
+              isSynced: isSynced,
+              name: '',
+            ));
+      }
     } catch (e, stackTrace) {
       await pushLog('Error updating person synced: $e\n$stackTrace');
       rethrow;
@@ -337,9 +281,8 @@ class HiveServiceImplement implements HiveService {
   // --- EDU Pending Check-In ---
 
   Future<Box<PendingEduCheckIn>> _getPendingEduBox() async {
-    await checkTenantKey();
-    _pendingEduBox ??= await Hive.openBox<PendingEduCheckIn>(
-        '$_pendingEduBoxName-$_tenantKey');
+    _pendingEduBox ??=
+        await Hive.openBox<PendingEduCheckIn>(_pendingEduBoxName);
     return _pendingEduBox!;
   }
 
@@ -393,55 +336,17 @@ class HiveServiceImplement implements HiveService {
   }
 
   @override
-  Future<void> cloneDataFromOldTenant(
-      String oldTenantKey, String newTenantKey) async {
-    try {
-      // Open old tenant boxes
-      final oldPersonBox =
-          await Hive.openBox<Person>('$_personBoxName-$oldTenantKey');
-      final oldCheckInOutBox =
-          await Hive.openBox<CheckInOut>('$_checkInOutBoxName-$oldTenantKey');
-
-      // Open new tenant boxes
-      final newPersonBox =
-          await Hive.openBox<Person>('$_personBoxName-$newTenantKey');
-      final newCheckInOutBox =
-          await Hive.openBox<CheckInOut>('$_checkInOutBoxName-$newTenantKey');
-
-      // Clone Person data
-      if (oldPersonBox.isNotEmpty) {
-        await pushLog(
-            'Cloning ${oldPersonBox.length} persons from old tenant to new tenant');
-        for (final person in oldPersonBox.values) {
-          await newPersonBox.add(person.copyWith(isSynced: false));
-        }
+  Future<int> purgeInvalidEduCheckIns() async {
+    final box = await _getPendingEduBox();
+    int purgedCount = 0;
+    final entries = box.toMap().entries.toList();
+    for (final entry in entries) {
+      final item = entry.value;
+      if (item.studentId == 0 && item.serverUserId == null && (item.pin == null || item.pin!.isEmpty)) {
+        await box.delete(entry.key);
+        purgedCount++;
       }
-
-      // Clone CheckInOut data
-      if (oldCheckInOutBox.isNotEmpty) {
-        await pushLog(
-            'Cloning ${oldCheckInOutBox.length} check-in/out records from old tenant to new tenant');
-        for (final checkInOut in oldCheckInOutBox.values) {
-          await newCheckInOutBox.add(checkInOut.copyWith());
-        }
-      }
-
-      // Close old boxes
-      await oldPersonBox.clear();
-      await oldCheckInOutBox.clear();
-      await oldPersonBox.close();
-      await oldCheckInOutBox.close();
-
-      // Update current references to new boxes
-      _personBox = newPersonBox;
-      _checkInOutBox = newCheckInOutBox;
-      _tenantKey = newTenantKey;
-
-      await pushLog(
-          'Successfully cloned data from tenant $oldTenantKey to $newTenantKey');
-    } catch (e, stackTrace) {
-      await pushLog('Error cloning data from old tenant: $e\n$stackTrace');
-      rethrow;
     }
+    return purgedCount;
   }
 }

@@ -760,9 +760,38 @@ class AttendanceService:
             if course_id:
                 base_stmt = base_stmt.where(CourseModel.id == course_id)
 
-            # Count
-            count_stmt = select(func.count(Attendance.id)).select_from(base_stmt.subquery())
-            count_result = await self.db.execute(count_stmt)
+            # Count — build a lightweight count query with the same filters
+            # (avoid wrapping a multi-model join subquery which SQLAlchemy can't resolve)
+            count_query = select(func.count(Attendance.id)).where(Attendance.deleted_at.is_(None))
+            if role == "student":
+                # student_id resolved above and applied to base_stmt; re-apply here
+                try:
+                    count_query = count_query.where(Attendance.student_id == student_id)
+                except NameError:
+                    pass
+            elif role == "teacher":
+                try:
+                    count_query = (
+                        count_query
+                        .join(SessionModel, Attendance.session_id == SessionModel.id)
+                        .join(CourseModel, SessionModel.course_id == CourseModel.id)
+                        .where(CourseModel.teacher_id == teacher_id)
+                    )
+                except NameError:
+                    pass
+            if course_id:
+                try:
+                    # Only add this join if not already added above
+                    if role != "teacher":
+                        count_query = (
+                            count_query
+                            .join(SessionModel, Attendance.session_id == SessionModel.id)
+                            .join(CourseModel, SessionModel.course_id == CourseModel.id)
+                        )
+                    count_query = count_query.where(CourseModel.id == course_id)
+                except Exception:
+                    pass
+            count_result = await self.db.execute(count_query)
             total = count_result.scalar_one()
 
             # Paginated data

@@ -1,6 +1,6 @@
 """Refactor teachers table — add department_id FK, migrate department string.
 
-Revision ID: 0017_refactor_teachers_department
+Revision ID: 0017_refactor_teachers_dept
 Revises: 0016_add_departments
 Create Date: 2026-03-21
 
@@ -16,7 +16,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-revision: str = "0017_refactor_teachers_department"
+revision: str = "0017_refactor_teachers_dept"
 down_revision: Union[str, None] = "0016_add_departments"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

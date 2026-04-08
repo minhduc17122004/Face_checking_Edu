@@ -65,6 +65,9 @@ class Course {
   final int? dayOfWeek;
   final int? timeSlotId;
   final String? timeSlotName;
+  final int? totalSessions;
+  final int? credits;
+  final bool isCourseActiveNow;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -85,6 +88,9 @@ class Course {
     this.dayOfWeek,
     this.timeSlotId,
     this.timeSlotName,
+    this.totalSessions,
+    this.credits,
+    this.isCourseActiveNow = true,
     required this.createdAt,
     this.updatedAt,
   });
@@ -110,6 +116,9 @@ class Course {
       dayOfWeek: json['day_of_week'] as int?,
       timeSlotId: json['time_slot_id'] as int?,
       timeSlotName: json['time_slot_name'] as String?,
+      totalSessions: json['total_sessions'] as int?,
+      credits: json['credits'] as int?,
+      isCourseActiveNow: json['is_course_active_now'] ?? true,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String)
@@ -130,6 +139,8 @@ class Course {
       'custom_window_end_minutes': customWindowEndMinutes,
       'day_of_week': dayOfWeek,
       'time_slot_id': timeSlotId,
+      if (totalSessions != null) 'total_sessions': totalSessions,
+      if (credits != null) 'credits': credits,
     };
   }
 
@@ -150,6 +161,9 @@ class Course {
     int? dayOfWeek,
     int? timeSlotId,
     String? timeSlotName,
+    int? totalSessions,
+    int? credits,
+    bool? isCourseActiveNow,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -172,6 +186,9 @@ class Course {
       dayOfWeek: dayOfWeek ?? this.dayOfWeek,
       timeSlotId: timeSlotId ?? this.timeSlotId,
       timeSlotName: timeSlotName ?? this.timeSlotName,
+      totalSessions: totalSessions ?? this.totalSessions,
+      credits: credits ?? this.credits,
+      isCourseActiveNow: isCourseActiveNow ?? this.isCourseActiveNow,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

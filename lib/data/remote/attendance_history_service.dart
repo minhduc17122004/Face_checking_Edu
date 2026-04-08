@@ -95,34 +95,28 @@ class AttendanceHistoryServiceImpl implements AttendanceHistoryService {
     int limit = 50,
   }) async {
     try {
-      final queryParams = <String, dynamic>{
-        'skip': skip,
-        'limit': limit,
-      };
-      if (courseId != null) {
-        queryParams['course_id'] = courseId;
-      }
-
       final response = await _apiClient.get(
         path: ApiEndpoint.attendanceHistory,
-        queryParameters: queryParams,
+        queryParameters: {
+          if (courseId != null) 'course_id': courseId,
+          'skip': skip,
+          'limit': limit,
+        },
       );
+      
       if (response.isSuccess()) {
         final json = response.data as Map<String, dynamic>;
         final items = json['items'] as List<dynamic>? ?? [];
         return DataSuccess<List<AttendanceHistoryItem>>(
-          items
-              .map((e) => AttendanceHistoryItem.fromJson(
-                  e as Map<String, dynamic>))
-              .toList(),
+          items.map((e) => AttendanceHistoryItem.fromJson(e as Map<String, dynamic>)).toList(),
         );
       }
       return DataFailed<List<AttendanceHistoryItem>>(response.error);
     } on DioError catch (e) {
-      await pushLog('Error in getHistory: $e');
+      await pushLog('Error in getHistory: \$e');
       return DataFailed<List<AttendanceHistoryItem>>(e.message);
     } on Exception catch (e) {
-      await pushLog('Error in getHistory: $e');
+      await pushLog('Error in getHistory: \$e');
       return DataFailed<List<AttendanceHistoryItem>>(e.toString());
     }
   }

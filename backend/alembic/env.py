@@ -12,7 +12,7 @@ from logging.config import fileConfig
 # Add the project root (the directory containing `app/`) to sys.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sqlalchemy import pool
+from sqlalchemy import pool, String
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
@@ -54,6 +54,7 @@ def run_migrations_offline() -> None:
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
         compare_server_default=True,
+        version_num_col_type=String(64),
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -66,6 +67,7 @@ def do_run_migrations(connection: Connection) -> None:
         target_metadata=target_metadata,
         compare_type=True,
         compare_server_default=True,
+        version_num_col_type=String(64),
     )
     with context.begin_transaction():
         context.run_migrations()

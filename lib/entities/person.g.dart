@@ -25,13 +25,17 @@ class PersonAdapter extends TypeAdapter<Person> {
       jobTitle: fields[5] as dynamic,
       avatar: fields[6] as String?,
       serverUserId: fields[7] as String?,
+      // New fields — backward compatible defaults for old data
+      embeddingHash: fields[8] as String?,
+      serverUpdatedAt: fields[9] as DateTime?,
+      hasLocalEmbedding: (fields[10] as bool?) ?? false,
     );
   }
 
   @override
   void write(BinaryWriter writer, Person obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.studentId)
       ..writeByte(1)
@@ -47,7 +51,13 @@ class PersonAdapter extends TypeAdapter<Person> {
       ..writeByte(6)
       ..write(obj.avatar)
       ..writeByte(7)
-      ..write(obj.serverUserId);
+      ..write(obj.serverUserId)
+      ..writeByte(8)
+      ..write(obj.embeddingHash)
+      ..writeByte(9)
+      ..write(obj.serverUpdatedAt)
+      ..writeByte(10)
+      ..write(obj.hasLocalEmbedding);
   }
 
   @override

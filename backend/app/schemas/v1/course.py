@@ -18,8 +18,8 @@ class CourseCreate(BaseModel):
     custom_window_end_minutes: int = Field(default=30, ge=0, le=240)
     day_of_week: Optional[int] = Field(None, ge=1, le=7, description="Day of week (1=Mon, 7=Sun)")
     time_slot_id: Optional[int] = Field(None, description="Time slot ID to create a schedule entry")
-    course_start_date: Optional[date] = Field(None, description="Ngày mở học phần (YYYY-MM-DD)")
-    course_end_date: Optional[date] = Field(None, description="Ngày kết thúc học phần (YYYY-MM-DD)")
+    total_sessions: Optional[int] = Field(None, description="Tổng số buổi học", ge=1)
+    credits: Optional[int] = Field(None, description="Số tín chỉ", ge=0)
 
 
 class CourseUpdate(BaseModel):
@@ -35,8 +35,8 @@ class CourseUpdate(BaseModel):
     custom_window_end_minutes: Optional[int] = Field(None, ge=0, le=240)
     day_of_week: Optional[int] = Field(None, ge=1, le=7)
     time_slot_id: Optional[int] = Field(None)
-    course_start_date: Optional[date] = Field(None, description="Ngày mở học phần (YYYY-MM-DD)")
-    course_end_date: Optional[date] = Field(None, description="Ngày kết thúc học phần (YYYY-MM-DD)")
+    total_sessions: Optional[int] = Field(None, description="Tổng số buổi học", ge=1)
+    credits: Optional[int] = Field(None, description="Số tín chỉ", ge=0)
 
 
 class CourseOut(BaseModel):
@@ -61,8 +61,8 @@ class CourseOut(BaseModel):
     day_of_week: Optional[int] = None
     time_slot_id: Optional[int] = None
     time_slot_name: Optional[str] = None
-    course_start_date: Optional[date] = None
-    course_end_date: Optional[date] = None
+    total_sessions: Optional[int] = None
+    credits: Optional[int] = None
     is_active: bool = True
     is_course_active_now: bool = True
 
@@ -87,6 +87,11 @@ class CourseStudentDetail(BaseModel):
     has_face: bool
     embedding_count: int
     enrolled_at: datetime
+
+    absent_count: int = 0
+    leave_count: int = 0
+    late_count: int = 0
+    on_time_count: int = 0
 
     model_config = {"from_attributes": True}
 

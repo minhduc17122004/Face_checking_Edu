@@ -44,8 +44,7 @@ class CheckingBloc extends Cubit<CheckingState> {
 
   Future<void> _ensureFaceNativeInitialized() async {
     try {
-      final tenantId = await _localService.getTenantId();
-      await _faceNative.initObjectBox(tenantId.toString());
+      await _faceNative.initObjectBox("default");
       debugPrint('FaceNative reinitialized in CheckingBloc');
     } catch (e) {
       debugPrint('Failed to reinitialize FaceNative: $e');

@@ -10,6 +10,7 @@ class Student {
   final String? attachmentId;
   final String? avatar;
   final bool isFromServer;
+  final bool hasFace;
   /// UUID from backend — used to identify student when syncing to server
   final String? serverUserId;
 
@@ -23,6 +24,7 @@ class Student {
     this.attachmentId,
     this.avatar,
     this.isFromServer = false,
+    this.hasFace = false,
     this.serverUserId,
   });
 
@@ -113,6 +115,7 @@ class Student {
     String? name,
     dynamic jobTitle,
     bool? isFromServer,
+    bool? hasFace,
     String? serverUserId,
   }) {
     return Student(
@@ -121,6 +124,7 @@ class Student {
       name: name ?? this.name,
       jobTitle: jobTitle ?? this.jobTitle,
       isFromServer: isFromServer ?? this.isFromServer,
+      hasFace: hasFace ?? this.hasFace,
       serverUserId: serverUserId ?? this.serverUserId,
     );
   }

@@ -1,4 +1,4 @@
-from __future__ import annotations
+import uuid
 """v1 Attendance router — /api/v1/attendance endpoints (unified session-based)."""
 import uuid
 from fastapi import APIRouter, Depends, Query, Request, status
@@ -230,3 +230,36 @@ async def get_enhanced_session_summary(
     """
     svc = AttendanceService(db)
     return await svc.get_enhanced_summary(session_id)
+@router.post("/sync-manual", response_model=BulkCheckinResponse)
+async def sync_manual(
+    req: BulkCheckinRequest,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """POST /api/v1/attendance/sync-manual — Descriptive alias for bulk-check-in."""
+    svc = AttendanceService(db)
+    return await svc.bulk_checkin(req)
+
+
+@router.post("/sync-auto", response_model=BulkCheckinResponse)
+async def sync_auto(
+    req: BulkCheckinRequest,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """POST /api/v1/attendance/sync-auto — Descriptive alias for auto-triggered bulk-check-in."""
+    svc = AttendanceService(db)
+    return await svc.bulk_checkin(req)
+
+
+@router.get("/sync-config")
+async def get_sync_config(
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """GET /api/v1/attendance/sync-config — Return auto-sync configuration."""
+    return {
+        "auto_sync_interval_minutes": 15,
+        "max_batch_size": 50,
+        "retry_limit": 3
+    }

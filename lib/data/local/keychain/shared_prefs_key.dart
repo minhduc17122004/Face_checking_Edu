@@ -17,9 +17,7 @@ class SharedPrefsKey {
   static const String licenseKey = 'licenseKey';
   static const String pinApp = 'pinApp';
   static const String dbName = 'dbName';
-  static const String tenantId = 'tenantId';
-  static const String latestTimePullFaceData =
-      'latestTimePullFaceData'; //+tenantId
+  static const String latestTimePullFaceData = 'latestTimePullFaceData';
   static const String syncFaceSchedule = 'syncFaceSchedule';
   static const String isInitializedDefaultData = 'isInitializedDefaultData';
   static const String serverType = 'serverType';
@@ -29,4 +27,15 @@ class SharedPrefsKey {
   static const String userRole = 'userRole';
   static const String activeRoom = 'active_room';
   static const String activeRoomName = 'active_room_name';
+
+  /// Comma-separated list of student PINs (studentCode) that were manually
+  /// reset at local level.  importFaceData will skip re-importing embeddings
+  /// for these PINs for ONE pull cycle, then clear the list automatically.
+  static const String faceResetSkipPins = 'faceResetSkipPins';
+
+  static const String pendingRecoveryStudentIds = 'pendingRecoveryStudentIds';
+
+  /// TTL-based face sync lock — stores expiry timestamp (ISO-8601).
+  /// Used instead of in-memory boolean to work across background isolates.
+  static const String faceSyncLockExpiresAt = 'faceSyncLockExpiresAt';
 }

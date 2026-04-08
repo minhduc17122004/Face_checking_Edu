@@ -93,6 +93,14 @@ class SettingCubit extends Cubit<SettingState> {
     }
   }
 
+  String getServerUrl() {
+    try {
+      return _localService.getServerUrl();
+    } catch (e) {
+      return '';
+    }
+  }
+
   Future<String> getUserRole() async {
     try {
       final role = _localService.getUserRole();

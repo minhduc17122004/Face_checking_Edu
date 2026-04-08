@@ -38,7 +38,6 @@ class _ServerSettingView extends StatefulWidget {
 class _ServerSettingViewState extends State<_ServerSettingView> {
   final _bloc = getIt<ServerSettingCubit>();
 
-
   Widget _buildSavedInfo(ServerType? saved) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),

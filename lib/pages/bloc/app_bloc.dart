@@ -40,6 +40,8 @@ class AppBloc extends Cubit<AppState> with EventBusMixin {
         syncStatus: SyncProgressStatus.syncing,
         syncMessage: event.message ?? 'Đang đồng bộ...',
       ));
+    } else if (event.status == 'silent') {
+      return;
     } else if (event.status == 'success' || event.success == true) {
       await _hiveService.refreshPersonBox();
       emit(state.copyWith(

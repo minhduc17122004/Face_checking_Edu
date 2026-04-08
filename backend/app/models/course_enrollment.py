@@ -57,6 +57,12 @@ class CourseEnrollment(Base):
         default=lambda: datetime.now(timezone.utc),
     )
 
+    # Attendance summaries
+    absent_count: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)
+    leave_count: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)
+    late_count: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)
+    on_time_count: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)
+
     # ── Relationships ──────────────────────────────────────────
     # Renamed: classroom → course
     course: Mapped["Course"] = relationship(

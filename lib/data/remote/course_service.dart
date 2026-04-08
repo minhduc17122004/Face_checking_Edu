@@ -29,6 +29,8 @@ abstract class CourseService {
     int customWindowEndMinutes = 30,
     int? dayOfWeek,
     int? timeSlotId,
+    int? totalSessions,
+    int? credits,
   });
   Future<DataState<Course>> updateCourse({
     required String id,
@@ -42,6 +44,8 @@ abstract class CourseService {
     int? customWindowEndMinutes,
     int? dayOfWeek,
     int? timeSlotId,
+    int? totalSessions,
+    int? credits,
   });
   Future<DataState<void>> deleteCourse(String id);
   Future<DataState<Room?>> assignRoom(String courseId, String roomId);
@@ -125,6 +129,8 @@ class CourseServiceImplement implements CourseService {
     int customWindowEndMinutes = 30,
     int? dayOfWeek,
     int? timeSlotId,
+    int? totalSessions,
+    int? credits,
   }) async {
     try {
       final response = await _apiClient.post(
@@ -140,6 +146,8 @@ class CourseServiceImplement implements CourseService {
           'custom_window_end_minutes': customWindowEndMinutes,
           if (dayOfWeek != null) 'day_of_week': dayOfWeek,
           if (timeSlotId != null) 'time_slot_id': timeSlotId,
+          if (totalSessions != null) 'total_sessions': totalSessions,
+          if (credits != null) 'credits': credits,
         },
         sendTimeout: const Duration(seconds: 20),
         receiveTimeout: const Duration(seconds: 20),
@@ -172,6 +180,8 @@ class CourseServiceImplement implements CourseService {
     int? customWindowEndMinutes,
     int? dayOfWeek,
     int? timeSlotId,
+    int? totalSessions,
+    int? credits,
   }) async {
     try {
       final data = <String, dynamic>{};
@@ -190,6 +200,8 @@ class CourseServiceImplement implements CourseService {
       }
       if (dayOfWeek != null) data['day_of_week'] = dayOfWeek;
       if (timeSlotId != null) data['time_slot_id'] = timeSlotId;
+      if (totalSessions != null) data['total_sessions'] = totalSessions;
+      if (credits != null) data['credits'] = credits;
 
       final response = await _apiClient.put(
         path: '${ApiEndpoint.courses}/$id',

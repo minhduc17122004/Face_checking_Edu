@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../common/resources/index.dart';
 import '../../common/utils/widgets/spacing.dart';
-import '../../data/local/local_service.dart';
+
 import '../../di/injection.dart';
 import '../../route/app_route.dart';
 import '../../route/navigator.dart';
@@ -21,17 +21,6 @@ class _BootstrapPageState extends State<BootstrapPage> {
   final BootstrapCubit _bloc = getIt<BootstrapCubit>();
 
   Future<String> _resolvePostAuthRoute() async {
-    final localService = getIt<LocalService>();
-    final role = localService.getUserRole().toUpperCase();
-    final activeRoomId = await localService.getActiveRoomId();
-
-    final needsRoomBinding = (role == 'ADMIN' || role == 'TEACHER') &&
-        (activeRoomId == null || activeRoomId.isEmpty);
-
-    if (needsRoomBinding) {
-      return RouterName.roomSelection;
-    }
-
     return RouterName.home;
   }
 

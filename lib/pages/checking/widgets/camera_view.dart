@@ -101,7 +101,7 @@ class CameraViewState extends State<CameraView> {
           ? ImageFormatGroup.nv21
           : ImageFormatGroup.bgra8888,
     );
-    _controller?.initialize().then((_) {
+    _controller?.initialize().then( (_) {
       if (!mounted) {
         return;
       }

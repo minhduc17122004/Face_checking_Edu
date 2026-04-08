@@ -16,7 +16,6 @@ import 'package:face_time_keeping/entities/pending_edu_check_in.dart';
 import 'package:face_time_keeping/entities/person.dart';
 import 'package:face_time_keeping/entities/sync_face_schedule.dart';
 import 'package:face_time_keeping/entities/sync_schedule.dart';
-import 'package:face_time_keeping/entities/tenant.dart';
 import 'package:face_time_keeping/localization/generated/intl/messages_all.dart';
 import 'package:face_time_keeping/localization/generated/l10n.dart';
 import 'package:flutter/foundation.dart';
@@ -54,8 +53,7 @@ void callbackDispatcher() {
       if (!Hive.isAdapterRegistered(CheckInOutAdapter().typeId)) {
         Hive
           ..registerAdapter(CheckInOutAdapter())
-          ..registerAdapter(PersonAdapter())
-          ..registerAdapter(TenantAdapter());
+          ..registerAdapter(PersonAdapter());
       }
       if (!Hive.isAdapterRegistered(PendingEduCheckInAdapter().typeId)) {
         Hive.registerAdapter(PendingEduCheckInAdapter());
@@ -75,8 +73,7 @@ void callbackDispatcher() {
       await SyncJobsUtil._headlessInitLocalNotifications();
       final hiveService = getIt<HiveService>();
       final localService = getIt<LocalService>();
-      final tenantKey = await localService.getTenantId();
-      await hiveService.init(tenantKey.toString());
+      await hiveService.init();
       // 6) Now it's safe to resolve from GetIt
       final userService = getIt<UserService>();
 
@@ -188,11 +185,11 @@ void callbackDispatcher() {
           debugPrint('sync edu check-in done');
         }
       } else if (Platform.isIOS) {
-        if (taskName == "com.example.face_time_keeping.processing1") {
+        if (taskName == 'com.example.face_time_keeping.processing1') {
           await userService.pushFaceData(url: url);
           await userService.pullFaceData(url: url);
           debugPrint('sync face data done');
-        } else if (taskName == "com.example.face_time_keeping.processing2") {
+        } else if (taskName == 'com.example.face_time_keeping.processing2') {
           await userService.syncCheckInOutData(url: url);
 
           final eduSyncService = getIt<EduSyncService>();
@@ -331,28 +328,28 @@ class SyncJobsUtil {
 
   static Future<void> cancelSyncData(SyncSchedule syncSchedule) async {
     await Workmanager()
-        .cancelByUniqueName("$_uniqueName-${syncSchedule.toString()}");
+        .cancelByUniqueName('$_uniqueName-$syncSchedule');
     await Workmanager()
-        .cancelByUniqueName("$_periodicUniqueName-${syncSchedule.toString()}");
+        .cancelByUniqueName('$_periodicUniqueName-$syncSchedule');
   }
 
   static Future<void> cancelSyncFaceData(
       SyncFaceSchedule syncFaceSchedule) async {
     await Workmanager().cancelByUniqueName(
-        "$_faceDataPeriodicUniqueName-${syncFaceSchedule.toString()}");
+        '$_faceDataPeriodicUniqueName-$syncFaceSchedule');
   }
 
   static Future<void> scheduleSyncFaceData(
       SyncFaceSchedule syncFaceSchedule) async {
     try {
-      Duration interval = Duration(
+      final interval = Duration(
         hours: syncFaceSchedule.repeatIntervalHours,
         minutes: syncFaceSchedule.repeatIntervalMinutes,
       );
       if (Platform.isAndroid) {
         await Workmanager().registerPeriodicTask(
-          "$_faceDataPeriodicUniqueName-${syncFaceSchedule.toString()}",
-          "$_faceDataPeriodicUniqueName-${syncFaceSchedule.toString()}",
+          '$_faceDataPeriodicUniqueName-$syncFaceSchedule',
+          '$_faceDataPeriodicUniqueName-$syncFaceSchedule',
           frequency: interval,
           initialDelay: interval,
           constraints: Constraints(
@@ -380,8 +377,8 @@ class SyncJobsUtil {
   static Future<void> scheduleSyncFaceDataNow(
       SyncFaceSchedule syncFaceSchedule) async {
     await Workmanager().registerOneOffTask(
-      "com.example.face_time_keeping.processing1",
-      "com.example.face_time_keeping.processing1",
+      'com.example.face_time_keeping.processing1',
+      'com.example.face_time_keeping.processing1',
       constraints: Constraints(
         networkType: NetworkType.connected,
       ),
@@ -390,8 +387,8 @@ class SyncJobsUtil {
 
   static Future<void> scheduleSyncDataNow(SyncSchedule syncSchedule) async {
     await Workmanager().registerOneOffTask(
-      "com.example.face_time_keeping.processing2",
-      "com.example.face_time_keeping.processing2",
+      'com.example.face_time_keeping.processing2',
+      'com.example.face_time_keeping.processing2',
     );
   }
 
@@ -444,12 +441,12 @@ class SyncJobsUtil {
       debugPrint('Next execution will be at: ${DateTime.now().add(delay)}');
       if (Platform.isAndroid) {
         await Workmanager().registerPeriodicTask(
-          "$_periodicUniqueName-${syncSchedule.toString()}",
-          "$_periodicUniqueName-${syncSchedule.toString()}",
+          '$_periodicUniqueName-$syncSchedule',
+          '$_periodicUniqueName-$syncSchedule',
           frequency: Duration(
               hours: syncSchedule.repeatIntervalHours,
               minutes: syncSchedule.repeatIntervalMinutes),
-          initialDelay: Duration(seconds: 5),
+          initialDelay: const Duration(seconds: 5),
           constraints: Constraints(
             networkType: NetworkType.connected,
           ),
@@ -458,7 +455,7 @@ class SyncJobsUtil {
         await Workmanager().registerPeriodicTask(
           _iosCheckInOutUniqueName,
           _iosCheckInOutUniqueName,
-          initialDelay: Duration(seconds: 10),
+          initialDelay: const Duration(seconds: 10),
           constraints: Constraints(
             networkType: NetworkType.connected,
           ),

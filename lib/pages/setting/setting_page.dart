@@ -11,12 +11,11 @@ import 'package:face_time_keeping/pages/setting/sync_schedule_page.dart';
 import 'package:face_time_keeping/entities/sync_face_schedule.dart';
 import 'package:face_time_keeping/pages/widgets/app_dialog.dart';
 import 'package:face_time_keeping/pages/setting/teacher_list_page.dart';
-import 'package:face_time_keeping/pages/widgets/default_app_bar.dart';
+import 'package:face_time_keeping/pages/setting/server_face_status_page.dart';
 import 'package:face_time_keeping/route/app_route.dart';
 import 'package:face_time_keeping/route/navigator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:face_time_keeping/common/enums/server_type.dart';
 
 class SettingPage extends StatefulWidget {
   const SettingPage({Key? key}) : super(key: key);
@@ -61,6 +60,7 @@ class _SettingPageState extends State<SettingPage> {
     } catch (_) {}
     if (!mounted) return;
     if (!await _ensureServerConfigured()) return;
+    await pushLog('[UI ACTION] Người dùng mở Modal Quản lý Lịch Đồng bộ Khuôn mặt');
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -545,6 +545,7 @@ class _SettingPageState extends State<SettingPage> {
   Future<void> _performSyncNow() async {
     if (!mounted) return;
 
+    await pushLog('[UI ACTION] Người dùng nhấn Bắt đầu Đồng bộ màn hình Cài Đặt (Thủ công)');
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -598,18 +599,49 @@ class _SettingPageState extends State<SettingPage> {
         return;
       }
 
+      // If push actually uploaded data, we save the message. We don't skip pull!
+      final pushData = push.data?.toString() ?? '';
+      final hadDataToPush = push.isSuccess && pushData != 'Không có dữ liệu để đồng bộ';
+
+      if (hadDataToPush) {
+        await pushLog('[SYNC SUCCESS] Đẩy dữ liệu khuôn mặt thành công: $pushData');
+      }
+
+      // Always pull data from server so pending recoveries aren't skipped
       final pull = await _settingCubit.pullFaceData();
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).clearSnackBars();
-      if (pull.isSuccess) {
+      
+      if (pull.isSuccess || hadDataToPush) {
+        if (pull.isSuccess) {
+          await pushLog('[SYNC SUCCESS] Tải về khuôn mặt thành công: ${pull.data}');
+        }
+        
+        String combinedMessage = '';
+        if (hadDataToPush) {
+          combinedMessage += 'Đẩy lên: $pushData\n';
+        }
+        if (pull.isSuccess && pull.data != 'Không có dữ liệu mới' && pull.data != null) {
+          combinedMessage += 'Tải về: ${pull.data}';
+        }
+
+        if (combinedMessage.trim().isEmpty) {
+          combinedMessage = 'Đồng bộ hoàn tất (Không có dữ liệu mới)';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Row(
+            content: Row(
               children: [
-                Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
-                SizedBox(width: 12),
-                Text('Đồng bộ khuôn mặt thành công!'),
+                const Icon(Icons.sync, color: Colors.white, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    combinedMessage.trim(),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
               ],
             ),
             backgroundColor: AppColors.green,
@@ -617,7 +649,7 @@ class _SettingPageState extends State<SettingPage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
-            duration: const Duration(seconds: 3),
+            duration: const Duration(seconds: 4),
           ),
         );
       } else {
@@ -668,8 +700,8 @@ class _SettingPageState extends State<SettingPage> {
   }
 
   Future<bool> _ensureServerConfigured() async {
-    final serverType = await _settingCubit.getServerType();
-    if (serverType == null || serverType == ServerType.none) {
+    final serverUrl = _settingCubit.getServerUrl();
+    if (serverUrl.isEmpty) {
       if (!mounted) return false;
       await showDialog(
         context: context,
@@ -679,21 +711,21 @@ class _SettingPageState extends State<SettingPage> {
             icon: Icons.cloud_off,
             accentColor: AppColors.orange,
             content: Text(
-              'Bạn chưa thiết lập server. Vui lòng thiết lập server trước khi đồng bộ dữ liệu.',
+              'Bạn chưa thiết lập địa chỉ server. Vui lòng nhập URL server trước khi đồng bộ dữ liệu.',
               style: TextStyles.blackNormalRegular.copyWith(fontSize: 15),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Đóng'),
                 style: TextButton.styleFrom(
                   foregroundColor: AppColors.gray200,
                 ),
+                child: const Text('Đóng'),
               ),
               ElevatedButton(
                 onPressed: () {
                   Navigator.of(dialogContext).pop();
-                  AppNavigator.pushNamed(RouterName.serverSettings);
+                  AppNavigator.pushNamed(RouterName.domain);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.blue,
@@ -702,7 +734,7 @@ class _SettingPageState extends State<SettingPage> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: const Text('Thiết lập'),
+                child: const Text('Thiết lập URL'),
               ),
             ],
           );
@@ -712,8 +744,6 @@ class _SettingPageState extends State<SettingPage> {
     }
     return true;
   }
-
-
 
   Future<void> _syncData() async {
     try {
@@ -807,7 +837,6 @@ class _SettingPageState extends State<SettingPage> {
     }
   }
 
-
   @override
   void dispose() {
     _settingCubit.close();
@@ -821,179 +850,272 @@ class _SettingPageState extends State<SettingPage> {
       child: Theme(
         data: AppTheme.lightTheme,
         child: Scaffold(
-          appBar: DefaultAppBar(
-            titleText: "Menu",
-            showNotificationAction: false,
-          ),
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: AppColors.backgroundLight,
           body: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSettingItem(
-                      icon: Icons.sync_alt,
-                      title: "Đồng bộ dữ liệu điểm danh",
-                      subtitle: "Đồng bộ dữ liệu điểm danh hàng ngày",
-                      onTap: _syncData,
-                    ),
-                    _buildSettingItem(
-                      icon: Icons.history,
-                      title: "Báo cáo điểm danh",
-                      subtitle: "Xem báo cáo điểm danh của học sinh",
-                      onTap: () {
-                        AppNavigator.pushNamed(RouterName.attendanceReport);
-                      },
-                    ),
-                    // _buildSettingItem(
-                    //   icon: Icons.cloud,
-                    //   title: "Chọn Server",
-                    //   subtitle: "Chọn loại server (odoo, SAP, AWS, ...)",
-                    //   onTap: () {
-                    //     AppNavigator.pushNamed(RouterName.serverSettings);
-                    //   },
-                    // ),
-                    _buildSettingItem(
-                      icon: Icons.face_retouching_natural,
-                      title: "Đăng ký khuôn mặt",
-                      subtitle: "Đăng ký khuôn mặt học sinh",
-                      onTap: () {
-                        AppNavigator.pushNamed(RouterName.students);
-                      },
-                    ),
-                    _buildSettingItem(
-                      icon: Icons.sync,
-                      title: "Thiết lập đồng bộ dữ liệu",
-                      subtitle: "Thiết lập thời gian đồng bộ dữ liệu",
-                      onTap: () {
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) =>
-                                    const SyncSchedulePage()));
-                      },
-                    ),
-                    _buildSettingItem(
-                      icon: Icons.schedule_rounded,
-                      title: "Thiết lập tiết học",
-                      subtitle: "Thiết lập thời gian học phần",
-                      onTap: () {
-                        AppNavigator.pushNamed(RouterName.timeSlot);
-                      },
-                    ),
-                    _buildSettingItem(
-                      icon: Icons.sync_problem,
-                      title: "Đồng bộ dữ liệu khuôn mặt",
-                      subtitle: "Đồng bộ dữ liệu đăng ký khuôn mặt",
-                      onTap: _syncFaceData,
-                    ),
-                    _buildSettingItem(
-                      icon: Icons.card_membership,
-                      title: "Quản lý điểm danh thiết bị",
-                      subtitle: "Gửi và xem yêu cầu duyệt thiết bị",
-                      onTap: () {
-                        AppNavigator.pushNamed(RouterName.deviceRequestSubmit);
-                      },
-                    ),
-                    if (_isAdmin) ...[
-                      _buildSettingItem(
-                        icon: Icons.phonelink_setup,
-                        title: "Yêu cầu quyền thiết bị",
-                        subtitle: "Duyệt/từ chối yêu cầu thiết bị",
-                        onTap: () {
-                          AppNavigator.pushNamed(RouterName.devicePermission);
-                        },
-                      ),
-                      _buildSettingItem(
-                        icon: Icons.business,
-                        title: "Quản lý phòng ban",
-                        subtitle: "Thêm, sửa, xóa phòng ban",
-                        onTap: () {
-                          AppNavigator.pushNamed(RouterName.departmentList);
-                        },
-                      ),
-                      _buildSettingItem(
-                        icon: Icons.meeting_room,
-                        title: "Quản lý phòng học",
-                        subtitle: "Thêm, sửa, xóa phòng học",
-                        onTap: () {
-                          AppNavigator.pushNamed(RouterName.roomList);
-                        },
-                      ),
-                    ],
-                    if (_isAdmin || _isTeacherOrAdmin) ...[
-                      _buildSettingItem(
-                        icon: Icons.checklist_rtl,
-                        title: "Điểm danh theo phòng",
-                        subtitle: "Chọn phòng và buổi học để điểm danh",
-                        onTap: () {
-                          AppNavigator.pushNamed(RouterName.roomSelection);
-                        },
-                      ),
-                    ],
-                    if (_isAdmin) ...[
-                      _buildSettingItem(
-                        icon: Icons.class_,
-                        title: "Quản lý lớp học",
-                        subtitle: "Thêm, sửa, xóa lớp học",
-                        onTap: () {
-                          AppNavigator.pushNamed(RouterName.studentGroupList);
-                        },
-                      ),
-                      _buildSettingItem(
-                        icon: Icons.school,
-                        title: "Quản lý học phần",
-                        subtitle: "Thêm, sửa, xóa học phần",
-                        onTap: () {
-                          AppNavigator.pushNamed(RouterName.courseList);
-                        },
-                      ),
-                      // _buildSettingItem(
-                      // icon: Icons.assignment_ind,
-                      // title: "Gán giáo viên",
-                      // subtitle: "Gán giáo viên vào phòng ban",
-                      // onTap: () {
-                      // // AppNavigator.pushNamed(RouterName.teacherAssignment);
-                      // },
-                      // ),
-                      _buildSettingItem(
-                        icon: Icons.person_add,
-                        title: "Quản lý người dùng",
-                        subtitle: "Đăng ký student và teacher",
-                        onTap: () {
-                          AppNavigator.pushNamed(RouterName.userRegister);
-                        },
-                      ),
-                      _buildSettingItem(
-                        icon: Icons.list_alt,
-                        title: "Danh sách giáo viên",
-                        subtitle: "Quản lý danh sách giáo viên",
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const TeacherListPage(),
+            child: Column(
+              children: [
+                _buildHeader(context),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── Section: Điểm danh ─────────────────────────
+                        _buildSectionLabel('Điểm danh & Báo cáo'),
+                        const SizedBox(height: 10),
+                        _buildSettingsCard([
+                          _buildSettingItem(
+                            icon: Icons.sync_alt,
+                            iconBg: AppColors.blue50,
+                            iconColor: AppColors.blue600,
+                            title: 'Đồng bộ dữ liệu điểm danh',
+                            subtitle: 'Đồng bộ dữ liệu điểm danh hàng ngày',
+                            onTap: _syncData,
+                            isLast: false,
+                          ),
+                          _buildSettingItem(
+                            icon: Icons.history_edu_outlined,
+                            iconBg: AppColors.purple50,
+                            iconColor: AppColors.purple600,
+                            title: 'Báo cáo điểm danh',
+                            subtitle: 'Xem báo cáo điểm danh của học sinh',
+                            onTap: () {
+                              AppNavigator.pushNamed(
+                                  RouterName.attendanceReport);
+                            },
+                            isLast: true,
+                          ),
+                        ]),
+
+                        const SizedBox(height: 20),
+
+                        // ── Section: Khuôn mặt & Đồng bộ ──────────────
+                        _buildSectionLabel('Khuôn mặt & Đồng bộ'),
+                        const SizedBox(height: 10),
+                        _buildSettingsCard([
+                          _buildSettingItem(
+                            icon: Icons.face_retouching_natural,
+                            iconBg: AppColors.teal50,
+                            iconColor: AppColors.teal600,
+                            title: 'Đăng ký khuôn mặt',
+                            subtitle: 'Đăng ký khuôn mặt học sinh',
+                            onTap: () {
+                              AppNavigator.pushNamed(RouterName.students);
+                            },
+                            isLast: false,
+                          ),
+                          _buildSettingItem(
+                            icon: Icons.sync_problem,
+                            iconBg: AppColors.orange50,
+                            iconColor: AppColors.orange,
+                            title: 'Đồng bộ dữ liệu khuôn mặt',
+                            subtitle: 'Đồng bộ dữ liệu đăng ký khuôn mặt',
+                            onTap: _syncFaceData,
+                            isLast: false,
+                          ),
+                          _buildSettingItem(
+                            icon: Icons.sync,
+                            iconBg: AppColors.green100,
+                            iconColor: AppColors.green600,
+                            title: 'Thiết lập đồng bộ dữ liệu',
+                            subtitle: 'Thiết lập thời gian đồng bộ dữ liệu',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const SyncSchedulePage(),
+                                ),
+                              );
+                            },
+                            isLast: false,
+                          ),
+                          _buildSettingItem(
+                            icon: Icons.cloud_done_outlined,
+                            iconBg: AppColors.blue50,
+                            iconColor: AppColors.blue600,
+                            title: 'Kiểm tra Server Face',
+                            subtitle: 'Xem danh sách khuôn mặt đã được lưu trên server',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const ServerFaceStatusPage(),
+                                ),
+                              );
+                            },
+                            isLast: true,
+                          ),
+                        ]),
+
+                        const SizedBox(height: 20),
+
+                        // ── Section: Cài đặt học tập ───────────────────
+                        _buildSectionLabel('Cài đặt học tập'),
+                        const SizedBox(height: 10),
+                        _buildSettingsCard([
+                          _buildSettingItem(
+                            icon: Icons.schedule_rounded,
+                            iconBg: AppColors.blue50,
+                            iconColor: AppColors.blue600,
+                            title: 'Thiết lập tiết học',
+                            subtitle: 'Thiết lập thời gian học phần',
+                            onTap: () {
+                              AppNavigator.pushNamed(RouterName.timeSlot);
+                            },
+                            isLast: false,
+                          ),
+                          _buildSettingItem(
+                            icon: Icons.card_membership,
+                            iconBg: AppColors.purple50,
+                            iconColor: AppColors.purple600,
+                            title: 'Quản lý điểm danh thiết bị',
+                            subtitle: 'Gửi và xem yêu cầu duyệt thiết bị',
+                            onTap: () {
+                              AppNavigator.pushNamed(
+                                  RouterName.deviceRequestSubmit);
+                            },
+                            isLast: _isTeacherOrAdmin ? false : true,
+                          ),
+                          if (_isTeacherOrAdmin)
+                            _buildSettingItem(
+                              icon: Icons.checklist_rtl,
+                              iconBg: AppColors.orange50,
+                              iconColor: AppColors.orange,
+                              title: 'Điểm danh theo phòng',
+                              subtitle: 'Chọn phòng và buổi học để điểm danh',
+                              onTap: () {
+                                AppNavigator.pushNamed(
+                                    RouterName.roomSelection);
+                              },
+                              isLast: true,
                             ),
-                          );
-                        },
-                      ),
-                    ],
-                    _buildSettingItem(
-                      icon: Icons.lock,
-                      title: "Đặt mã PIN",
-                      subtitle: "Đặt mã PIN để bảo mật ứng dụng",
-                      onTap: () {
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const PinAppPage()));
-                      },
+                        ]),
+
+                        // ── Section: Quản trị (Admin only) ─────────────
+                        if (_isAdmin) ...[
+                          const SizedBox(height: 20),
+                          _buildSectionLabel('Quản trị hệ thống'),
+                          const SizedBox(height: 10),
+                          _buildSettingsCard([
+                            _buildSettingItem(
+                              icon: Icons.phonelink_setup,
+                              iconBg: AppColors.teal50,
+                              iconColor: AppColors.teal600,
+                              title: 'Yêu cầu quyền thiết bị',
+                              subtitle: 'Duyệt/từ chối yêu cầu thiết bị',
+                              onTap: () {
+                                AppNavigator.pushNamed(
+                                    RouterName.devicePermission);
+                              },
+                              isLast: false,
+                            ),
+                            _buildSettingItem(
+                              icon: Icons.business,
+                              iconBg: AppColors.blue50,
+                              iconColor: AppColors.blue600,
+                              title: 'Quản lý phòng ban',
+                              subtitle: 'Thêm, sửa, xóa phòng ban',
+                              onTap: () {
+                                AppNavigator.pushNamed(
+                                    RouterName.departmentList);
+                              },
+                              isLast: false,
+                            ),
+                            _buildSettingItem(
+                              icon: Icons.meeting_room,
+                              iconBg: AppColors.green100,
+                              iconColor: AppColors.green600,
+                              title: 'Quản lý phòng học',
+                              subtitle: 'Thêm, sửa, xóa phòng học',
+                              onTap: () {
+                                AppNavigator.pushNamed(RouterName.roomList);
+                              },
+                              isLast: false,
+                            ),
+                            _buildSettingItem(
+                              icon: Icons.class_,
+                              iconBg: AppColors.purple50,
+                              iconColor: AppColors.purple600,
+                              title: 'Quản lý lớp học',
+                              subtitle: 'Thêm, sửa, xóa lớp học',
+                              onTap: () {
+                                AppNavigator.pushNamed(
+                                    RouterName.studentGroupList);
+                              },
+                              isLast: false,
+                            ),
+                            _buildSettingItem(
+                              icon: Icons.school,
+                              iconBg: AppColors.orange50,
+                              iconColor: AppColors.orange,
+                              title: 'Quản lý học phần',
+                              subtitle: 'Thêm, sửa, xóa học phần',
+                              onTap: () {
+                                AppNavigator.pushNamed(RouterName.courseList);
+                              },
+                              isLast: false,
+                            ),
+                            _buildSettingItem(
+                              icon: Icons.person_add,
+                              iconBg: AppColors.teal50,
+                              iconColor: AppColors.teal600,
+                              title: 'Quản lý người dùng',
+                              subtitle: 'Đăng ký student và teacher',
+                              onTap: () {
+                                AppNavigator.pushNamed(RouterName.userRegister);
+                              },
+                              isLast: false,
+                            ),
+                            _buildSettingItem(
+                              icon: Icons.list_alt,
+                              iconBg: AppColors.blue50,
+                              iconColor: AppColors.blue600,
+                              title: 'Danh sách giáo viên',
+                              subtitle: 'Quản lý danh sách giáo viên',
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const TeacherListPage(),
+                                  ),
+                                );
+                              },
+                              isLast: true,
+                            ),
+                          ]),
+                        ],
+
+                        const SizedBox(height: 20),
+
+                        // ── Section: Bảo mật ───────────────────────────
+                        _buildSectionLabel('Bảo mật'),
+                        const SizedBox(height: 10),
+                        _buildSettingsCard([
+                          _buildSettingItem(
+                            icon: Icons.lock_outline,
+                            iconBg: AppColors.slate200,
+                            iconColor: AppColors.slate900,
+                            title: 'Đặt mã PIN',
+                            subtitle: 'Đặt mã PIN để bảo mật ứng dụng',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const PinAppPage(),
+                                ),
+                              );
+                            },
+                            isLast: true,
+                          ),
+                        ]),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
@@ -1001,47 +1123,159 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
+  // ── Custom header (matches home_page style) ───────────────
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: AppColors.slate200, width: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.slate200.withOpacity(0.5),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.arrow_back,
+                  size: 20, color: AppColors.slate900),
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Cài đặt',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.slate500,
+                  ),
+                ),
+                Text(
+                  'Menu',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.slate900,
+                    height: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Section label ─────────────────────────────────────────
+  Widget _buildSectionLabel(String label) {
+    return Text(
+      label,
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: AppColors.slate500,
+        letterSpacing: 0.5,
+      ),
+    );
+  }
+
+  // ── Settings card wrapper ─────────────────────────────────
+  Widget _buildSettingsCard(List<Widget> items) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.slate900.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(children: items),
+    );
+  }
+
+  // ── Single setting row ────────────────────────────────────
   Widget _buildSettingItem({
     required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    bool isLast = false,
   }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
-      leading: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          color: AppColors.blue.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
+    return Column(
+      children: [
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: iconBg,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.slate900,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.slate500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right,
+                    size: 20, color: AppColors.slate500),
+              ],
+            ),
+          ),
         ),
-        child: Icon(
-          icon,
-          color: AppColors.blue,
-          size: 24,
-        ),
-      ),
-      title: Text(
-        title,
-        style: TextStyles.blackNormalBold,
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(
-          color: AppColors.slate500,
-          fontSize: 14,
-        ),
-      ),
-      trailing: const Padding(
-        padding: EdgeInsets.only(right: 10),
-        child: Icon(
-          Icons.chevron_right,
-          color: AppColors.gray200,
-          size: 20,
-        ),
-      ),
-      onTap: onTap,
+        if (!isLast)
+          Divider(
+            height: 1,
+            indent: 74,
+            endIndent: 16,
+            color: AppColors.slate200.withOpacity(0.7),
+          ),
+      ],
     );
   }
 }

@@ -216,11 +216,10 @@ class _CourseDetailPageState extends State<CourseDetailPage>
           const SizedBox(height: 12),
           _buildInfoRow('Chế độ', course.attendanceMode.label),
           if (course.attendanceMode == AttendanceMode.custom) ...[
-            _buildInfoRow(
-                'Bắt đầu điểm danh', '${course.customWindowStartMinutes} phút sau khi bắt đầu tiết'),
-            _buildInfoRow(
-                'Kết thúc điểm danh', '${course.customWindowEndMinutes} phút sau khi bắt đầu tiết'),
-
+            _buildInfoRow('Bắt đầu điểm danh',
+                '${course.customWindowStartMinutes} phút sau khi bắt đầu tiết'),
+            _buildInfoRow('Kết thúc điểm danh',
+                '${course.customWindowEndMinutes} phút sau khi bắt đầu tiết'),
             BlocBuilder<ScheduleBloc, ScheduleState>(
               bloc: _scheduleBloc,
               builder: (context, state) {
@@ -548,8 +547,6 @@ class _CourseDetailPageState extends State<CourseDetailPage>
           children: [
             _buildFaceStatusIcon(student),
             const SizedBox(width: 6),
-            _buildEmbeddingBadge(student),
-            const SizedBox(width: 8),
             if (_isAdmin)
               PopupMenuButton<String>(
                 icon: const Icon(
@@ -610,24 +607,6 @@ class _CourseDetailPageState extends State<CourseDetailPage>
         ),
       );
     }
-  }
-
-  Widget _buildEmbeddingBadge(CourseStudent student) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppColors.slate200,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        '${student.embeddingCount} vectors',
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-          color: AppColors.slate500,
-        ),
-      ),
-    );
   }
 
   void _showAddStudentDialog(BuildContext context) {

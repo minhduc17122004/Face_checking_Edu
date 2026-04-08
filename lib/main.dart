@@ -6,7 +6,6 @@ import 'package:face_time_keeping/common/utils/isolate_listen_util.dart';
 import 'package:face_time_keeping/common/utils/sync_jobs_util.dart';
 import 'package:face_time_keeping/entities/check_in_out.dart';
 import 'package:face_time_keeping/entities/person.dart';
-import 'package:face_time_keeping/entities/tenant.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -33,7 +32,6 @@ void main() async {
       Hive.init(directory.path);
       Hive.registerAdapter(CheckInOutAdapter());
       Hive.registerAdapter(PersonAdapter());
-      Hive.registerAdapter(TenantAdapter());
       Hive.registerAdapter(PendingEduCheckInAdapter());
 
       await configureDependencies(environment);

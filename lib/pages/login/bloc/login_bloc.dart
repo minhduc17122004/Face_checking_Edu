@@ -91,33 +91,16 @@ class LoginBloc extends Cubit<LoginState> {
         final String database = "fastapi_db";
         await _localService.saveDatabaseName(database);
 
-        // Get old tenant ID before creating/getting new one
-        final oldTenantId =
-            await _localService.getTenantId().catchError((_) => -1);
-        log('LoginBloc.onLogin oldTenantId=$oldTenantId');
-
-        final tenantId = await _localService.getTenantIdOrSaveTenant(
-            activeBaseUrl, database);
-        log('LoginBloc.onLogin resolved tenantId=$tenantId');
-        _localService.saveTenantId(tenantId);
-
         final tempServerType = await _localService.getTempServerType();
         _localService.saveServerType(tempServerType ?? ServerType.none);
         await _localService.initDefaultData();
 
         // if platform == android
         if (Platform.isAndroid) {
-          await FaceNative().initObjectBox(tenantId.toString());
+          await FaceNative().initObjectBox("default");
         }
 
-        // Initialize new tenant Hive boxes
-        await getIt<HiveService>().init(tenantId.toString());
-
-        // Clone data from old tenant if different
-        if (oldTenantId != -1 && oldTenantId != tenantId) {
-          await _localService.cloneDataFromPreviousTenant(
-              oldTenantId, tenantId);
-        }
+        await getIt<HiveService>().init();
 
         // Check for unsynced local students
         final hasUnsynced = await _localService.hasUnsyncedLocalStudents();

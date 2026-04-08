@@ -51,61 +51,97 @@ class SessionGeneratorService:
 
         # Use the already active transaction from get_db dependency
         for schedule in schedules:
-            course_result = await self.db.execute(
-                select(Course).where(
-                    and_(
-                        Course.id == schedule.course_id,
-                        Course.deleted_at.is_(None),
-                    )
-                )
-            )
-            course = course_result.scalar_one_or_none()
-            if not course:
-                continue
-
-            slot_result = await self.db.execute(
-                select(TimeSlot).where(TimeSlot.id == schedule.time_slot_id)
-            )
-            time_slot = slot_result.scalar_one_or_none()
-            if not time_slot:
-                continue
-
-            existing_result = await self.db.execute(
-                select(Session).where(
-                    and_(
-                        Session.schedule_id == schedule.id,
-                        Session.session_date == target_date,
-                        Session.deleted_at.is_(None),
-                    )
-                )
-            )
-            if existing_result.scalar_one_or_none():
-                continue
-
-            session_start = self._combine_date_time(target_date, time_slot.start_time)
-            session_end = self._combine_date_time(target_date, time_slot.end_time)
-
-            checkin_window_start, checkin_window_end = self._compute_checkin_window(
-                course, session_start, session_end
-            )
-
-            session = Session(
-                course_id=course.id,
-                schedule_id=schedule.id,
-                session_date=target_date,
-                start_time=session_start,
-                end_time=session_end,
-                checkin_window_start=checkin_window_start,
-                checkin_window_end=checkin_window_end,
-                status="scheduled",
-            )
-            self.db.add(session)
-            created.append(session)
+            sessions = await self._generate_session_internal(schedule, target_date)
+            created.extend(sessions)
 
         if created:
             await self.db.flush()
 
         return created
+
+    async def generate_sessions_for_course_range(
+        self, course_id: uuid.UUID, start_date: date, end_date: date
+    ) -> list[Session]:
+        """Generate sessions for a specific course within a date range."""
+        from app.models.schedule import Schedule
+        
+        # Get all active schedules for the course
+        result = await self.db.execute(
+            select(Schedule).where(
+                and_(
+                    Schedule.course_id == course_id,
+                    Schedule.deleted_at.is_(None),
+                )
+            )
+        )
+        schedules = result.scalars().all()
+        
+        created: list[Session] = []
+        current_date = start_date
+        while current_date <= end_date:
+            day_of_week = current_date.isoweekday()
+            for schedule in schedules:
+                if schedule.day_of_week == day_of_week:
+                    sessions = await self._generate_session_internal(schedule, current_date)
+                    created.extend(sessions)
+            current_date += timedelta(days=1)
+            
+        if created:
+            await self.db.flush()
+        return created
+
+    async def _generate_session_internal(self, schedule: Schedule, target_date: date) -> list[Session]:
+        """Internal helper to generate a session for a schedule and date."""
+        course_result = await self.db.execute(
+            select(Course).where(
+                and_(
+                    Course.id == schedule.course_id,
+                    Course.deleted_at.is_(None),
+                )
+            )
+        )
+        course = course_result.scalar_one_or_none()
+        if not course:
+            return []
+
+        slot_result = await self.db.execute(
+            select(TimeSlot).where(TimeSlot.id == schedule.time_slot_id)
+        )
+        time_slot = slot_result.scalar_one_or_none()
+        if not time_slot:
+            return []
+
+        existing_result = await self.db.execute(
+            select(Session).where(
+                and_(
+                    Session.schedule_id == schedule.id,
+                    Session.session_date == target_date,
+                    Session.deleted_at.is_(None),
+                )
+            )
+        )
+        if existing_result.scalar_one_or_none():
+            return []
+
+        session_start = self._combine_date_time(target_date, time_slot.start_time)
+        session_end = self._combine_date_time(target_date, time_slot.end_time)
+
+        checkin_window_start, checkin_window_end = self._compute_checkin_window(
+            course, session_start, session_end
+        )
+
+        session = Session(
+            course_id=course.id,
+            schedule_id=schedule.id,
+            session_date=target_date,
+            start_time=session_start,
+            end_time=session_end,
+            checkin_window_start=checkin_window_start,
+            checkin_window_end=checkin_window_end,
+            status="scheduled",
+        )
+        self.db.add(session)
+        return [session]
 
     def _combine_date_time(self, d: date, t: time) -> datetime:
         """Combine date + time into timezone-aware datetime (Vietnam UTC+7)."""

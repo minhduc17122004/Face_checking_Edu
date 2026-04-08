@@ -72,6 +72,10 @@ class _CourseFormViewState extends State<_CourseFormView> {
   bool _loadingRooms = false;
   bool _loadingTimeSlots = false;
 
+  // Course details
+  final _totalSessionsController = TextEditingController();
+  final _creditsController = TextEditingController();
+
   bool get _isEditing => widget.course != null;
 
   @override
@@ -89,6 +93,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
       _selectedRoomId = widget.course!.roomId;
       _selectedDayOfWeek = widget.course!.dayOfWeek;
       _selectedTimeSlotId = widget.course!.timeSlotId;
+      _totalSessionsController.text = widget.course!.totalSessions?.toString() ?? '';
+      _creditsController.text = widget.course!.credits?.toString() ?? '';
     } else {
       _startMinutesController.text = '0';
       _endMinutesController.text = '30';
@@ -260,6 +266,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
         customWindowEndMinutes: endMinutes,
         dayOfWeek: _selectedDayOfWeek,
         timeSlotId: _selectedTimeSlotId,
+        totalSessions: int.tryParse(_totalSessionsController.text),
+        credits: int.tryParse(_creditsController.text),
       );
     } else {
       await widget.courseBloc.createCourse(
@@ -275,6 +283,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
         customWindowEndMinutes: endMinutes,
         dayOfWeek: _selectedDayOfWeek,
         timeSlotId: _selectedTimeSlotId,
+        totalSessions: int.tryParse(_totalSessionsController.text),
+        credits: int.tryParse(_creditsController.text),
       );
     }
 
@@ -342,6 +352,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
             children: [
               _buildBasicInfoCard(),
               const SizedBox(height: 16),
+              _buildCourseDetailsCard(),
+              const SizedBox(height: 16),
               _buildAssignmentCard(),
               const SizedBox(height: 16),
               _buildAttendanceModeCard(),
@@ -396,6 +408,66 @@ class _CourseFormViewState extends State<_CourseFormView> {
             label: 'Mã học phần',
             hint: 'Nhập mã học phần (tùy chọn)',
             icon: Icons.qr_code,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Course Details Card ──────────────────────────────────────────────────────
+
+  Widget _buildCourseDetailsCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.menu_book, color: AppColors.blue600, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Cấu hình học phần',
+                style: TextStyles.blackSmallBold.copyWith(fontSize: 16),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildTextField(
+                  controller: _totalSessionsController,
+                  label: 'Tổng số buổi học',
+                  hint: 'VD: 15',
+                  icon: Icons.calendar_today,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildTextField(
+                  controller: _creditsController,
+                  label: 'Số tín chỉ',
+                  hint: 'VD: 3',
+                  icon: Icons.star_border,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -918,6 +990,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
     required String hint,
     required IconData icon,
     bool isRequired = false,
+    TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -946,6 +1020,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
+          keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(color: AppColors.slate400),

@@ -234,12 +234,16 @@ class _AccountPageState extends State<AccountPage> {
               children: [
                 _buildHeader(),
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 8),
+                  child: RefreshIndicator(
+                    onRefresh: () async => _accountCubit.loadUserProfile(),
+                    color: AppColors.primary,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 8),
                         _buildProfileCard(state),
                         const SizedBox(height: 24),
                         _buildSettings(),
@@ -248,7 +252,8 @@ class _AccountPageState extends State<AccountPage> {
                     ),
                   ),
                 ),
-              ],
+              ),
+            ],
             ),
           ),
         );
@@ -258,26 +263,21 @@ class _AccountPageState extends State<AccountPage> {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(
           bottom: BorderSide(color: AppColors.slate200, width: 0.5),
         ),
       ),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            'Hồ sơ tài khoản',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.slate900,
-              height: 1.2,
-            ),
-          ),
-        ],
+      alignment: Alignment.center,
+      child: const Text(
+        'HỒ SƠ TÀI KHOẢN',
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: AppColors.slate900,
+        ),
       ),
     );
   }

@@ -1,7 +1,7 @@
 from __future__ import annotations
 """v1 Courses router — thin layer, no business logic."""
 import uuid
-
+from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -100,6 +100,10 @@ async def list_course_students(
             has_face=row.has_face,
             embedding_count=row.embedding_count,
             enrolled_at=row.enrolled_at,
+            absent_count=row.absent_count,
+            leave_count=row.leave_count,
+            late_count=row.late_count,
+            on_time_count=row.on_time_count,
         )
         for row in rows
     ]
@@ -238,12 +242,20 @@ async def update_course(
     db: AsyncSession = Depends(get_db),
 ):
     """Update a course (owner only). Passes teacher_id (if reassigning) and user_id to service."""
+    # Fetch user role
+    from app.models.user import User
+    from sqlalchemy import select
+    user_q = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+    user = user_q.scalar_one_or_none()
+    role = user.role if user else "student"
+
     svc = CourseService(db)
     course = await svc.update_course(
         course_id,
         req,
         teacher_id=req.teacher_id,
         user_id=user_id,
+        role=role,
     )
     await db.commit()
     return course
@@ -302,6 +314,45 @@ async def unenroll_student(
 
     await enrollment_repo.delete(enrollment)
     await db.commit()
+
+
+@router.post("/{course_id}/generate-sessions", status_code=status.HTTP_200_OK)
+async def generate_course_sessions(
+    course_id: uuid.UUID,
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """POST /api/v1/courses/{id}/generate-sessions — generate sessions for a course range.
+
+    If start_date/end_date are not provided, generates for the next 7 days starting from today.
+    """
+    from datetime import datetime, timezone, timedelta
+    from app.services.session_generator_service import SessionGeneratorService
+    
+    start = start_date or datetime.now(timezone.utc).date()
+    end = end_date or (start + timedelta(days=7))
+    
+    svc = SessionGeneratorService(db)
+    sessions = await svc.generate_sessions_for_course_range(course_id, start, end)
+    await db.commit()
+    
+    return {
+        "course_id": str(course_id),
+        "start_date": str(start),
+        "end_date": str(end),
+        "generated_count": len(sessions),
+        "sessions": [
+            {
+                "id": str(s.id),
+                "date": str(s.session_date),
+                "start_time": s.start_time.isoformat() if s.start_time else None,
+                "end_time": s.end_time.isoformat() if s.end_time else None,
+            }
+            for s in sessions
+        ]
+    }
 
 
 @router.delete("/{course_id}", status_code=status.HTTP_204_NO_CONTENT)

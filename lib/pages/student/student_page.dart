@@ -225,16 +225,42 @@ class _StudentPageState extends State<StudentPage> {
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
                                         children: [
-                                          Text(
-                                            student.name,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
+                                          Row(
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  student.name,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (student.hasFace)
+                                                const Padding(
+                                                  padding:
+                                                      EdgeInsets.only(left: 6),
+                                                  child: Icon(Icons.face,
+                                                      color: Colors.greenAccent,
+                                                      size: 16),
+                                                ),
+                                            ],
                                           ),
-                                          if (!isServer)
+                                          if (student.pin != null &&
+                                              student.pin!.isNotEmpty)
+                                            Text(
+                                              student.pin!,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.white70,
+                                              ),
+                                            )
+                                          else if (!isServer)
                                             const Text(
                                               'Local',
                                               style: TextStyle(
@@ -554,20 +580,35 @@ class _StudentPageState extends State<StudentPage> {
               title: const Text('Cập nhật PIN'),
               onTap: () => Navigator.of(ctx).pop('edit_pin'),
             ),
-            ListTile(
-              leading: const Icon(Icons.face_retouching_natural),
-              title: const Text('Reset face'),
-              onTap: () => Navigator.of(ctx).pop('reset'),
-            ),
-            if (!_hasServerConfig)
+            if (student.hasFace) ...[
               ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text(
-                  'Xóa',
-                  style: TextStyle(color: Colors.red),
-                ),
-                onTap: () => Navigator.of(ctx).pop('delete'),
+                leading: const Icon(Icons.cleaning_services_outlined,
+                    color: AppColors.blue),
+                title: const Text('Reset khuôn mặt (Local)',
+                    style: TextStyle(color: AppColors.blue)),
+                onTap: () => Navigator.of(ctx).pop('reset_local'),
               ),
+              ListTile(
+                leading: const Icon(Icons.face_retouching_natural,
+                    color: Colors.orange),
+                title: const Text('Xóa vĩnh viễn khuôn mặt',
+                    style: TextStyle(color: Colors.orange)),
+                onTap: () => Navigator.of(ctx).pop('reset'),
+              ),
+            ],
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text(
+                'Xóa',
+                style: TextStyle(color: Colors.red),
+              ),
+              onTap: () => Navigator.of(ctx).pop('delete'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.bug_report, color: Colors.purple),
+              title: const Text('Debug: Đặt/Xóa cờ khuôn mặt', style: TextStyle(color: Colors.purple)),
+              onTap: () => Navigator.of(ctx).pop('debug_face_flag'),
+            ),
             ListTile(
               leading: const Icon(Icons.close),
               title: const Text('Hủy'),
@@ -581,12 +622,13 @@ class _StudentPageState extends State<StudentPage> {
     if (action == null) return;
 
     switch (action) {
-      case 'reset':
-        final confirmed = await showDialog<bool>(
+      case 'reset_local':
+        final confirmedLocal = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Xác nhận reset face'),
-            content: Text('Bạn có chắc muốn reset face cho "${student.name}"?'),
+            title: const Text('Reset khuôn mặt (Local)'),
+            content: Text(
+                'Dữ liệu khuôn mặt của "${student.name}" sẽ bị xóa khỏi thiết bị này, nhưng vẫn giữ trên server (có thể đồng bộ lại). Bạn có muốn tiếp tục?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
@@ -594,13 +636,101 @@ class _StudentPageState extends State<StudentPage> {
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Reset', style: TextStyle(color: Colors.red)),
+                child: const Text('Reset Local',
+                    style: TextStyle(color: AppColors.blue)),
               ),
             ],
           ),
         );
-        if (confirmed == true) {
-          _bloc.onResetFace(student.id);
+
+        if (confirmedLocal == true && mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.blue),
+              ),
+            ),
+          );
+
+          // Force hasServerConfig to false to skip server deletion
+          final resultLocal =
+              await _bloc.onResetFace(student, hasServerConfig: false);
+
+          if (mounted) Navigator.of(context).pop(); // hide loading
+
+          if (resultLocal && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Đã reset khuôn mặt ở local thành công'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          } else if (!resultLocal && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content:
+                    Text(_bloc.state.error ?? 'Reset khuôn mặt local thất bại'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+        break;
+      case 'reset':
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Xóa vĩnh viễn khuôn mặt'),
+            content: Text(
+                'Dữ liệu khuôn mặt của "${student.name}" sẽ bị xóa vĩnh viễn trên cả thiết bị và server. Bạn có chắc chắn?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Hủy'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Xóa vĩnh viễn',
+                    style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        );
+        if (confirmed == true && mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.blue),
+              ),
+            ),
+          );
+
+          final result = await _bloc.onResetFace(student,
+              hasServerConfig: _hasServerConfig);
+
+          if (mounted) Navigator.of(context).pop(); // hide loading
+
+          if (result && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Đã xóa vĩnh viễn khuôn mặt thành công'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          } else if (!result && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(_bloc.state.error ?? 'Xóa khuôn mặt thất bại'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         }
         break;
       case 'delete':
@@ -621,9 +751,30 @@ class _StudentPageState extends State<StudentPage> {
             ],
           ),
         );
-        if (confirmed == true) {
-          final removed = await _bloc.onRemoveStudent(student.id);
-          if (!removed && mounted) {
+        if (confirmed == true && mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.blue),
+              ),
+            ),
+          );
+
+          final removed = await _bloc.onRemoveStudent(student);
+
+          if (mounted) Navigator.of(context).pop(); // hide loading
+
+          if (removed && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Xóa học sinh thành công'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          } else if (!removed && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(_bloc.state.error ?? 'Xóa thất bại'),
@@ -676,6 +827,25 @@ class _StudentPageState extends State<StudentPage> {
               ),
             );
           }
+        }
+        break;
+      case 'debug_face_flag':
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Debug: Chỉnh sửa cờ khuôn mặt'),
+            content: Text('Xác nhận đổi cờ hasFace từ ${student.hasFace} sang ${!student.hasFace} cho học sinh ${student.name}? Hành động này sẽ thay đổi hasLocalEmbedding trong DB local.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Hủy')),
+              TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Đồng ý', style: TextStyle(color: Colors.purple))),
+            ],
+          ),
+        );
+        if (confirmed == true && mounted) {
+           await _bloc.debugToggleFaceFlag(student);
+           ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(content: Text('Đã chuyển cờ khuôn mặt thành: ${!student.hasFace}')),
+           );
         }
         break;
       default:

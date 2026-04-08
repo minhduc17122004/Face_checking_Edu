@@ -206,15 +206,11 @@ async def get_room_active_session(
         raise HTTPException(status_code=404, detail="Room not found")
 
     # Subquery: IDs of non-deleted courses in this room
-    course_subq = (
-        select(CourseModel.id)
-        .where(
-            and_(
-                CourseModel.room_id == room_id,
-                CourseModel.deleted_at.is_(None),
-            )
+    course_stmt = select(CourseModel.id).where(
+        and_(
+            CourseModel.room_id == room_id,
+            CourseModel.deleted_at.is_(None),
         )
-        .subquery()
     )
 
     from datetime import datetime, timezone
@@ -232,7 +228,7 @@ async def get_room_active_session(
         )
         .where(
             and_(
-                Session.course_id.in_(select(course_subq)),
+                Session.course_id.in_(course_stmt),
                 Session.start_time >= start_of_day,
                 Session.start_time <= end_of_day,
                 Session.deleted_at.is_(None),

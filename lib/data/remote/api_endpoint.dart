@@ -18,6 +18,8 @@ class ApiEndpoint {
   static const String uploadUserAvatar = "/api/v1/auth/avatar";
   static const String registerUser = "/api/v1/auth/register";
   static const String getUsersByRole = "/api/v1/users/";
+  static const String deleteUser = "/api/v1/users/{id}";
+  static const String deleteFace = "/api/v1/face/students/{id}/face";
 
   // --- V1 Endpoints (Phase 8 & 9) ---
 

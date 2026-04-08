@@ -1,5 +1,6 @@
 from __future__ import annotations
 """Face service — embedding registration, REST queries, and Flutter export/import."""
+import hashlib
 import json
 import uuid
 from collections import defaultdict
@@ -45,6 +46,21 @@ class FaceService:
         self.student_repo = StudentRepository(db)
         self.device_repo = DeviceRepository(db)
         self.audit = AuditService()
+
+    # ── Embedding hash ─────────────────────────────────────────────────────────
+    @staticmethod
+    def _compute_embedding_hash(embeddings: list[list[float]]) -> str:
+        """Deterministic SHA-256 hash of embedding vectors.
+
+        Rounds floats to 6 decimal places to avoid precision drift between
+        platforms (Python vs Dart vs DB storage), then produces a canonical
+        JSON representation and hashes it.
+        """
+        if not embeddings:
+            return ""
+        rounded = [[round(x, 6) for x in vec] for vec in embeddings]
+        canonical = json.dumps(rounded, separators=(',', ':'))
+        return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
 
     # ── v1: register with max-5 / FIFO ───────────────────────────────────────
     async def register_face_v1(
@@ -248,8 +264,14 @@ class FaceService:
         )
 
     # ── Flutter legacy: export ─────────────────────────────────
-    async def export_all(self) -> list[FaceDataOut]:
-        """GET /api/student/export/json — all active embeddings for Flutter export."""
+    async def export_all(self, from_date: datetime | None = None, specific_student_ids: str | None = None) -> list[FaceDataOut]:
+        """GET /api/student/export/json — all active embeddings for Flutter export.
+
+        Returns deterministic output: sorted by student_id, deduplicated,
+        with embedding_hash for client-side change detection.
+        """
+        from app.models.student import Student as StudentModel
+
         all_embeddings = await self.repo.get_all()
         if not all_embeddings:
             return []
@@ -265,13 +287,70 @@ class FaceService:
             ):
                 latest_updated[emb.student_id] = emb.updated_at
 
+        parsed_ids = set()
+        if specific_student_ids:
+            try:
+                parsed_ids = {int(x) for x in specific_student_ids.split(",") if x.strip()}
+            except ValueError:
+                pass
+
+        # Filter by from_date / specific_student_ids
+        if from_date:
+            from datetime import timezone
+            if from_date.tzinfo is None:
+                from_date = from_date.replace(tzinfo=timezone.utc)
+            filtered_grouped = {}
+            for student_id, embs in grouped.items():
+                if student_id in parsed_ids or latest_updated[student_id] > from_date:
+                    filtered_grouped[student_id] = embs
+            grouped = filtered_grouped
+        elif parsed_ids:
+            filtered_grouped = {}
+            for student_id, embs in grouped.items():
+                if student_id in parsed_ids:
+                    filtered_grouped[student_id] = embs
+            grouped = filtered_grouped
+
+        if not grouped:
+            return []
+
+        # Batch-load student_code and name for all student IDs in one query
+        from sqlalchemy.orm import selectinload
+        student_ids = list(grouped.keys())
+        students_result = await self.db.execute(
+            select(StudentModel).options(selectinload(StudentModel.user)).where(
+                StudentModel.id.in_(student_ids),
+            )
+        )
+        student_map: dict[int, StudentModel] = {
+            s.id: s for s in students_result.scalars().all()
+        }
+
         result: list[FaceDataOut] = []
-        for student_id, embs in grouped.items():
+        # Sort by student_id for deterministic output
+        for student_id in sorted(grouped.keys()):
+            embs = grouped[student_id]
+            student = student_map.get(student_id)
+
+            # Flatten embeddings for hash computation
+            all_vectors: list[list[float]] = []
+            for e in embs:
+                data = e.embedding
+                if data and isinstance(data, list) and isinstance(data[0], list):
+                    all_vectors.extend(data)
+                elif data and isinstance(data, list):
+                    all_vectors.append(data)
+
+            emb_hash = self._compute_embedding_hash(all_vectors)
+
             result.append(
-                FaceDataOut.from_orm(
+                FaceDataOut.build(
                     student_id=student_id,
                     embeddings=embs,
                     updated_at=latest_updated[student_id],
+                    student_code=student.student_code if student else None,
+                    person_name=student.name if student else None,
+                    embedding_hash=emb_hash,
                 )
             )
 
@@ -279,7 +358,15 @@ class FaceService:
 
     # ── Flutter legacy: import (file upload) ───────────────────
     async def import_from_file(self, file: UploadFile) -> dict:
-        """PUT /api/student/update/embedding — bulk face embedding import."""
+        """PUT /api/student/update/embedding — bulk face embedding import.
+
+        Identity resolution order (stable across DB resets):
+          1. ``studentCode``  — lookup by student_code (MSSV, unique)
+          2. ``studentId``    — fallback to integer PK if studentCode missing/unknown
+
+        This ensures sync works even if the backend DB was wiped and re-seeded
+        with new auto-increment IDs, as long as student_code is consistent.
+        """
         if not file.filename or not file.filename.endswith(".json"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -302,29 +389,68 @@ class FaceService:
             )
 
         updated = 0
-        skipped = 0
+        skipped_ids = []
         errors = 0
+        items_meta: list[dict] = []
 
         for item in payload:
-            student_id = item.get("studentId")
+            student_code: str | None = item.get("studentCode")  # MSSV — stable
+            student_id_raw = item.get("studentId")              # DB PK — fallback
             vectors = item.get("listFaceEmbedding", [])
 
-            if not isinstance(student_id, int) or not vectors:
+            if not vectors:
                 errors += 1
                 continue
 
-            student = await self.student_repo.get_by_id(student_id)
-            if not student:
-                skipped += 1
+            # ── Identity resolution ────────────────────────────────
+            student = None
+
+            # Step 1: Lookup by student_code (MSSV)
+            if student_code and isinstance(student_code, str):
+                student = await self.student_repo.get_by_code(student_code)
+
+            # Step 2: Fallback to DB PK
+            if student is None and isinstance(student_id_raw, int):
+                student = await self.student_repo.get_by_id(student_id_raw)
+
+            if student is None:
+                # Cannot resolve identity — skip with the best available identifier
+                skipped_ids.append(student_code or student_id_raw)
                 continue
 
             try:
-                await self.repo.replace_for_student(
-                    student_id=student_id,
+                new_embeddings = await self.repo.replace_for_student(
+                    student_id=student.id,
                     embeddings=vectors,
                 )
                 updated += 1
+
+                # ── Collect metadata for sync-echo elimination ─────
+                # Compute the canonical hash the same way export_all does
+                emb_hash = self._compute_embedding_hash(vectors)
+
+                # Find the max updated_at across newly inserted rows
+                max_updated_at = max(
+                    (e.updated_at for e in new_embeddings),
+                    default=datetime.now(timezone.utc),
+                )
+
+                items_meta.append({
+                    "id": student.id,
+                    "updated_at": max_updated_at.isoformat()
+                                  if max_updated_at.tzinfo
+                                  else max_updated_at.replace(tzinfo=timezone.utc).isoformat(),
+                    "server_hash": emb_hash,
+                })
             except Exception:
                 errors += 1
 
-        return {"updated": updated, "skipped": skipped, "errors": errors}
+        return {
+            "message": "Cập nhật dữ liệu khuôn mặt thành công.",
+            "data": {
+                "updated": updated,
+                "skipped": skipped_ids,
+                "errors": errors,
+                "items_meta": items_meta,
+            }
+        }

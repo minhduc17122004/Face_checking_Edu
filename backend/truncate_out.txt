@@ -1,0 +1,8 @@
+time="2026-04-03T19:02:15+07:00" level=warning msg="c:\\Users\\ADMIN\\Desktop\\MIS\\hrm-flutter_dev_2.0\\hrm-flutter_dev_2.0\\face_time_keeping\\backend\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+psql: warning: extra command-line argument "TABLE" ignored
+psql: warning: extra command-line argument "face_embeddings" ignored
+psql: warning: extra command-line argument "CASCADE;"" ignored
+psql: warning: extra command-line argument "" ignored
+ERROR:  unterminated quoted identifier at or near ""TRUNCATE"
+LINE 1: "TRUNCATE
+        ^

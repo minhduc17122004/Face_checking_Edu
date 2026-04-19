@@ -96,6 +96,12 @@ class CheckingBloc extends Cubit<CheckingState> {
       if (result.result.personName != 'Not_recognized') {
         final RecognitionResult recognitionResult = result.result;
         if (recognitionResult.spoofResult?.isSpoof ?? false) {
+          final verifyStudent = Student(
+            name: recognitionResult.personName,
+            pin: recognitionResult.pin,
+            id: recognitionResult.studentId,
+          );
+          await _checkInLocal(verifyStudent, file, isSpoof: true);
           emit(state.copyWith(
               requestStatus: RequestStatus.failed, message: 'Spoof detected'));
           return;
@@ -152,7 +158,7 @@ class CheckingBloc extends Cubit<CheckingState> {
     return outputPath;
   }
 
-  Future<void> _checkInLocal(Student student, XFile file) async {
+  Future<void> _checkInLocal(Student student, XFile file, {bool isSpoof = false}) async {
     try {
       emit(state.copyWith(checkingStatus: RequestStatus.requesting));
       final compressedImage = await compressImageFromXFile(file);
@@ -166,6 +172,7 @@ class CheckingBloc extends Cubit<CheckingState> {
         studentId: student.id,
         latitude: _location.latitude,
         longitude: _location.longitude,
+        isSpoof: isSpoof,
       );
       final Map<String, dynamic> result = await _localService.checkIn(
         checkIn,

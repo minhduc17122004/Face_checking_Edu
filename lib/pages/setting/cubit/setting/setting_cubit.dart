@@ -6,7 +6,6 @@ import 'package:face_time_keeping/data/models/student_request.dart';
 import 'package:face_time_keeping/data/remote/user_service.dart';
 import 'package:face_time_keeping/entities/sync_face_schedule.dart';
 import 'package:face_time_keeping/pages/setting/cubit/setting/setting_state.dart';
-import 'package:flutter/material.dart';
 import 'package:face_time_keeping/common/enums/server_type.dart';
 import 'package:injectable/injectable.dart';
 
@@ -59,28 +58,6 @@ class SettingCubit extends Cubit<SettingState> {
 
   Future<DataState> syncCheckInOutData() async {
     return await _userService.syncCheckInOutData();
-  }
-
-  Future<Map<String, TimeOfDay>> getShiftTimes() async {
-    return await _localService.getShiftTimes();
-  }
-
-  Future<void> saveShiftTimes({
-    required TimeOfDay morningStart,
-    required TimeOfDay morningEnd,
-    required TimeOfDay afternoonStart,
-    required TimeOfDay afternoonEnd,
-    required TimeOfDay nightStart,
-    required TimeOfDay nightEnd,
-  }) async {
-    await _localService.saveShiftTimes(
-      morningStart: morningStart,
-      morningEnd: morningEnd,
-      afternoonStart: afternoonStart,
-      afternoonEnd: afternoonEnd,
-      nightStart: nightStart,
-      nightEnd: nightEnd,
-    );
   }
 
   Future<ServerType?> getServerType() async {

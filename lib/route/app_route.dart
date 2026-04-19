@@ -34,6 +34,7 @@ import 'package:flutter/material.dart';
 
 import '../pages/bootstrap/bootstrap_page.dart';
 import '../pages/tab/tab.dart';
+import 'package:face_time_keeping/pages/setting/spoof_list_page.dart' as face_spoof;
 
 // ignore_for_file: avoid_classes_with_only_static_members
 class RouterName {
@@ -73,6 +74,7 @@ class RouterName {
   static const String devicePermission = '/settings/device-permission';
   static const String deviceRequestSubmit = '/settings/device-request-submit';
   static const String attendanceCheckin = '/attendance-checkin';
+  static const String spoofList = '/spoofList';
 }
 
 class AppRoutes {
@@ -176,6 +178,8 @@ class AppRoutes {
             args: settings.arguments as AttendanceCheckinArgs,
           ),
         );
+      case RouterName.spoofList:
+        return _materialRoute(settings, const face_spoof.SpoofListPage());
     }
     return null;
   }

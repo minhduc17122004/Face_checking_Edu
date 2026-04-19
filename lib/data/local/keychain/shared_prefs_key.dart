@@ -14,7 +14,6 @@ class SharedPrefsKey {
   static const String afternoonTime = 'afternoonTime';
   static const String nightTime = 'nightTime';
   static const String syncSchedules = 'syncSchedules';
-  static const String licenseKey = 'licenseKey';
   static const String pinApp = 'pinApp';
   static const String dbName = 'dbName';
   static const String latestTimePullFaceData = 'latestTimePullFaceData';

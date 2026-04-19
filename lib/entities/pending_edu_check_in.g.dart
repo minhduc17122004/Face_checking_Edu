@@ -33,13 +33,14 @@ class PendingEduCheckInAdapter extends TypeAdapter<PendingEduCheckIn> {
       pin: fields[13] as String?,
       minutesLate: fields[14] as int?,
       status: fields[15] as String?,
+      isSpoof: fields[16] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, PendingEduCheckIn obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(17)
       ..writeByte(0)
       ..write(obj.localId)
       ..writeByte(1)
@@ -71,7 +72,9 @@ class PendingEduCheckInAdapter extends TypeAdapter<PendingEduCheckIn> {
       ..writeByte(14)
       ..write(obj.minutesLate)
       ..writeByte(15)
-      ..write(obj.status);
+      ..write(obj.status)
+      ..writeByte(16)
+      ..write(obj.isSpoof);
   }
 
   @override

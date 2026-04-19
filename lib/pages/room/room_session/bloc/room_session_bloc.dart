@@ -53,15 +53,13 @@ class RoomSessionBloc extends Cubit<RoomSessionState> {
       var rooms = result.data ?? [];
 
       // 4. Apply filter if there are approved rooms
-      final userRole = _localService.getUserRole();
-
       if (isGlobal) {
         // Show all rooms (global permission)
       } else if (approvedRoomIds.isNotEmpty) {
         // Show only assigned rooms
         rooms = rooms.where((r) => approvedRoomIds.contains(r.id)).toList();
-      } else if (userRole != 'ADMIN') {
-        // Not an admin and no approved rooms -> Empty list
+      } else {
+        // No approved rooms -> Empty list
         rooms = [];
       }
 

@@ -149,6 +149,9 @@ class EduSyncServiceImpl implements EduSyncService {
     if (item.status != null) {
       m['status'] = item.status;
     }
+    if (item.isSpoof) {
+      m['is_spoof'] = true;
+    }
     return m;
   }
 }

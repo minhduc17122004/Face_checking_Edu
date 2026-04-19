@@ -7,6 +7,7 @@ import 'package:face_time_keeping/entities/session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:face_time_keeping/pages/widgets/app_dialog.dart';
 import 'bloc/session_management_cubit.dart';
 
 enum SessionTabType { upcoming, active, closed }
@@ -111,7 +112,8 @@ class _SessionManagementPageState extends State<SessionManagementPage> {
                         _SessionList(
                           sessions: scheduledSessions,
                           tabType: SessionTabType.upcoming,
-                          emptyMessage: 'Không có phiên học nào sắp diễn ra hôm nay',
+                          emptyMessage:
+                              'Không có phiên học nào sắp diễn ra hôm nay',
                         ),
                         _SessionList(
                           sessions: activeSessions,
@@ -249,7 +251,8 @@ class _SessionCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   _getDayName(session.dayOfWeek!),
-                  style: const TextStyle(fontSize: 13, color: AppColors.slate500),
+                  style:
+                      const TextStyle(fontSize: 13, color: AppColors.slate500),
                 ),
                 const SizedBox(width: 12),
               ],
@@ -329,9 +332,8 @@ class _SessionCard extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.only(left: 8),
                     child: ElevatedButton(
-                      onPressed: _canClose
-                          ? () => _showCloseDialog(context)
-                          : null,
+                      onPressed:
+                          _canClose ? () => _showCloseDialog(context) : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.red,
                         disabledBackgroundColor: AppColors.slate200,
@@ -366,13 +368,22 @@ class _SessionCard extends StatelessWidget {
   void _showOpenDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Mở điểm danh'),
+      builder: (ctx) => AppDialog(
+        title: 'Mở điểm danh',
+        icon: Icons.play_circle_outline,
+        accentColor: AppColors.primary,
         content: Text(
-            'Bạn có chắc chắn muốn mở điểm danh cho phiên học "${session.courseName}"?'),
+          'Bạn có chắc chắn muốn mở điểm danh cho phiên học "${session.courseName}"?',
+          style: const TextStyle(fontSize: 14, color: AppColors.slate600),
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            onPressed: () => Navigator.pop(ctx),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.slate500,
+            ),
+            child: const Text('Hủy'),
+          ),
           ElevatedButton(
             onPressed: () {
               context
@@ -380,7 +391,17 @@ class _SessionCard extends StatelessWidget {
                   .activateSession(session.id);
               Navigator.pop(ctx);
             },
-            child: const Text('Mở'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child:
+                const Text('Mở', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -390,21 +411,38 @@ class _SessionCard extends StatelessWidget {
   void _showCloseDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Đóng điểm danh'),
+      builder: (ctx) => AppDialog(
+        title: 'Đóng điểm danh',
+        icon: Icons.stop_circle_outlined,
+        accentColor: AppColors.red,
         content: Text(
-            'Bạn có chắc chắn muốn đóng điểm danh cho phiên học "${session.courseName}"?'),
+          'Bạn có chắc chắn muốn đóng điểm danh cho phiên học "${session.courseName}"?',
+          style: const TextStyle(fontSize: 14, color: AppColors.slate600),
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            onPressed: () => Navigator.pop(ctx),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.slate500,
+            ),
+            child: const Text('Hủy'),
+          ),
           ElevatedButton(
             onPressed: () {
               context.read<SessionManagementCubit>().closeSession(session.id);
               Navigator.pop(ctx);
             },
             style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.red, foregroundColor: Colors.white),
-            child: const Text('Đóng'),
+              backgroundColor: AppColors.red,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: const Text('Đóng',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),

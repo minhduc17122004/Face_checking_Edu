@@ -58,6 +58,9 @@ class PendingEduCheckIn extends HiveObject {
   @HiveField(15)
   String? status;
 
+  @HiveField(16)
+  bool isSpoof;
+
   PendingEduCheckIn({
     required this.localId,
     required this.studentId,
@@ -75,6 +78,7 @@ class PendingEduCheckIn extends HiveObject {
     this.pin,
     this.minutesLate,
     this.status,
+    this.isSpoof = false,
   });
 
   PendingEduCheckIn copyWith({
@@ -94,6 +98,7 @@ class PendingEduCheckIn extends HiveObject {
     String? pin,
     int? minutesLate,
     String? status,
+    bool? isSpoof,
   }) =>
       PendingEduCheckIn(
         localId: localId ?? this.localId,
@@ -112,5 +117,6 @@ class PendingEduCheckIn extends HiveObject {
         pin: pin ?? this.pin,
         minutesLate: minutesLate ?? this.minutesLate,
         status: status ?? this.status,
+        isSpoof: isSpoof ?? this.isSpoof,
       );
 }

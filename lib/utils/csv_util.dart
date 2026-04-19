@@ -9,18 +9,18 @@ import 'package:injectable/injectable.dart';
 class CsvUtil {
   Future<File> exportCheckInOutToCsv(List<CheckInOut> entries) async {
     List<List<dynamic>> csvData = [
-      ["Mã học sinh", "Tên học sinh", "Thời gian", "Hành động"],
+      ["Mã học sinh", "Tên học sinh", "Thời gian", "Trạng thái"],
       ...entries.map((e) => [
             e.pin,
             e.name,
             _formatDateTime(e.time),
-            e.isCheckIn ? 'Checkin' : 'Checkout',
+            _getStatusDisplay(e),
           ])
     ];
 
     final dir = await Directory.systemTemp.createTemp();
-    final file = File(
-        "${dir.path}/Diem_Danh_${_formatDateTime(DateTime.now())}.csv");
+    final file =
+        File("${dir.path}/Diem_Danh_${_formatDateTime(DateTime.now())}.csv");
     String csv = const ListToCsvConverter().convert(csvData);
     return await file.writeAsString(csv);
   }
@@ -32,7 +32,12 @@ class CsvUtil {
       Sheet sheet = excel[sheetName];
 
       // Use the same header and data format as CSV export
-      final headers = ["Mã học sinh", "Tên học sinh", "Thời gian", "Hành động"];
+      final headers = [
+        "Mã học sinh",
+        "Tên học sinh",
+        "Thời gian",
+        "Trạng thái"
+      ];
       sheet.appendRow(headers);
 
       for (final e in entries) {
@@ -40,7 +45,7 @@ class CsvUtil {
           e.pin ?? '',
           e.name ?? '',
           _formatDateTime(e.time),
-          e.isCheckIn ? 'Checkin' : 'Checkout',
+          _getStatusDisplay(e),
         ];
         sheet.appendRow(row);
       }
@@ -51,13 +56,25 @@ class CsvUtil {
       }
 
       final dir = await Directory.systemTemp.createTemp();
-      final file = File(
-          "${dir.path}/Diem_Danh_${_formatDateTime(DateTime.now())}.xlsx");
+      final file =
+          File("${dir.path}/Diem_Danh_${_formatDateTime(DateTime.now())}.xlsx");
       return await file.writeAsBytes(bytes, flush: true);
     } catch (e, s) {
       pushLog('Error in exportCheckInOutToExcel (CsvUtil): $e\n$s');
       rethrow;
     }
+  }
+
+  String _getStatusDisplay(CheckInOut checkInOut) {
+    if (checkInOut.status == 'absent') return 'Vắng';
+    if (checkInOut.status == 'late') {
+      final lateMins = checkInOut.minutesLate ?? 0;
+      return 'Trễ${lateMins > 0 ? ' ($lateMins p)' : ''}';
+    }
+    if (checkInOut.status == 'on_time' || checkInOut.status == 'early') {
+      return 'Đúng giờ';
+    }
+    return 'Có mặt';
   }
 
   String _formatDateTime(DateTime dt) {

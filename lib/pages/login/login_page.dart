@@ -78,217 +78,219 @@ class _LoginPageState extends State<LoginPage> {
         builder: (_, state) => Scaffold(
           backgroundColor: AppColors.backgroundLight,
           body: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(0x1A000000),
-                      blurRadius: 24,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Form(
-                  key: _key,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // ── Logo Section ──
-                      Padding(
-                        padding: const EdgeInsets.only(top: 48, bottom: 16),
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 72,
-                              height: 72,
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: const Icon(
-                                Icons.school,
-                                size: 36,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'Vedura',
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF0F172A),
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                          ],
-                        ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0x1A000000),
+                        blurRadius: 24,
+                        offset: Offset(0, 4),
                       ),
-
-                      // ── Hero Image ──
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 8),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: SizedBox(
-                            height: 160,
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                Image.network(
-                                  'https://lh3.googleusercontent.com/aida-public/AB6AXuDAmMV-Xcmb97rxzqnXDHY8oOMshIZhl5Y1QxrJfu5x4NS_hxggDxVwwA8j2z1-6X-Rc7yADWEBrMw_W2xBKK20w4j0cHN3-N3J3KQ8CIR-T3famtci1GJSTUFRj763wI7Q9C5df1_i1NAIzslfWbkPaVzV3NBLkhfLY7qsJULwGY2tPgKH7QJqeGV0YkFmNf8DWk823ZFVzHPf6-0TDRX62GTw9HoEdwpPhgUjwTxl05MC_yVnP9_ufD65exKj1QlKDzVonqa4F-Q',
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
-                                    color: Colors.grey[200],
-                                    child: const Icon(Icons.image,
-                                        size: 48, color: Colors.grey),
-                                  ),
+                    ],
+                  ),
+                  child: Form(
+                    key: _key,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // ── Logo Section ──
+                        Padding(
+                          padding: const EdgeInsets.only(top: 48, bottom: 16),
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 72,
+                                height: 72,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(20),
                                 ),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.bottomCenter,
-                                      end: Alignment.topCenter,
-                                      colors: [
-                                        AppColors.primary.withOpacity(0.25),
-                                        Colors.transparent,
-                                      ],
+                                child: const Icon(
+                                  Icons.school,
+                                  size: 36,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Vedura',
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0F172A),
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // ── Hero Image ──
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 8),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: SizedBox(
+                              height: 160,
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  Image.network(
+                                    'https://lh3.googleusercontent.com/aida-public/AB6AXuDAmMV-Xcmb97rxzqnXDHY8oOMshIZhl5Y1QxrJfu5x4NS_hxggDxVwwA8j2z1-6X-Rc7yADWEBrMw_W2xBKK20w4j0cHN3-N3J3KQ8CIR-T3famtci1GJSTUFRj763wI7Q9C5df1_i1NAIzslfWbkPaVzV3NBLkhfLY7qsJULwGY2tPgKH7QJqeGV0YkFmNf8DWk823ZFVzHPf6-0TDRX62GTw9HoEdwpPhgUjwTxl05MC_yVnP9_ufD65exKj1QlKDzVonqa4F-Q',
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      color: Colors.grey[200],
+                                      child: const Icon(Icons.image,
+                                          size: 48, color: Colors.grey),
                                     ),
                                   ),
-                                ),
-                              ],
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.bottomCenter,
+                                        end: Alignment.topCenter,
+                                        colors: [
+                                          AppColors.primary.withOpacity(0.25),
+                                          Colors.transparent,
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
 
-                      const SizedBox(height: 24),
+                        const SizedBox(height: 24),
 
-                      // ── Login Form ──
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Student ID label
-                            const Padding(
-                              padding: EdgeInsets.only(left: 4, bottom: 6),
-                              child: Text(
-                                'Email',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF334155),
-                                ),
-                              ),
-                            ),
-                            AppTextField(
-                              controller: _usernameController,
-                              validator: Validator.nullOrEmptyValidation,
-                              hintText: 'Enter your ID',
-                              onChanged: (value) =>
-                                  _bloc.onChangeUsername(value),
-                              background: const Color(0xFFF8FAFC),
-                              outlinedColor: const Color(0xFFE2E8F0),
-                              prefixIcon: Icon(
-                                Icons.badge_outlined,
-                                size: 20,
-                                color: Colors.grey[400],
-                              ),
-                              inputContextPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Password label
-                            const Padding(
-                              padding: EdgeInsets.only(left: 4, bottom: 6),
-                              child: Text(
-                                'Mật khẩu',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF334155),
-                                ),
-                              ),
-                            ),
-                            PasswordField(
-                              controller: _passwordController,
-                              validatePass: true,
-                              onChanged: (value) => _bloc.onChangePass(value),
-                            ),
-                            const SizedBox(height: 6),
-
-                            // Forgot Password
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () {
-                                  // TODO: Implement forgot password
-                                },
-                                style: TextButton.styleFrom(
-                                  padding: EdgeInsets.zero,
-                                  minimumSize: const Size(0, 0),
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                child: const Text(
-                                  'Quên mật khẩu?',
+                        // ── Login Form ──
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Student ID label
+                              const Padding(
+                                padding: EdgeInsets.only(left: 4, bottom: 6),
+                                child: Text(
+                                  'Email',
                                   style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.primary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF334155),
                                   ),
                                 ),
                               ),
-                            ),
+                              AppTextField(
+                                controller: _usernameController,
+                                validator: Validator.nullOrEmptyValidation,
+                                hintText: 'Enter your ID',
+                                onChanged: (value) =>
+                                    _bloc.onChangeUsername(value),
+                                background: const Color(0xFFF8FAFC),
+                                outlinedColor: const Color(0xFFE2E8F0),
+                                prefixIcon: Icon(
+                                  Icons.badge_outlined,
+                                  size: 20,
+                                  color: Colors.grey[400],
+                                ),
+                                inputContextPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
 
-                            const SizedBox(height: 24),
-
-                            // ── Primary Login Button ──
-                            SizedBox(
-                              width: double.infinity,
-                              height: 52,
-                              child: ElevatedButton(
-                                onPressed: () => onSubmit(),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: Colors.white,
-                                  elevation: 4,
-                                  shadowColor:
-                                      AppColors.primary.withOpacity(0.3),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
+                              // Password label
+                              const Padding(
+                                padding: EdgeInsets.only(left: 4, bottom: 6),
+                                child: Text(
+                                  'Mật khẩu',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF334155),
                                   ),
                                 ),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      'Đăng nhập',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                              ),
+                              PasswordField(
+                                controller: _passwordController,
+                                validatePass: true,
+                                onChanged: (value) => _bloc.onChangePass(value),
+                              ),
+                              const SizedBox(height: 6),
+
+                              // Forgot Password
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: () {
+                                    // TODO: Implement forgot password
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(0, 0),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: const Text(
+                                    'Quên mật khẩu?',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.primary,
                                     ),
-                                    // SizedBox(width: 8),
-                                    // // Icon(Icons.arrow_forward, size: 20),
-                                  ],
+                                  ),
                                 ),
                               ),
-                            ),
 
-                            const SizedBox(height: 40),
-                          ],
+                              const SizedBox(height: 24),
+
+                              // ── Primary Login Button ──
+                              SizedBox(
+                                width: double.infinity,
+                                height: 52,
+                                child: ElevatedButton(
+                                  onPressed: () => onSubmit(),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    elevation: 4,
+                                    shadowColor:
+                                        AppColors.primary.withOpacity(0.3),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        'Đăng nhập',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 40),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),

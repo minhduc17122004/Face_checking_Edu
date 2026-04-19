@@ -11,6 +11,7 @@ import 'package:face_time_keeping/pages/course/bloc/course_state.dart';
 import 'package:face_time_keeping/pages/schedule/bloc/schedule_bloc.dart';
 import 'package:face_time_keeping/pages/schedule/bloc/schedule_state.dart';
 import 'package:face_time_keeping/pages/widgets/empty_state_widget.dart';
+import 'package:face_time_keeping/pages/widgets/app_dialog.dart';
 import 'package:face_time_keeping/data/local/local_service.dart';
 import 'package:face_time_keeping/route/navigator.dart';
 
@@ -100,7 +101,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
           ),
           tabs: const [
             Tab(text: 'Thông tin'),
-            Tab(text: 'Học sinh'),
+            Tab(text: 'Sinh viên'),
           ],
         ),
       ),
@@ -447,6 +448,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
               title: 'Chưa có học sinh',
               subtitle: 'Thêm học sinh vào học phần này',
               titleAction: 'Thêm học sinh',
+              actionColor: AppColors.primary,
               onActionTapped: (ctx) => _showAddStudentDialog(context),
             );
           }
@@ -580,30 +582,67 @@ class _CourseDetailPageState extends State<CourseDetailPage>
   }
 
   Widget _buildFaceStatusIcon(CourseStudent student) {
-    if (student.hasFace) {
-      return Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: AppColors.green100,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: const Icon(
-          Icons.check_circle,
-          color: AppColors.green500,
-          size: 16,
+    // Determine accurate server face status using embeddingCount
+    final hasServerFace = student.embeddingCount > 0;
+
+    if (hasServerFace) {
+      return Tooltip(
+        message: 'Đã có dữ liệu khuôn mặt trên Server',
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppColors.green100,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.face,
+                color: AppColors.green600,
+                size: 16,
+              ),
+              SizedBox(width: 4),
+              Text(
+                'Server',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.green600,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     } else {
-      return Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: AppColors.red100,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: const Icon(
-          Icons.cancel,
-          color: AppColors.red600,
-          size: 16,
+      return Tooltip(
+        message: 'Chưa có khuôn mặt trên hệ thống',
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppColors.red100,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.face_outlined,
+                color: AppColors.red600,
+                size: 16,
+              ),
+              SizedBox(width: 4),
+              Text(
+                'Trống',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.red600,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -767,27 +806,20 @@ class _AddStudentsDialogState extends State<_AddStudentsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Text('Thêm học sinh'),
-          if (_students.isNotEmpty)
-            Text(
-              '${_selectedIds.length}/${_students.length}',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.normal,
-                color: AppColors.slate500,
-              ),
-            ),
-        ],
-      ),
+    return AppDialog(
+      title: 'Thêm học sinh',
+      icon: Icons.person_add_outlined,
+      accentColor: AppColors.primary,
       content: SizedBox(
-        width: double.maxFinite,
-        height: 400,
+        width: MediaQuery.of(context).size.width * 0.9,
+        height: 450,
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(
+                child: CircularProgressIndicator(
+                  color: AppColors.primary,
+                  strokeWidth: 2,
+                ),
+              )
             : _error != null
                 ? Center(
                     child: Column(
@@ -800,6 +832,10 @@ class _AddStudentsDialogState extends State<_AddStudentsDialog> {
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: _loadAvailableStudents,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                          ),
                           child: const Text('Thử lại'),
                         ),
                       ],
@@ -813,35 +849,65 @@ class _AddStudentsDialogState extends State<_AddStudentsDialog> {
                         ),
                       )
                     : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          if (_students.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Text(
+                                'Đã chọn ${_selectedIds.length} / ${_students.length} học sinh',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.slate600,
+                                ),
+                              ),
+                            ),
                           // Select all row
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.slate200,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                Checkbox(
-                                  value:
-                                      _selectedIds.length == _students.length,
-                                  onChanged: (_) => _toggleSelectAll(),
-                                ),
-                                const Text(
-                                  'Chọn tất cả',
-                                  style: TextStyle(fontWeight: FontWeight.w500),
-                                ),
-                              ],
+                          GestureDetector(
+                            onTap: _toggleSelectAll,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.slate100,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: Checkbox(
+                                      value: _selectedIds.length ==
+                                          _students.length,
+                                      onChanged: (_) => _toggleSelectAll(),
+                                      activeColor: AppColors.primary,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  const Text(
+                                    'Chọn tất cả',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                      color: AppColors.slate800,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           // Student list
                           Expanded(
                             child: ListView.builder(
+                              physics: const BouncingScrollPhysics(),
                               itemCount: _students.length,
                               itemBuilder: (context, index) {
                                 final student = _students[index];
@@ -853,43 +919,63 @@ class _AddStudentsDialogState extends State<_AddStudentsDialog> {
                                 final isSelected = _selectedIds.contains(id);
 
                                 return Container(
-                                  margin: const EdgeInsets.only(bottom: 4),
+                                  margin: const EdgeInsets.only(bottom: 8),
                                   decoration: BoxDecoration(
                                     color: isSelected
-                                        ? AppColors.blue50
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(8),
+                                        ? AppColors.primary.withOpacity(0.04)
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
                                       color: isSelected
-                                          ? AppColors.blue
+                                          ? AppColors.primary.withOpacity(0.3)
                                           : AppColors.slate200,
+                                      width: isSelected ? 1.5 : 1,
                                     ),
                                   ),
                                   child: ListTile(
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 0),
                                     dense: true,
                                     leading: Checkbox(
                                       value: isSelected,
                                       onChanged: (_) => _toggleSelection(id),
+                                      activeColor: AppColors.primary,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
                                     ),
                                     title: Text(
                                       (student['full_name'] as String?) ??
                                           'HV#$id',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w500,
+                                      style: TextStyle(
+                                        fontWeight: isSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.w500,
+                                        color: isSelected
+                                            ? AppColors.primary
+                                            : AppColors.slate900,
                                       ),
                                     ),
                                     subtitle: Text(
-                                      '${studentCode ?? id}',
-                                      style: const TextStyle(fontSize: 12),
+                                      studentCode ?? '$id',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isSelected
+                                            ? AppColors.primary.withOpacity(0.7)
+                                            : AppColors.slate500,
+                                      ),
                                     ),
-                                    trailing: Icon(
-                                      hasFace
-                                          ? Icons.face
-                                          : Icons.face_outlined,
-                                      color: hasFace
-                                          ? AppColors.green600
-                                          : AppColors.slate400,
-                                      size: 20,
+                                    trailing: Padding(
+                                      padding: const EdgeInsets.only(right: 8),
+                                      child: Icon(
+                                        hasFace
+                                            ? Icons.face
+                                            : Icons.face_outlined,
+                                        color: hasFace
+                                            ? AppColors.green600
+                                            : AppColors.slate300,
+                                        size: 20,
+                                      ),
                                     ),
                                     onTap: () => _toggleSelection(id),
                                   ),
@@ -903,11 +989,28 @@ class _AddStudentsDialogState extends State<_AddStudentsDialog> {
       actions: [
         TextButton(
           onPressed: () => AppNavigator.pop(),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.slate500,
+          ),
           child: const Text('Hủy'),
         ),
         ElevatedButton(
           onPressed: _selectedIds.isEmpty ? null : _enrollSelected,
-          child: Text('Thêm (${_selectedIds.length})'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: AppColors.slate200,
+            disabledForegroundColor: AppColors.slate400,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
+          child: Text(
+            'Thêm (${_selectedIds.length})',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
         ),
       ],
     );

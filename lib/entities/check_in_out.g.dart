@@ -30,13 +30,14 @@ class CheckInOutAdapter extends TypeAdapter<CheckInOut> {
       deviceId: fields[10] as String?,
       status: fields[11] as String?,
       minutesLate: fields[12] as int?,
+      isSpoof: fields[13] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, CheckInOut obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.studentId)
       ..writeByte(1)
@@ -62,7 +63,9 @@ class CheckInOutAdapter extends TypeAdapter<CheckInOut> {
       ..writeByte(11)
       ..write(obj.status)
       ..writeByte(12)
-      ..write(obj.minutesLate);
+      ..write(obj.minutesLate)
+      ..writeByte(13)
+      ..write(obj.isSpoof);
   }
 
   @override

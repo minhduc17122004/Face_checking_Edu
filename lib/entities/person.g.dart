@@ -25,10 +25,9 @@ class PersonAdapter extends TypeAdapter<Person> {
       jobTitle: fields[5] as dynamic,
       avatar: fields[6] as String?,
       serverUserId: fields[7] as String?,
-      // New fields — backward compatible defaults for old data
       embeddingHash: fields[8] as String?,
       serverUpdatedAt: fields[9] as DateTime?,
-      hasLocalEmbedding: (fields[10] as bool?) ?? false,
+      hasLocalEmbedding: fields[10] as bool,
     );
   }
 

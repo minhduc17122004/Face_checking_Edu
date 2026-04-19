@@ -32,6 +32,8 @@ class CheckInOut extends HiveObject {
   String? status;
   @HiveField(12)
   int? minutesLate;
+  @HiveField(13)
+  bool isSpoof;
 
   CheckInOut({
     this.id,
@@ -48,6 +50,7 @@ class CheckInOut extends HiveObject {
     this.deviceId,
     this.status,
     this.minutesLate,
+    this.isSpoof = false,
   });
   CheckInOut copyWith({
     int? id,
@@ -64,22 +67,24 @@ class CheckInOut extends HiveObject {
     String? deviceId,
     String? status,
     int? minutesLate,
+    bool? isSpoof,
   }) =>
       CheckInOut(
-          id: id ?? this.id,
-          studentId: studentId ?? this.studentId,
-          pin: pin ?? this.pin,
-          name: name ?? this.name,
-          time: time ?? this.time,
-          imagePath: imagePath ?? this.imagePath,
-          isSynced: isSynced ?? this.isSynced,
-          isCheckIn: isCheckIn ?? this.isCheckIn,
-          latitude: latitude ?? this.latitude,
-          longitude: longitude ?? this.longitude,
-          roomId: roomId ?? this.roomId,
-          deviceId: deviceId ?? this.deviceId,
-          status: status ?? this.status,
-          minutesLate: minutesLate ?? this.minutesLate,
+        id: id ?? this.id,
+        studentId: studentId ?? this.studentId,
+        pin: pin ?? this.pin,
+        name: name ?? this.name,
+        time: time ?? this.time,
+        imagePath: imagePath ?? this.imagePath,
+        isSynced: isSynced ?? this.isSynced,
+        isCheckIn: isCheckIn ?? this.isCheckIn,
+        latitude: latitude ?? this.latitude,
+        longitude: longitude ?? this.longitude,
+        roomId: roomId ?? this.roomId,
+        deviceId: deviceId ?? this.deviceId,
+        status: status ?? this.status,
+        minutesLate: minutesLate ?? this.minutesLate,
+        isSpoof: isSpoof ?? this.isSpoof,
       );
   Map<String, dynamic> toSmallJson() {
     if (isCheckIn) {
@@ -88,6 +93,7 @@ class CheckInOut extends HiveObject {
         'in_time': time.toIso8601String().split('.').first,
         'lat': latitude,
         'lon': longitude,
+        'is_spoof': isSpoof,
       };
     } else {
       return {
@@ -95,6 +101,7 @@ class CheckInOut extends HiveObject {
         'out_time': time.toIso8601String().split('.').first,
         'lat': latitude,
         'lon': longitude,
+        'is_spoof': isSpoof,
       };
     }
   }

@@ -884,6 +884,17 @@ class _SettingPageState extends State<SettingPage> {
                               AppNavigator.pushNamed(
                                   RouterName.attendanceReport);
                             },
+                            isLast: false,
+                          ),
+                          _buildSettingItem(
+                            icon: Icons.shield_outlined,
+                            iconBg: AppColors.red100,
+                            iconColor: AppColors.red600,
+                            title: 'Danh sách giả mạo khuôn mặt',
+                            subtitle: 'Xem các lượt quét điểm danh bị cảnh báo giả mạo',
+                            onTap: () {
+                              AppNavigator.pushNamed(RouterName.spoofList);
+                            },
                             isLast: true,
                           ),
                         ]),

@@ -2,9 +2,7 @@ import 'package:face_time_keeping/common/utils/location_util.dart';
 import 'package:geolocator/geolocator.dart';
 
 enum AppStatus {
-  license_valid,
-  license_expired,
-  license_not_registered,
+  active,
   wrong_time_local,
 }
 
@@ -17,22 +15,19 @@ enum SyncProgressStatus {
 
 class AppState {
   final AppStatus appStatus;
-  final DateTime? licenseExpiredDate;
   final Position? position;
   final SyncProgressStatus syncStatus;
   final String? syncMessage;
-  
+
   const AppState({
-    this.appStatus = AppStatus.license_not_registered,
-    this.licenseExpiredDate,
+    this.appStatus = AppStatus.active,
     this.position,
     this.syncStatus = SyncProgressStatus.idle,
     this.syncMessage,
   });
-  
+
   AppState copyWith({
     AppStatus? appStatus,
-    DateTime? licenseExpiredDate,
     Position? position,
     LocationPermissionStatus? locationPermissionStatus,
     SyncProgressStatus? syncStatus,
@@ -40,7 +35,6 @@ class AppState {
   }) {
     return AppState(
       appStatus: appStatus ?? this.appStatus,
-      licenseExpiredDate: licenseExpiredDate ?? this.licenseExpiredDate,
       position: position ?? this.position,
       syncStatus: syncStatus ?? this.syncStatus,
       syncMessage: syncMessage,

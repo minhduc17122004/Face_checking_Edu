@@ -16,7 +16,8 @@ import 'package:face_time_keeping/entities/person.dart';
 import 'package:face_time_keeping/entities/register_student.dart';
 import 'package:face_time_keeping/entities/sync_response.dart';
 import 'package:face_time_keeping/common/event/event_bus_mixin.dart';
-import 'package:face_time_keeping/common/event/event_bus_event.dart' show SyncStudentEvent;
+import 'package:face_time_keeping/common/event/event_bus_event.dart'
+    show SyncStudentEvent;
 import 'package:flutter/material.dart';
 
 import 'package:injectable/injectable.dart';
@@ -121,7 +122,7 @@ class UserServiceImplement implements UserService {
 
         final msg = actualImported > 0
             ? 'Tải về $actualImported khuôn mặt thành công'
-            : 'Không có khuôn mặt mới (đã cập nhật metadata ${faceDataList.length} bản ghi)';
+            : 'Không có dữ liệu khuôn mặt mới';
         return DataSuccess<String>(msg);
       }
 
@@ -158,7 +159,8 @@ class UserServiceImplement implements UserService {
       );
       debugPrint('response: ${response.data}');
       if (response.isSuccess()) {
-        final responseData = response.data['data'] as Map<String, dynamic>? ?? {};
+        final responseData =
+            response.data['data'] as Map<String, dynamic>? ?? {};
         final listSkippedPersonIds =
             responseData['skipped'] as List<dynamic>? ?? [];
         final listSkippedPersonIdsInt =
@@ -176,7 +178,8 @@ class UserServiceImplement implements UserService {
         }
 
         final baseMessage = response.data['message'] ?? 'Thành công.';
-        final successPersonCount = listPushedPersonIds.length - listSkippedPersonIdsInt.length;
+        final successPersonCount =
+            listPushedPersonIds.length - listSkippedPersonIdsInt.length;
         final detailMessage = successPersonCount > 0
             ? '$baseMessage ($successPersonCount học sinh)'
             : baseMessage;

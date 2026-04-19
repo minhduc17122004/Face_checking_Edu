@@ -171,17 +171,20 @@ class FaceDetectorViewState extends State<FaceDetectorView> {
           final file = await key.currentState?.capture();
           widget.onCapture?.call(file);
           _timeCount = 0;
+          
+          _isBusy = false; 
+          return; 
         }
       }
     } else {
-      setState(() {
-        _isFaceCentered = false;
-      });
+      if (mounted) { 
+        setState(() {
+          _isFaceCentered = false;
+        });
+      }
     }
+    
     _isBusy = false;
-
-    if (!mounted) return;
-    setState(() {});
   }
 
   bool _isFaceInCenterFrame({

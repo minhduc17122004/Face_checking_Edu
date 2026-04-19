@@ -58,21 +58,11 @@
     Future<Map<String, dynamic>> checkIn(CheckInOut checkIn,
         {DateTime? sessionStartTime, String? sessionId});
     Future<Map<String, dynamic>> checkOut(CheckOut checkOut, Position location);
-    Future<void> saveShiftTimes({
-      required TimeOfDay morningStart,
-      required TimeOfDay morningEnd,
-      required TimeOfDay afternoonStart,
-      required TimeOfDay afternoonEnd,
-      required TimeOfDay nightStart,
-      required TimeOfDay nightEnd,
-    });
-    Future<Map<String, TimeOfDay>> getShiftTimes();
+
     Future<bool> isRegistered(int studentId);
     Future<List<CheckInOut>> getCheckInOutByDate(DateTime date);
     Future<List<BulkUser>?> getBulkUsers();
     Future<void> handleSyncResponse(SyncResponse syncResponse);
-    Future<String> getLicenseKey();
-    Future<void> saveLicenseKey(String licenseKey);
     Future<String?> getPinApp();
     Future<void> savePinApp(String pinApp);
     Future<List<SyncSchedule>> getSyncSchedules();
@@ -161,6 +151,9 @@
     Future<void> addPendingRecoveryStudentIds(List<String> ids);
     Future<Set<String>> getPendingRecoveryStudentIds();
     Future<void> clearPendingRecoveryStudentIds();
+
+    // --- Spoofed records ---
+    Future<List<CheckInOut>> getSpoofedCheckIns();
   }
 
   @LazySingleton(as: LocalService)
@@ -209,9 +202,6 @@
     final SharedPrefs _sharedPreferences;
     final HiveService _hiveService;
     final ApiClient _apiClient;
-    //{"licenseKey":"paraceltech","owner":"Paracel","issuedDate":"2025-08-29T10:09:48","licenseExpiredDate":"2026-05-20T23:59:59"}
-    static const defaultLicenseKey =
-        'WHF4enplZXB1STZpV0dQVFBlRWpvamFtUVRVTUEwOHhIY1B4Rm5FYUJBVkpYM2trVG43bmdweHdOazFKdVRkL0Z1L3NiNXRqYzhiaGxRbWRMUXFaOGYwazJ5dHZnSm05ZFE4QkNJSjVWY212azlRRFNjMXNheDJHbjUzL3Q0MHRiajZueXlPR1Jua0s1WjlvVkFwY096bUlBeXBET0JSa0J4MEtKTUNNUlJwZXdOMmlVWU4rUGo2aUVNc3pmRTBGNjFVQWJ5NUpCbFdzWi92d1p5UVVCMitFZ0RmMnRIRWVpdHpSWHVpQW12SXVURTVORTlyMDRzY2plQXorWVQyb0tqaDBiRlo4L21ETXBmVy9PeG9sSWpXV01zZzVYQUNBTXdTRG4vSWlrOFJWQ2tMY0R4T0Y5NXJlS08zd2pmR1Rwb05sZEdwcFo2UHo1Ty9kWFFKODRRPT06dWVJMGtjZVZCYmlXOW1rcU1KMVRqNTIvUDNNWHA3MmttcXdOUEVkVW5COEVzdHhlQVR0Z3FEaU9EaXo3R3lzdnNXWWMyNS9IQ2YrVnptL0xJZUdYNEsyU25MczlOcHZXRER2QWJWbk5aNVYvZjBwaDUwSG5qWkpFc2VBREY4dVFxdDZ5NzhnUTVHTHp3QkYrdS9XUU9OSmRnRHh6aEVFV2t0cmp0QkhWVmZRPQ==';
 
     @override
     Future<ServerType?> getServerType() async {
@@ -1181,10 +1171,6 @@
         if (domain.isNotEmpty) {
           _apiClient.updateConfigBaseUrl(domain);
         }
-        final licenseKey = _sharedPreferences.get(SharedPrefsKey.licenseKey);
-        if (licenseKey == null) {
-          _sharedPreferences.put(SharedPrefsKey.licenseKey, defaultLicenseKey);
-        }
       } catch (e) {
         await pushLog('Error in initApp: $e');
         rethrow;
@@ -1233,89 +1219,7 @@
       }
     }
 
-    // Helper method to parse time string to TimeOfDay
-    TimeOfDay timeOfDayfromString(String timeString) {
-      try {
-        if (timeString.isEmpty) {
-          return const TimeOfDay(hour: 0, minute: 0);
-        }
 
-        final parts = timeString.split(':');
-        if (parts.length != 2) {
-          return const TimeOfDay(hour: 0, minute: 0);
-        }
-
-        final hour = int.tryParse(parts[0]) ?? 0;
-        final minute = int.tryParse(parts[1]) ?? 0;
-
-        // Validate hour and minute ranges
-        if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-          return const TimeOfDay(hour: 0, minute: 0);
-        }
-
-        return TimeOfDay(hour: hour, minute: minute);
-      } catch (e) {
-        pushLog('Error parsing time string "$timeString": $e');
-        log('Error parsing time string "$timeString": $e');
-        return const TimeOfDay(hour: 0, minute: 0);
-      }
-    }
-
-    String timeOfDayToString(TimeOfDay timeOfDayStart, TimeOfDay timeOfDayEnd) {
-      return '${timeOfDayStart.hour}:${timeOfDayStart.minute.toString().padLeft(2, '0')}-${timeOfDayEnd.hour}:${timeOfDayEnd.minute.toString().padLeft(2, '0')}';
-    }
-
-    @override
-    Future<Map<String, TimeOfDay>> getShiftTimes() async {
-      try {
-        final morningTime = _sharedPreferences.get(SharedPrefsKey.morningTime) ??
-            timeOfDayToString(const TimeOfDay(hour: 8, minute: 0),
-                const TimeOfDay(hour: 12, minute: 0));
-        final afternoonTime =
-            _sharedPreferences.get(SharedPrefsKey.afternoonTime) ??
-                timeOfDayToString(const TimeOfDay(hour: 13, minute: 0),
-                    const TimeOfDay(hour: 17, minute: 0));
-        final nightTime = _sharedPreferences.get(SharedPrefsKey.nightTime) ??
-            timeOfDayToString(const TimeOfDay(hour: 18, minute: 0),
-                const TimeOfDay(hour: 22, minute: 0));
-        return {
-          'morningStart': timeOfDayfromString(morningTime.split('-')[0]),
-          'morningEnd': timeOfDayfromString(morningTime.split('-')[1]),
-          'afternoonStart': timeOfDayfromString(afternoonTime.split('-')[0]),
-          'afternoonEnd': timeOfDayfromString(afternoonTime.split('-')[1]),
-          'nightStart': timeOfDayfromString(nightTime.split('-')[0]),
-          'nightEnd': timeOfDayfromString(nightTime.split('-')[1]),
-        };
-      } catch (e) {
-        log('Error getting shift times: $e');
-        // Return default times if error occurs
-        return {
-          'morningStart': const TimeOfDay(hour: 8, minute: 0),
-          'morningEnd': const TimeOfDay(hour: 12, minute: 0),
-          'afternoonStart': const TimeOfDay(hour: 13, minute: 0),
-          'afternoonEnd': const TimeOfDay(hour: 17, minute: 0),
-          'nightStart': const TimeOfDay(hour: 18, minute: 0),
-          'nightEnd': const TimeOfDay(hour: 22, minute: 0),
-        };
-      }
-    }
-
-    @override
-    Future<void> saveShiftTimes({
-      required TimeOfDay morningStart,
-      required TimeOfDay morningEnd,
-      required TimeOfDay afternoonStart,
-      required TimeOfDay afternoonEnd,
-      required TimeOfDay nightStart,
-      required TimeOfDay nightEnd,
-    }) async {
-      _sharedPreferences.put<String>(SharedPrefsKey.morningTime,
-          '${morningStart.hour}:${morningStart.minute.toString().padLeft(2, '0')}-${morningEnd.hour}:${morningEnd.minute.toString().padLeft(2, '0')}');
-      _sharedPreferences.put<String>(SharedPrefsKey.afternoonTime,
-          '${afternoonStart.hour}:${afternoonStart.minute.toString().padLeft(2, '0')}-${afternoonEnd.hour}:${afternoonEnd.minute.toString().padLeft(2, '0')}');
-      _sharedPreferences.put<String>(SharedPrefsKey.nightTime,
-          '${nightStart.hour}:${nightStart.minute.toString().padLeft(2, '0')}-${nightEnd.hour}:${nightEnd.minute.toString().padLeft(2, '0')}');
-    }
 
     @override
     Future<Map<String, dynamic>> checkIn(CheckInOut checkIn,
@@ -1350,6 +1254,7 @@
                     status: status,
                     pin: resolvedPin,
                     studentId: resolvedStudentId,
+                    isSpoof: checkIn.isSpoof,
                   );
 
         await _hiveService.saveCheckInOut(checkInToSave);
@@ -1371,6 +1276,7 @@
           pin: resolvedPin,
           minutesLate: minutesLate,
           status: status,
+          isSpoof: checkInToSave.isSpoof,
         );
 
         await savePendingEduCheckIn(pendingEdu);
@@ -1651,6 +1557,19 @@
       }
     }
 
+    @override
+    Future<List<CheckInOut>> getSpoofedCheckIns() async {
+      try {
+        final checkInOuts = await _hiveService.getAllCheckInOuts();
+        final list = checkInOuts.where((e) => e.isSpoof).toList();
+        list.sort((a, b) => b.time.compareTo(a.time)); // latest first
+        return list;
+      } catch (e) {
+        await pushLog('Error in getSpoofedCheckIns: $e');
+        return [];
+      }
+    }
+
     Future<String?> _getActiveRoomIdSafely() async {
       try {
         final roomId = await getActiveRoomId();
@@ -1765,31 +1684,7 @@
       }
     }
 
-    @override
-    Future<String> getLicenseKey() async {
-      try {
-        final licenseKey = _sharedPreferences.get(SharedPrefsKey.licenseKey);
-        if (licenseKey == null) {
-          return defaultLicenseKey;
-        }
-        return licenseKey;
-      } catch (e) {
-        pushLog('Error getting license key: $e');
-        log('Error getting license key: $e');
-        return defaultLicenseKey;
-      }
-    }
 
-    @override
-    Future<void> saveLicenseKey(String licenseKey) async {
-      try {
-        await _sharedPreferences.put(SharedPrefsKey.licenseKey, licenseKey);
-      } catch (e) {
-        pushLog('Error saving license key: $e');
-        log('Error saving license key: $e');
-        rethrow;
-      }
-    }
 
     @override
     Future<int?> getUserId() async {

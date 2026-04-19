@@ -11,6 +11,7 @@ class EmptyStateWidget extends StatelessWidget {
     this.subtitle,
     this.padding,
     this.background = Colors.white,
+    this.actionColor,
   }) : super(key: key);
 
   final String? title;
@@ -19,6 +20,7 @@ class EmptyStateWidget extends StatelessWidget {
   final double? padding;
   final Function(BuildContext)? onActionTapped;
   final Color background;
+  final Color? actionColor;
 
   @override
   Widget build(BuildContext context) {
@@ -65,15 +67,24 @@ class EmptyStateWidget extends StatelessWidget {
                             height: 48,
                             child: ElevatedButton(
                                 onPressed: () => onActionTapped!(context),
-                                style: ButtonStyle(
+                                style: ElevatedButton.styleFrom(
                                   backgroundColor:
-                                  MaterialStateProperty.all(AppColors.primaryColor),
+                                      actionColor ?? AppColors.primaryColor,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: 0,
                                 ),
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16.0),
                                   child: Center(
                                     child: Text(
                                       titleAction ?? '',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                 )),

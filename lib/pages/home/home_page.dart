@@ -479,7 +479,10 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
           children: [
             _QuickAccessCard(
               icon: Icons.calendar_month,
-              title: 'Lịch học',
+              title: (_localService.getUserRole().toLowerCase() == 'teacher' ||
+                      _localService.getUserRole().toLowerCase() == 'admin')
+                  ? 'Lịch giảng dạy'
+                  : 'Lịch học',
               subtitle: 'Kế hoạch theo tuần',
               iconBg: AppColors.purple50,
               iconColor: AppColors.purple600,

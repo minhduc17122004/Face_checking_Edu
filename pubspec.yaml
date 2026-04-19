@@ -75,8 +75,6 @@ dependencies:
 
   flutter_local_notifications: ^19.4.1
   timezone: ^0.10.1
-  encrypt: ^5.0.3
-  pointycastle: ^3.9.1
   http: ^1.5.0
   mobile_scanner: ^6.0.11
   native_device_orientation: ^2.0.3
@@ -120,11 +118,8 @@ flutter:
   assets:
     - assets/sounds/
     - assets/images/
-    - assets/private.pem
-    - assets/public.pem
     - packages/
     - assets/icon/
-    - assets/mock_attendance.json
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
 

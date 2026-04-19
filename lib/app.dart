@@ -32,11 +32,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       _checkForAppUpdate();
     });
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-      Future.delayed(const Duration(seconds: 5), () {
-        _appBloc.loadLicenseExpiredDate();
-      });
-    });
   }
 
   Future<void> _checkForAppUpdate() async {
@@ -86,9 +81,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         builder: (context, child) {
           return Listener(
             behavior: HitTestBehavior.translucent,
-            onPointerDown: (_) {
-              _appBloc.checkLicenseExpired();
-            },
+            onPointerDown: (_) {},
             child: BlocListener<AppBloc, AppState>(
               listener: (context, state) {
                 if (state.appStatus == AppStatus.wrong_time_local) {

@@ -46,6 +46,8 @@ class AppColors {
   static const blue600 = Color(0xFF2563EB);
   static const blue50 = Color(0xFFEFF6FF);
   static const slate200 = Color(0xFFE2E8F0);
+  static const slate100 = Color(0xFFF1F5F9);
+  static const slate50 = Color(0xFFF8FAFC);
 
   static const green500 = Color(0xFF22C55E);
   static const green600 = Color(0xFF16A34A);

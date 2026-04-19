@@ -198,14 +198,41 @@ class ApiClient {
   Future<ApiResponse> download(
       {required String path,
       required String savePath,
+      Map<String, dynamic>? queryParameters,
       ProgressCallback? onReceiveProgress}) async {
     try {
       if (!_isAbsoluteUrl(path) && !_hasValidBaseUrl()) {
         return _missingBaseUrlResponse();
       }
-      await dio.download(path, savePath, onReceiveProgress: onReceiveProgress);
-      return ApiResponse(success: true);
+      final response = await dio.download(
+        path,
+        savePath,
+        queryParameters: queryParameters,
+        onReceiveProgress: onReceiveProgress,
+        options: Options(
+          validateStatus: (status) => status != null && status < 500,
+        ),
+      );
+
+      if (response.statusCode != null && response.statusCode! >= 400) {
+        final badFile = File(savePath);
+        if (await badFile.exists()) await badFile.delete();
+        return ApiResponse(
+          success: false,
+          status: 'error',
+          error: 'Server trả về lỗi ${response.statusCode}',
+        );
+      }
+
+      return ApiResponse(
+        success: true,
+        data: response.headers.value('content-type'),
+      );
     } on DioError catch (e) {
+      try {
+        final badFile = File(savePath);
+        if (await badFile.exists()) await badFile.delete();
+      } catch (_) {}
       return _handleRequestError(e);
     }
   }
@@ -213,7 +240,9 @@ class ApiClient {
   Future<ApiResponse> responseWrapper(Future<Response<dynamic>> func) async {
     try {
       final Response<dynamic> response = await func;
-      if (response.statusCode == 204 || response.data == null || response.data.toString().trim().isEmpty) {
+      if (response.statusCode == 204 ||
+          response.data == null ||
+          response.data.toString().trim().isEmpty) {
         return ApiResponse(success: true, data: {});
       }
       if (response.data is List) {
@@ -226,7 +255,8 @@ class ApiClient {
         decode = response.data as Map<String?, dynamic>;
       } else {
         try {
-          decode = json.decode(response.data.toString()) as Map<String?, dynamic>;
+          decode =
+              json.decode(response.data.toString()) as Map<String?, dynamic>;
         } catch (_) {
           return ApiResponse(
             success: true,
@@ -271,7 +301,7 @@ class ApiClient {
     } catch (e) {
       debugPrint('Unhandled API Exception: $e');
       return ApiResponse(
-        success: false,         
+        success: false,
         status: 'error',
         error: Strings.localized.somethingWentWrong,
       );

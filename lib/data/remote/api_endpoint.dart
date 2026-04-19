@@ -87,6 +87,7 @@ class ApiEndpoint {
 
   // Phase 10: Attendance History
   static const String attendanceHistory = "/api/v1/attendance/history";
+  static const String attendanceExport = "/api/v1/attendance/export";
 
   // Metrics
   static const String metrics = "/api/v1/metrics";

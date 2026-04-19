@@ -1061,3 +1061,119 @@ class AttendanceService:
             skipped=skipped,
             results=results,
         )
+
+    # ── Export ────────────────────────────────────────────────────────────────
+    async def export_attendance(
+        self,
+        role: str,
+        user_id: str,
+        course_id: uuid.UUID | None = None,
+        from_date: datetime | None = None,
+        to_date: datetime | None = None,
+        format: str = "csv",
+    ) -> tuple[bytes, str, str]:
+        """Generate binary data for attendance history export."""
+        from sqlalchemy import select
+        from app.models.session import Session as SessionModel
+        from app.models.course import Course as CourseModel
+        from app.models.room import Room as RoomModel
+        from app.models.student import Student as StudentModel
+        from app.models.user import User as UserModel
+        from sqlalchemy.orm import selectinload
+        from zoneinfo import ZoneInfo
+        import io
+        import csv
+
+        vn_tz = ZoneInfo("Asia/Ho_Chi_Minh")
+
+        def format_time_vn(dt: datetime | None) -> str:
+            if not dt:
+                return ""
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc).astimezone(vn_tz).strftime("%Y-%m-%d %H:%M:%S")
+            return dt.astimezone(vn_tz).strftime("%Y-%m-%d %H:%M:%S")
+
+        base_stmt = (
+            select(Attendance, StudentModel, SessionModel, CourseModel, RoomModel, UserModel)
+            .join(StudentModel, Attendance.student_id == StudentModel.id)
+            .join(UserModel, StudentModel.user_id == UserModel.id)
+            .join(SessionModel, Attendance.session_id == SessionModel.id)
+            .join(CourseModel, SessionModel.course_id == CourseModel.id)
+            .outerjoin(RoomModel, CourseModel.room_id == RoomModel.id)
+            .where(Attendance.deleted_at.is_(None))
+        )
+
+        user_uuid = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+
+        if role == "student":
+            user_res = await self.db.execute(
+                select(UserModel).options(selectinload(UserModel.student_profile)).where(UserModel.id == user_uuid)
+            )
+            user_obj = user_res.scalar_one_or_none()
+            if not user_obj or not user_obj.student_profile:
+                return b"", "csv", "text/csv"
+            base_stmt = base_stmt.where(Attendance.student_id == user_obj.student_profile.id)
+        elif role == "teacher":
+            user_res = await self.db.execute(
+                select(UserModel).options(selectinload(UserModel.teacher_profile)).where(UserModel.id == user_uuid)
+            )
+            user_obj = user_res.scalar_one_or_none()
+            if not user_obj or not user_obj.teacher_profile:
+                return b"", "csv", "text/csv"
+            base_stmt = base_stmt.where(CourseModel.teacher_id == user_obj.teacher_profile.id)
+
+        if course_id:
+            base_stmt = base_stmt.where(CourseModel.id == course_id)
+        if from_date:
+            base_stmt = base_stmt.where(Attendance.checkin_time >= from_date)
+        if to_date:
+            base_stmt = base_stmt.where(Attendance.checkin_time <= to_date)
+
+        base_stmt = base_stmt.order_by(Attendance.checkin_time.asc())
+        result = await self.db.execute(base_stmt)
+        rows = result.all()
+
+        headers = ["Mã SV", "Tên học sinh", "Học phần", "Thời gian", "Trạng thái", "Sớm/Trễ (phút)"]
+
+        if format == "excel":
+            try:
+                import openpyxl
+            except ImportError:
+                format = "csv" # Fallback to csv if openpyxl not available
+            else:
+                wb = openpyxl.Workbook()
+                ws = wb.active
+                ws.title = "Diem Danh"
+                ws.append(headers)
+                
+                for att, student, session, course, room, user_item in rows:
+                    time_str = format_time_vn(att.checkin_time)
+                    ws.append([
+                        student.student_code if student else "",
+                        user_item.full_name if user_item else "",
+                        course.course_name if course else "",
+                        time_str,
+                        att.status,
+                        att.minutes_diff if att.minutes_diff is not None else ""
+                    ])
+                
+                stream = io.BytesIO()
+                wb.save(stream)
+                return stream.getvalue(), "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+        # CSV Export (Default)
+        stream = io.StringIO()
+        writer = csv.writer(stream)
+        writer.writerow(headers)
+        for att, student, session, course, room, user_item in rows:
+            time_str = format_time_vn(att.checkin_time)
+            writer.writerow([
+                student.student_code if student else "",
+                user_item.full_name if user_item else "",
+                course.course_name if course else "",
+                time_str,
+                att.status,
+                att.minutes_diff if att.minutes_diff is not None else ""
+            ])
+        # Return as bytes with utf-8-sig for Excel compatibility
+        return stream.getvalue().encode('utf-8-sig'), "csv", "text/csv"

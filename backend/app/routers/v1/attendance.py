@@ -2,7 +2,9 @@ import uuid
 """v1 Attendance router — /api/v1/attendance endpoints (unified session-based)."""
 import uuid
 from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime
 
 from app.core.security import get_current_user_id
 from app.core.database import get_db
@@ -66,6 +68,50 @@ async def get_attendance_history(
         limit=limit,
     )
 
+@router.get("/export")
+async def export_attendance(
+    course_id: uuid.UUID | None = Query(None),
+    from_date: datetime | None = Query(None),
+    to_date: datetime | None = Query(None),
+    format: str = Query("csv"),
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """GET /api/v1/attendance/export — Export role-based attendance history."""
+    from datetime import timedelta
+    
+    # Adjust to_date to the end of the day so it includes records for that day
+    if to_date:
+        # If it was parsed from YYYY-MM-DD it will be exactly at midnight
+        if to_date.hour == 0 and to_date.minute == 0 and to_date.second == 0:
+            to_date = to_date + timedelta(hours=23, minutes=59, seconds=59)
+    from app.models.user import User
+    from sqlalchemy import select as sa_select
+    result = await db.execute(
+        sa_select(User).where(User.id == uuid.UUID(user_id))
+    )
+    user = result.scalar_one_or_none()
+    role = user.role.lower() if user and user.role else "student"
+
+    svc = AttendanceService(db)
+    content, ext, media_type = await svc.export_attendance(
+        role=role,
+        user_id=user_id,
+        course_id=course_id,
+        from_date=from_date,
+        to_date=to_date,
+        format=format.lower(),
+    )
+    
+    filename = f"attendance_export_{datetime.now().strftime('%Y%m%d%H%M%S')}.{ext}"
+
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )
 
 @router.post("/", response_model=AttendanceOut, status_code=status.HTTP_201_CREATED)
 async def create_attendance(

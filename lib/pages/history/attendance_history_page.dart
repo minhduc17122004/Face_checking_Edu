@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:face_time_keeping/pages/course/bloc/course_bloc.dart';
+import 'package:face_time_keeping/pages/course/bloc/course_state.dart';
 import 'package:face_time_keeping/common/enums/request_status.dart';
 import 'package:face_time_keeping/common/resources/app_colors.dart';
 import 'package:face_time_keeping/data/remote/attendance_history_service.dart';
@@ -118,14 +121,28 @@ class _AttendanceHistoryViewState extends State<_AttendanceHistoryView> {
           bottom: BorderSide(color: AppColors.slate200, width: 0.5),
         ),
       ),
-      alignment: Alignment.center,
-      child: const Text(
-        'LỊCH SỬ ĐIỂM DANH',
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: AppColors.slate900,
-        ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          const Text(
+            'LỊCH SỬ ĐIỂM DANH',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.slate900,
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: IconButton(
+              onPressed: () => _showExportDialog(context),
+              icon: const Icon(Icons.file_download, color: AppColors.primary),
+              tooltip: 'Xuất dữ liệu',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -415,5 +432,222 @@ class _AttendanceHistoryViewState extends State<_AttendanceHistoryView> {
         ),
       ),
     );
+  }
+
+  void _showExportDialog(BuildContext context) {
+    final courseBloc = getIt<CourseBloc>();
+    courseBloc.loadCourses(mine: true);
+    
+    String? selectedCourseId;
+    String? selectedCourseName;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: const Text('Xuất dữ liệu điểm danh', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                BlocBuilder<CourseBloc, CourseState>(
+                  bloc: courseBloc,
+                  builder: (context, state) {
+                    return DropdownButtonFormField<String?>(
+                      value: selectedCourseId,
+                      decoration: const InputDecoration(labelText: 'Lọc theo học phần'),
+                      isExpanded: true,
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('Tất cả học phần')),
+                        ...state.courses.map((c) => DropdownMenuItem(
+                          value: c.id,
+                          child: Text(c.courseName, overflow: TextOverflow.ellipsis),
+                        )),
+                      ],
+                      onChanged: (val) => setState(() {
+                        selectedCourseId = val;
+                        selectedCourseName = state.courses
+                            .where((c) => c.id == val).firstOrNull?.courseName;
+                      }),
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _performExport(
+                        courseId: selectedCourseId,
+                        courseName: selectedCourseName,
+                        format: 'csv',
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary.withOpacity(0.1),
+                      foregroundColor: AppColors.primary,
+                      elevation: 0,
+                    ),
+                    icon: const Icon(Icons.description_outlined),
+                    label: const Text('Xuất tất cả (CSV)'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now(),
+                      );
+                      if (date != null) {
+                        Navigator.pop(ctx);
+                        _performExport(
+                          courseId: selectedCourseId,
+                          courseName: selectedCourseName,
+                          fromDate: date,
+                          format: 'csv',
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary.withOpacity(0.1),
+                      foregroundColor: AppColors.primary,
+                      elevation: 0,
+                    ),
+                    icon: const Icon(Icons.date_range),
+                    label: const Text('Xuất từ ngày (CSV)'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _performExport(
+                        courseId: selectedCourseId,
+                        courseName: selectedCourseName,
+                        format: 'excel',
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary.withOpacity(0.1),
+                      foregroundColor: AppColors.primary,
+                      elevation: 0,
+                    ),
+                    icon: const Icon(Icons.table_chart_outlined),
+                    label: const Text('Xuất tất cả (Excel)'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now(),
+                      );
+                      if (date != null) {
+                        Navigator.pop(ctx);
+                        _performExport(
+                          courseId: selectedCourseId,
+                          courseName: selectedCourseName,
+                          fromDate: date,
+                          format: 'excel',
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary.withOpacity(0.1),
+                      foregroundColor: AppColors.primary,
+                      elevation: 0,
+                    ),
+                    icon: const Icon(Icons.date_range),
+                    label: const Text('Xuất từ ngày (Excel)'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: TextButton.styleFrom(foregroundColor: AppColors.slate500),
+              child: const Text('Hủy'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _performExport({
+    String? courseId,
+    String? courseName,
+    DateTime? fromDate,
+    required String format,
+  }) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: AppColors.primary),
+                SizedBox(height: 16),
+                Text('Đang tải file...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final service = getIt<AttendanceHistoryService>();
+      final result = await service.downloadExportFile(
+        courseId: courseId,
+        fromDate: fromDate,
+        toDate: DateTime.now(),
+        format: format,
+        courseName: courseName,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Đóng thẻ tải
+
+      if (result.error == null && result.data != null) {
+        await Share.shareXFiles(
+          [XFile(result.data!)],
+          text: 'Báo Cáo Điểm Danh',
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Xuất file sẵn sàng!'), backgroundColor: Colors.green),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.error ?? 'Xuất file thất bại'), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // Đóng thẻ tải nếu lỗi ngầm định
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Có lỗi xảy ra: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 }

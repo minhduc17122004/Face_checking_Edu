@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:face_time_keeping/common/utils/log_util.dart';
 import 'package:injectable/injectable.dart';
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../common/api_client/api_client.dart';
 import '../../common/api_client/data_state.dart';
@@ -81,6 +85,14 @@ abstract class AttendanceHistoryService {
     int skip = 0,
     int limit = 50,
   });
+
+  Future<DataState<String>> downloadExportFile({
+    String? courseId,
+    DateTime? fromDate,
+    DateTime? toDate,
+    required String format,
+    String? courseName,
+  });
 }
 
 @LazySingleton(as: AttendanceHistoryService)
@@ -118,6 +130,63 @@ class AttendanceHistoryServiceImpl implements AttendanceHistoryService {
     } on Exception catch (e) {
       await pushLog('Error in getHistory: \$e');
       return DataFailed<List<AttendanceHistoryItem>>(e.toString());
+    }
+  }
+
+  @override
+  Future<DataState<String>> downloadExportFile({
+    String? courseId,
+    DateTime? fromDate,
+    DateTime? toDate,
+    required String format,
+    String? courseName,
+  }) async {
+    try {
+      final dir = await getTemporaryDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final tempPath = '${dir.path}/temp_export_$timestamp';
+
+      final response = await _apiClient.download(
+        path: ApiEndpoint.attendanceExport,
+        savePath: tempPath,
+        queryParameters: {
+          'format': format,
+          if (courseId != null) 'course_id': courseId,
+          if (fromDate != null) 'from_date': fromDate.toIso8601String().split('T').first,
+          if (toDate != null) 'to_date': toDate.toIso8601String().split('T').first,
+        },
+      );
+
+      if (response.isSuccess()) {
+        final tempFile = File(tempPath);
+        if (await tempFile.exists() && (await tempFile.length()) > 0) {
+          // Identify real extension from content-type header
+          final contentType = response.data?.toString().toLowerCase() ?? '';
+          String realExt = format == 'excel' ? 'xlsx' : 'csv';
+          
+          if (contentType.contains('spreadsheetml') || contentType.contains('excel')) {
+            realExt = 'xlsx';
+          } else if (contentType.contains('csv')) {
+            realExt = 'csv';
+          }
+
+          final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+          final safeName = (courseName ?? 'TatCa')
+              .replaceAll(RegExp(r'[^\w\s]'), '')
+              .replaceAll(' ', '_');
+          final finalFileName = 'Diem_Danh_${safeName}_$dateStr.$realExt';
+          final finalPath = '${dir.path}/$finalFileName';
+
+          final savedFile = await tempFile.rename(finalPath);
+          return DataSuccess<String>(savedFile.path);
+        }
+        return const DataFailed<String>('File tải về bị rỗng');
+      }
+      return DataFailed<String>(response.error ?? 'Download thất bại');
+    } on DioError catch (e) {
+      return DataFailed<String>(e.message ?? 'Lỗi kết nối');
+    } catch (e) {
+      return DataFailed<String>(e.toString());
     }
   }
 }

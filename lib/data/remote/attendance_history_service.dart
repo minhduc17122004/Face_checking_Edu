@@ -1,9 +1,11 @@
 import 'dart:io';
 
+import 'package:diacritic/diacritic.dart';
 import 'package:dio/dio.dart';
 import 'package:face_time_keeping/common/utils/log_util.dart';
 import 'package:injectable/injectable.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../common/api_client/api_client.dart';
@@ -24,6 +26,7 @@ class AttendanceHistoryItem {
   final DateTime checkinTime;
   final String status;
   final int? minutesDiff;
+  final bool isSpoof;
 
   const AttendanceHistoryItem({
     required this.id,
@@ -38,6 +41,7 @@ class AttendanceHistoryItem {
     required this.checkinTime,
     required this.status,
     this.minutesDiff,
+    this.isSpoof = false,
   });
 
   factory AttendanceHistoryItem.fromJson(Map<String, dynamic> json) {
@@ -56,6 +60,7 @@ class AttendanceHistoryItem {
       checkinTime: DateTime.parse(json['checkin_time'] as String),
       status: json['status'] as String,
       minutesDiff: json['minutes_diff'] as int?,
+      isSpoof: json['is_spoof'] as bool? ?? false,
     );
   }
 
@@ -99,6 +104,9 @@ abstract class AttendanceHistoryService {
 class AttendanceHistoryServiceImpl implements AttendanceHistoryService {
   AttendanceHistoryServiceImpl(this._apiClient);
   final ApiClient _apiClient;
+  static final DateFormat _fileDateFormat = DateFormat('yyyy-MM-dd');
+  static final RegExp _invalidFileNameChars = RegExp(r'[^A-Za-z0-9_ -]+');
+  static final RegExp _fileNameSeparators = RegExp(r'[\s_-]+');
 
   @override
   Future<DataState<List<AttendanceHistoryItem>>> getHistory({
@@ -115,12 +123,18 @@ class AttendanceHistoryServiceImpl implements AttendanceHistoryService {
           'limit': limit,
         },
       );
-      
+
       if (response.isSuccess()) {
         final json = response.data as Map<String, dynamic>;
         final items = json['items'] as List<dynamic>? ?? [];
         return DataSuccess<List<AttendanceHistoryItem>>(
-          items.map((e) => AttendanceHistoryItem.fromJson(e as Map<String, dynamic>)).toList(),
+          items
+              .map(
+                (e) => AttendanceHistoryItem.fromJson(
+                  e as Map<String, dynamic>,
+                ),
+              )
+              .toList(),
         );
       }
       return DataFailed<List<AttendanceHistoryItem>>(response.error);
@@ -144,7 +158,7 @@ class AttendanceHistoryServiceImpl implements AttendanceHistoryService {
     try {
       final dir = await getTemporaryDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final tempPath = '${dir.path}/temp_export_$timestamp';
+      final tempPath = p.join(dir.path, 'temp_export_$timestamp');
 
       final response = await _apiClient.download(
         path: ApiEndpoint.attendanceExport,
@@ -152,8 +166,8 @@ class AttendanceHistoryServiceImpl implements AttendanceHistoryService {
         queryParameters: {
           'format': format,
           if (courseId != null) 'course_id': courseId,
-          if (fromDate != null) 'from_date': fromDate.toIso8601String().split('T').first,
-          if (toDate != null) 'to_date': toDate.toIso8601String().split('T').first,
+          if (fromDate != null) 'from_date': _fileDateFormat.format(fromDate),
+          if (toDate != null) 'to_date': _fileDateFormat.format(toDate),
         },
       );
 
@@ -163,19 +177,25 @@ class AttendanceHistoryServiceImpl implements AttendanceHistoryService {
           // Identify real extension from content-type header
           final contentType = response.data?.toString().toLowerCase() ?? '';
           String realExt = format == 'excel' ? 'xlsx' : 'csv';
-          
-          if (contentType.contains('spreadsheetml') || contentType.contains('excel')) {
+
+          if (contentType.contains('spreadsheetml') ||
+              contentType.contains('excel')) {
             realExt = 'xlsx';
           } else if (contentType.contains('csv')) {
             realExt = 'csv';
           }
 
-          final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-          final safeName = (courseName ?? 'TatCa')
-              .replaceAll(RegExp(r'[^\w\s]'), '')
-              .replaceAll(' ', '_');
-          final finalFileName = 'Diem_Danh_${safeName}_$dateStr.$realExt';
-          final finalPath = '${dir.path}/$finalFileName';
+          final finalFileName = _buildExportFileName(
+            courseName: courseName,
+            fromDate: fromDate,
+            exportedAt: toDate ?? DateTime.now(),
+            extension: realExt,
+          );
+          final finalPath = p.join(dir.path, finalFileName);
+          final existingFile = File(finalPath);
+          if (await existingFile.exists()) {
+            await existingFile.delete();
+          }
 
           final savedFile = await tempFile.rename(finalPath);
           return DataSuccess<String>(savedFile.path);
@@ -189,4 +209,30 @@ class AttendanceHistoryServiceImpl implements AttendanceHistoryService {
       return DataFailed<String>(e.toString());
     }
   }
+
+  static String _buildExportFileName({
+    required String? courseName,
+    required DateTime? fromDate,
+    required DateTime exportedAt,
+    required String extension,
+  }) {
+    final safeCourseName = _sanitizeFileNamePart(courseName);
+    final today = _fileDateFormat.format(exportedAt);
+    final fromDatePart =
+        fromDate != null ? '${_fileDateFormat.format(fromDate)}_' : '';
+
+    return 'Diem_Danh_${safeCourseName}_$fromDatePart$today.$extension';
+  }
+
+  static String _sanitizeFileNamePart(String? value) {
+    final input =
+        value?.trim().isNotEmpty == true ? value!.trim() : 'TatCa';
+    final sanitized = removeDiacritics(input)
+        .replaceAll(_invalidFileNameChars, ' ')
+        .replaceAll(_fileNameSeparators, '_')
+        .replaceAll(RegExp(r'^_+|_+$'), '');
+
+    return sanitized.isEmpty ? 'TatCa' : sanitized;
+  }
+
 }

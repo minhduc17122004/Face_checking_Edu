@@ -28,7 +28,8 @@ abstract class CourseService {
     int customWindowStartMinutes = 30,
     int customWindowEndMinutes = 30,
     int? dayOfWeek,
-    int? timeSlotId,
+    int? startTimeSlotId,
+    int? endTimeSlotId,
     int? totalSessions,
     int? credits,
   });
@@ -43,7 +44,8 @@ abstract class CourseService {
     int? customWindowStartMinutes,
     int? customWindowEndMinutes,
     int? dayOfWeek,
-    int? timeSlotId,
+    int? startTimeSlotId,
+    int? endTimeSlotId,
     int? totalSessions,
     int? credits,
   });
@@ -128,7 +130,8 @@ class CourseServiceImplement implements CourseService {
     int customWindowStartMinutes = 30,
     int customWindowEndMinutes = 30,
     int? dayOfWeek,
-    int? timeSlotId,
+    int? startTimeSlotId,
+    int? endTimeSlotId,
     int? totalSessions,
     int? credits,
   }) async {
@@ -145,7 +148,8 @@ class CourseServiceImplement implements CourseService {
           'custom_window_start_minutes': customWindowStartMinutes,
           'custom_window_end_minutes': customWindowEndMinutes,
           if (dayOfWeek != null) 'day_of_week': dayOfWeek,
-          if (timeSlotId != null) 'time_slot_id': timeSlotId,
+          if (startTimeSlotId != null) 'start_time_slot_id': startTimeSlotId,
+          if (endTimeSlotId != null) 'end_time_slot_id': endTimeSlotId,
           if (totalSessions != null) 'total_sessions': totalSessions,
           if (credits != null) 'credits': credits,
         },
@@ -179,7 +183,8 @@ class CourseServiceImplement implements CourseService {
     int? customWindowStartMinutes,
     int? customWindowEndMinutes,
     int? dayOfWeek,
-    int? timeSlotId,
+    int? startTimeSlotId,
+    int? endTimeSlotId,
     int? totalSessions,
     int? credits,
   }) async {
@@ -199,7 +204,8 @@ class CourseServiceImplement implements CourseService {
         data['custom_window_end_minutes'] = customWindowEndMinutes;
       }
       if (dayOfWeek != null) data['day_of_week'] = dayOfWeek;
-      if (timeSlotId != null) data['time_slot_id'] = timeSlotId;
+      if (startTimeSlotId != null) data['start_time_slot_id'] = startTimeSlotId;
+      if (endTimeSlotId != null) data['end_time_slot_id'] = endTimeSlotId;
       if (totalSessions != null) data['total_sessions'] = totalSessions;
       if (credits != null) data['credits'] = credits;
 

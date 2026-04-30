@@ -41,10 +41,11 @@ async def create_schedule(
         course_id=req.course_id,
         day_of_week=req.day_of_week,
         time_slot_id=req.time_slot_id,
+        end_time_slot_id=req.end_time_slot_id,
     )
     db.add(schedule)
     await db.flush()
-    await db.refresh(schedule, ["time_slot"])
+    await db.refresh(schedule, ["time_slot", "end_time_slot", "course"])
     return ScheduleWithTimeSlot.model_validate(schedule)
 
 
@@ -91,7 +92,7 @@ async def list_schedules(
     return ScheduleListWithTimeSlot(total=total, items=[ScheduleWithTimeSlot.model_validate(s) for s in items])
 
 
-@router.get("/{schedule_id}", response_model=ScheduleOut)
+@router.get("/{schedule_id}", response_model=ScheduleWithTimeSlot)
 async def get_schedule(
     schedule_id: uuid.UUID,
     user_id: str = Depends(get_current_user_id),
@@ -102,10 +103,10 @@ async def get_schedule(
     schedule = await repo.get_by_id(schedule_id)
     if not schedule or schedule.is_deleted:
         raise HTTPException(status_code=404, detail="Schedule not found.")
-    return ScheduleOut.model_validate(schedule)
+    return ScheduleWithTimeSlot.model_validate(schedule)
 
 
-@router.put("/{schedule_id}", response_model=ScheduleOut)
+@router.put("/{schedule_id}", response_model=ScheduleWithTimeSlot)
 async def update_schedule(
     schedule_id: uuid.UUID,
     req: ScheduleUpdate,
@@ -121,8 +122,10 @@ async def update_schedule(
         schedule,
         day_of_week=req.day_of_week,
         time_slot_id=req.time_slot_id,
+        end_time_slot_id=req.end_time_slot_id,
     )
-    return ScheduleOut.model_validate(updated)
+    await db.refresh(updated, ["time_slot", "end_time_slot", "course"])
+    return ScheduleWithTimeSlot.model_validate(updated)
 
 
 @router.delete("/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)

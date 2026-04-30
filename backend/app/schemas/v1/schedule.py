@@ -12,6 +12,7 @@ class ScheduleCreate(BaseModel):
     course_id: uuid.UUID
     day_of_week: int = Field(ge=1, le=7)
     time_slot_id: int
+    end_time_slot_id: Optional[int] = Field(None, ge=1)
 
 
 class ScheduleUpdate(BaseModel):
@@ -19,6 +20,7 @@ class ScheduleUpdate(BaseModel):
 
     day_of_week: Optional[int] = Field(None, ge=1, le=7)
     time_slot_id: Optional[int] = None
+    end_time_slot_id: Optional[int] = Field(None, ge=1)
 
 
 class ScheduleOut(BaseModel):
@@ -26,6 +28,7 @@ class ScheduleOut(BaseModel):
     course_id: uuid.UUID
     day_of_week: int
     time_slot_id: int
+    end_time_slot_id: Optional[int] = None
     course_name: str
     created_at: datetime
 
@@ -36,6 +39,7 @@ class ScheduleWithTimeSlot(ScheduleOut):
     """Response that includes the joined time_slot object."""
 
     time_slot: Optional[TimeSlotOut] = None
+    end_time_slot: Optional[TimeSlotOut] = None
 
 
 class ScheduleList(BaseModel):

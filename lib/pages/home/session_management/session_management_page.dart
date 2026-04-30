@@ -70,16 +70,9 @@ class _SessionManagementPageState extends State<SessionManagementPage> {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              final sessions = state.sessions;
-
-              final scheduledSessions =
-                  sessions.where((s) => s.mappedStatus == 'NOT_OPEN').toList();
-              final activeSessions = sessions
-                  .where((s) =>
-                      s.mappedStatus == 'OPEN' || s.mappedStatus == 'CAN_OPEN')
-                  .toList();
-              final closedSessions =
-                  sessions.where((s) => s.mappedStatus == 'CLOSED').toList();
+              final scheduledSessions = state.scheduledSessions;
+              final activeSessions = state.activeSessions;
+              final closedSessions = state.closedSessions;
 
               return Column(
                 children: [
@@ -95,7 +88,7 @@ class _SessionManagementPageState extends State<SessionManagementPage> {
                         SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Danh sách dưới đây chỉ hiển thị các phiên điểm danh của ngày hôm nay.',
+                            'Danh sách dưới đây chỉ hiển thị các phiên điểm danh trong tuần hiện tại.',
                             style: TextStyle(
                               fontSize: 13,
                               color: AppColors.primary,
@@ -198,7 +191,9 @@ class _SessionCard extends StatelessWidget {
     required this.tabType,
   });
 
-  bool get _showToggleButtons => tabType == SessionTabType.active;
+  bool get _showToggleButtons =>
+      tabType == SessionTabType.active ||
+      session.attendanceMode == SessionAttendanceMode.flexible;
 
   bool get _canClose => session.canClose;
   bool get _canOpen => session.canOpen;

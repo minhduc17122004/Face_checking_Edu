@@ -282,6 +282,7 @@ class _RoomSessionDialog extends StatelessWidget {
               FilledButton.icon(
                 onPressed: () {
                   Navigator.of(context).pop();
+                  getIt<LocalService>().saveActiveCourseName(activeSession.courseName);
                   AppNavigator.pushNamed(
                     RouterName.checking,
                     arguments: CheckingArgs(
@@ -306,6 +307,7 @@ class _RoomSessionDialog extends StatelessWidget {
               FilledButton.icon(
                 onPressed: () {
                   Navigator.of(context).pop(); // close session dialog
+                  getIt<LocalService>().saveActiveCourseName(activeSession.courseName);
                   AppNavigator.pushNamed(
                     RouterName.checking,
                     arguments: CheckingArgs(
@@ -476,7 +478,9 @@ class _RoomSessionDialog extends StatelessWidget {
           const SizedBox(height: 14),
           // Course name
           Text(
-            session.courseName,
+            session.courseCode != null
+                ? '${session.courseName} (${session.courseCode})'
+                : session.courseName,
             style: const TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.bold,
@@ -484,6 +488,12 @@ class _RoomSessionDialog extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
+          if (session.teacherName != null) ...[
+            _infoRow(Icons.co_present, 'Giáo viên: ${session.teacherName}'),
+            const SizedBox(height: 6),
+          ],
+          _infoRow(Icons.people_outline, 'Sĩ số: ${session.totalEnrolled} sinh viên'),
+          const SizedBox(height: 6),
           // Time info
           _infoRow(Icons.access_time, '$startFmt – $endFmt'),
           const SizedBox(height: 6),

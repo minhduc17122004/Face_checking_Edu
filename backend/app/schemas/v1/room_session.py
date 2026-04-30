@@ -14,6 +14,8 @@ class RoomSessionResponse(BaseModel):
     id: uuid.UUID
     course_id: uuid.UUID
     course_name: str
+    course_code: Optional[str] = None
+    teacher_name: Optional[str] = None
     session_date: date
     start_time: datetime
     end_time: Optional[datetime]

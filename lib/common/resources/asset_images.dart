@@ -33,6 +33,7 @@ class AssetImages {
   static const String icHistoryPause = 'assets/images/svg/ic_history_pause.svg';
   static const String imgUltraMaDevice = 'assets/images/png/img_ultrama.png';
   static const String imgSplash = 'assets/images/png/img_splash.png';
+  static const String imgCardImage = 'assets/images/card_image.png';
 }
 
 extension ConvertToImage on String {

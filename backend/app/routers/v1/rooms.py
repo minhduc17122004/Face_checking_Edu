@@ -115,6 +115,7 @@ async def list_room_courses(
             selectinload(Course.room),
             selectinload(Course.enrollments),
             selectinload(Course.schedules).joinedload(Schedule.time_slot),
+            selectinload(Course.schedules).joinedload(Schedule.end_time_slot),
         )
         .offset(skip)
         .limit(limit)
@@ -123,4 +124,4 @@ async def list_room_courses(
     courses = result.scalars().all()
     from app.services.course_service import CourseService
     course_svc = CourseService(db)
-    return [await course_svc._build_course_out(c) for c in courses]
+    return await course_svc._build_course_list_out(courses)

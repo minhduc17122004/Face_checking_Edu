@@ -17,7 +17,9 @@ class CourseCreate(BaseModel):
     custom_window_start_minutes: int = Field(default=0, ge=0, le=120)
     custom_window_end_minutes: int = Field(default=30, ge=0, le=240)
     day_of_week: Optional[int] = Field(None, ge=1, le=7, description="Day of week (1=Mon, 7=Sun)")
-    time_slot_id: Optional[int] = Field(None, description="Time slot ID to create a schedule entry")
+    time_slot_id: Optional[int] = Field(None, description="[Deprecated] Single time slot ID — use start_time_slot_id + end_time_slot_id instead")
+    start_time_slot_id: Optional[int] = Field(None, description="Starting time slot ID (inclusive). If only this is set without end_time_slot_id, creates a single slot schedule.")
+    end_time_slot_id: Optional[int] = Field(None, description="Ending time slot ID (inclusive). Must be >= start_time_slot_id.")
     total_sessions: Optional[int] = Field(None, description="Tổng số buổi học", ge=1)
     credits: Optional[int] = Field(None, description="Số tín chỉ", ge=0)
 
@@ -34,7 +36,9 @@ class CourseUpdate(BaseModel):
     custom_window_start_minutes: Optional[int] = Field(None, ge=0, le=120)
     custom_window_end_minutes: Optional[int] = Field(None, ge=0, le=240)
     day_of_week: Optional[int] = Field(None, ge=1, le=7)
-    time_slot_id: Optional[int] = Field(None)
+    time_slot_id: Optional[int] = Field(None, description="[Deprecated] Single time slot ID")
+    start_time_slot_id: Optional[int] = Field(None, description="Starting time slot ID (inclusive)")
+    end_time_slot_id: Optional[int] = Field(None, description="Ending time slot ID (inclusive). Must be >= start_time_slot_id.")
     total_sessions: Optional[int] = Field(None, description="Tổng số buổi học", ge=1)
     credits: Optional[int] = Field(None, description="Số tín chỉ", ge=0)
 
@@ -59,8 +63,14 @@ class CourseOut(BaseModel):
     room_name: Optional[str] = None
     enrolled_count: int = 0
     day_of_week: Optional[int] = None
+    # Single slot (backward compat — set to start_time_slot_id)
     time_slot_id: Optional[int] = None
     time_slot_name: Optional[str] = None
+    # Multi-slot range
+    start_time_slot_id: Optional[int] = None
+    end_time_slot_id: Optional[int] = None
+    start_time_slot_name: Optional[str] = None
+    end_time_slot_name: Optional[str] = None
     total_sessions: Optional[int] = None
     credits: Optional[int] = None
     is_active: bool = True

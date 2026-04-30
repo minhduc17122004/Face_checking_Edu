@@ -43,6 +43,15 @@ abstract class SessionService {
   Future<DataState<Session>> getTeacherActiveOrNextSession();
   Future<DataState<List<Session>>> getTeacherSessions({
     DateTime? date,
+    DateTime? dateFrom,
+    DateTime? dateTo,
+    int? limit,
+    int? offset,
+  });
+  Future<DataState<List<Session>>> getAdminSessions({
+    DateTime? date,
+    DateTime? dateFrom,
+    DateTime? dateTo,
     int? limit,
     int? offset,
   });
@@ -346,12 +355,20 @@ class SessionServiceImplement implements SessionService {
   @override
   Future<DataState<List<Session>>> getTeacherSessions({
     DateTime? date,
+    DateTime? dateFrom,
+    DateTime? dateTo,
     int? limit,
     int? offset,
   }) async {
     try {
       final queryParams = <String, dynamic>{};
-      if (date != null) {
+      if (dateFrom != null && dateTo != null) {
+        // Ưu tiên khoảng ngày nếu được cung cấp
+        queryParams['date_from'] =
+            '${dateFrom.year}-${dateFrom.month.toString().padLeft(2, '0')}-${dateFrom.day.toString().padLeft(2, '0')}';
+        queryParams['date_to'] =
+            '${dateTo.year}-${dateTo.month.toString().padLeft(2, '0')}-${dateTo.day.toString().padLeft(2, '0')}';
+      } else if (date != null) {
         queryParams['session_date'] =
             '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
       }
@@ -376,6 +393,49 @@ class SessionServiceImplement implements SessionService {
       return DataFailed<List<Session>>(e.message);
     } on Exception catch (e) {
       await pushLog('Error in getTeacherSessions: $e');
+      return DataFailed<List<Session>>(e.toString());
+    }
+  }
+  @override
+  Future<DataState<List<Session>>> getAdminSessions({
+    DateTime? date,
+    DateTime? dateFrom,
+    DateTime? dateTo,
+    int? limit,
+    int? offset,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (dateFrom != null && dateTo != null) {
+        queryParams['date_from'] =
+            '${dateFrom.year}-${dateFrom.month.toString().padLeft(2, '0')}-${dateFrom.day.toString().padLeft(2, '0')}';
+        queryParams['date_to'] =
+            '${dateTo.year}-${dateTo.month.toString().padLeft(2, '0')}-${dateTo.day.toString().padLeft(2, '0')}';
+      } else if (date != null) {
+        queryParams['session_date'] =
+            '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      }
+      if (limit != null) queryParams['limit'] = limit;
+      if (offset != null) queryParams['skip'] = offset;
+
+      final ApiResponse response = await _apiClient.get(
+        path: ApiEndpoint.sessionAdmin,
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
+      if (response.isSuccess()) {
+        final json = response.data as Map<String, dynamic>;
+        final items = json['items'] as List<dynamic>;
+        final sessions = items
+            .map((e) => Session.fromJson(e as Map<String, dynamic>))
+            .toList();
+        return DataSuccess<List<Session>>(sessions);
+      }
+      return DataFailed<List<Session>>(response.error);
+    } on DioError catch (e) {
+      await pushLog('Error in getAdminSessions: $e');
+      return DataFailed<List<Session>>(e.message);
+    } on Exception catch (e) {
+      await pushLog('Error in getAdminSessions: $e');
       return DataFailed<List<Session>>(e.toString());
     }
   }

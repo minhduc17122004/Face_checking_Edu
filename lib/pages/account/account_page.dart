@@ -270,14 +270,27 @@ class _AccountPageState extends State<AccountPage> {
           bottom: BorderSide(color: AppColors.slate200, width: 0.5),
         ),
       ),
-      alignment: Alignment.center,
-      child: const Text(
-        'HỒ SƠ TÀI KHOẢN',
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: AppColors.slate900,
-        ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.arrow_back, color: AppColors.slate900),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ),
+          const Text(
+            'HỒ SƠ TÀI KHOẢN',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.slate900,
+            ),
+          ),
+        ],
       ),
     );
   }

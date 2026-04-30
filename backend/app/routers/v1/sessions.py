@@ -13,7 +13,7 @@ from app.repositories.session_repository import SessionRepository
 from app.repositories.course_repository import CourseRepository
 from app.services.course_service import CourseService
 from app.services.attendance_service import AttendanceService
-from app.services.session_generator_service import SessionGeneratorService
+from app.services.session_generator_service import SessionGeneratorService, VIETNAM_TZ
 from app.services._authorization import check_course_owner, check_session_owner
 from app.schemas.v1.session import (
     SessionCreate,
@@ -58,9 +58,10 @@ def _session_out(s: any) -> SessionOut:
     return SessionOut(
         id=s.id,
         course_id=s.course_id,
+        course_code=getattr(s.course, "course_code", None) if s.course_id else None,
         course_name=getattr(s.course, "course_name", None) if s.course_id else None,
         schedule_id=s.schedule_id,
-        session_date=s.start_time.date() if s.start_time else None,
+        session_date=s.session_date,
         start_time=s.start_time,
         end_time=s.end_time,
         checkin_window_start=s.checkin_window_start,
@@ -69,6 +70,75 @@ def _session_out(s: any) -> SessionOut:
         mode=getattr(s.course, "attendance_mode", None) if s.course_id else None,
         created_at=s.created_at,
         updated_at=s.updated_at,
+        time_slot_name=getattr(s, "time_slot_name", None),
+    )
+
+
+def _extract_teacher_name(course: any) -> str | None:
+    """Extract full name from course.teacher.user eager-loaded chain."""
+    teacher = getattr(course, "teacher", None)
+    if not teacher:
+        return None
+    user = getattr(teacher, "user", None)
+    if not user:
+        return None
+    full_name = getattr(user, "full_name", None)
+    if not full_name:
+        first = getattr(user, "first_name", "") or ""
+        last = getattr(user, "last_name", "") or ""
+        full_name = f"{first} {last}".strip() or None
+    return full_name
+
+
+async def _get_enrolled_count_map(db: AsyncSession, course_ids: list) -> dict:
+    """Batch fetch enrolled student counts for a list of course IDs."""
+    if not course_ids:
+        return {}
+    from app.models.course_enrollment import CourseEnrollment
+    from sqlalchemy import func as sa_func
+    result = await db.execute(
+        select(CourseEnrollment.course_id, sa_func.count().label("cnt"))
+        .where(CourseEnrollment.course_id.in_(course_ids))
+        .group_by(CourseEnrollment.course_id)
+    )
+    return {str(row.course_id): row.cnt for row in result.all()}
+
+
+def _build_session_out(s: any, now, can_open: bool, can_close: bool, mode: str | None, enrolled_count: int = 0) -> SessionOut:
+    """Build a fully-populated SessionOut from an eager-loaded Session ORM object."""
+    course = s.course if s.course_id else None
+    return SessionOut(
+        id=s.id,
+        course_id=s.course_id,
+        course_code=getattr(course, "course_code", None),
+        course_name=getattr(course, "course_name", None),
+        teacher_name=_extract_teacher_name(course) if course else None,
+        schedule_id=s.schedule_id,
+        session_date=s.session_date,
+        start_time=s.start_time,
+        end_time=s.end_time,
+        checkin_window_start=s.checkin_window_start,
+        checkin_window_end=s.checkin_window_end,
+        status=s.status,
+        mode=mode,
+        mapped_status=_compute_mapped_status(
+            mode=mode,
+            raw_status=s.status,
+            start_time=s.start_time,
+            end_time=s.end_time,
+            checkin_window_start=s.checkin_window_start,
+            checkin_window_end=s.checkin_window_end,
+            can_open=can_open,
+            now=now,
+        ),
+        can_open=can_open,
+        can_close=can_close,
+        created_at=s.created_at,
+        updated_at=s.updated_at,
+        room_name=s.room_name,
+        day_of_week=s.day_of_week,
+        time_slot_name=s.time_slot_name,
+        enrolled_count=enrolled_count,
     )
 
 
@@ -94,7 +164,7 @@ async def _derive_session_ui_fields(
 
     can_open = (
         mode == "flexible"
-        and session.status in ("scheduled", "paused")
+        and session.status in ("scheduled", "paused", "closed")
         and previous_closed
         and is_in_window
     )
@@ -147,6 +217,7 @@ async def create_session(
     session = await repo.create(
         course_id=req.course_id,
         schedule_id=req.schedule_id,
+        session_date=req.session_date,
         start_time=start,
         end_time=end or req.end_time,
         checkin_window_start=req.checkin_window_start,
@@ -223,9 +294,56 @@ def _compute_mapped_status(
     return _map_session_status_for_ui(raw_status, can_open)
 
 
+@router.get("/admin", response_model=SessionList)
+async def list_admin_sessions(
+    session_date: date | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=500),
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """List ALL sessions for admin — supports session_date or date_from/date_to range."""
+    from app.models.user import User
+    from sqlalchemy import select
+
+    result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+    user = result.scalar_one_or_none()
+    if not user or user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin only.")
+
+    repo = SessionRepository(db)
+    items, total = await repo.list_for_admin(
+        session_date=session_date,
+        date_from=date_from,
+        date_to=date_to,
+        skip=skip,
+        limit=limit,
+    )
+
+    now = datetime.now(timezone.utc)
+    course_ids = list({str(s.course_id) for s in items if s.course_id})
+    enrolled_map = await _get_enrolled_count_map(db, [uuid.UUID(cid) for cid in course_ids])
+    session_outs = []
+    for s in items:
+        mode = getattr(s.course, "attendance_mode", None) if s.course_id else None
+        is_in_window = s.start_time <= now and (s.end_time is None or now <= s.end_time)
+        siblings = await repo.get_by_course(s.course_id, skip=0, limit=500)
+        previous_closed = all(x.status == "closed" for x in siblings if x.start_time < s.start_time)
+        can_open = mode == "flexible" and s.status in ("scheduled", "paused", "closed") and previous_closed and is_in_window
+        can_close = mode == "flexible" and s.status == "active"
+        enrolled = enrolled_map.get(str(s.course_id), 0)
+        session_outs.append(_build_session_out(s, now, can_open, can_close, mode, enrolled_count=enrolled))
+
+    return SessionList(total=total, items=session_outs)
+
+
 @router.get("/teacher", response_model=SessionList)
 async def list_teacher_sessions(
     session_date: date | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     user_id: str = Depends(get_current_user_id),
@@ -257,59 +375,26 @@ async def list_teacher_sessions(
         items, total = await repo.get_sessions_by_teacher(
             teacher_id=teacher_id,
             session_date=session_date,
+            date_from=date_from,
+            date_to=date_to,
             skip=skip,
             limit=limit,
         )
 
     now = datetime.now(timezone.utc)
+    course_ids = list({str(s.course_id) for s in items if s.course_id})
+    enrolled_map = await _get_enrolled_count_map(db, [uuid.UUID(cid) for cid in course_ids])
     session_outs = []
 
     for s in items:
-        # Use course attendance_mode directly; session-level override is rare
         mode = getattr(s.course, "attendance_mode", None) if s.course_id else None
-        is_in_window = s.start_time <= now and (
-            s.end_time is None or now <= s.end_time
-        )
+        is_in_window = s.start_time <= now and (s.end_time is None or now <= s.end_time)
         siblings = await repo.get_by_course(s.course_id, skip=0, limit=500)
-        previous = [x for x in siblings if x.start_time < s.start_time]
-        previous_closed = all(x.status == "closed" for x in previous)
-        can_open = (
-            mode == "flexible"
-            and s.status in ("scheduled", "paused")
-            and previous_closed
-            and is_in_window
-        )
+        previous_closed = all(x.status == "closed" for x in siblings if x.start_time < s.start_time)
+        can_open = mode == "flexible" and s.status in ("scheduled", "paused", "closed") and previous_closed and is_in_window
         can_close = mode == "flexible" and s.status == "active"
-
-        session_outs.append(SessionOut(
-            id=s.id,
-            course_id=s.course_id,
-            course_name=getattr(s.course, "course_name", None) if s.course_id else None,
-            schedule_id=s.schedule_id,
-            session_date=s.start_time.date() if s.start_time else None,
-            start_time=s.start_time,
-            end_time=s.end_time,
-            checkin_window_start=s.checkin_window_start,
-            checkin_window_end=s.checkin_window_end,
-            status=s.status,
-            mode=mode,
-            mapped_status=_compute_mapped_status(
-                mode=mode,
-                raw_status=s.status,
-                start_time=s.start_time,
-                end_time=s.end_time,
-                checkin_window_start=s.checkin_window_start,
-                checkin_window_end=s.checkin_window_end,
-                can_open=can_open,
-                now=now,
-            ),
-            can_open=can_open,
-            can_close=can_close,
-            created_at=s.created_at,
-            updated_at=s.updated_at,
-            room_name=s.room_name,
-            day_of_week=s.day_of_week,
-        ))
+        enrolled = enrolled_map.get(str(s.course_id), 0)
+        session_outs.append(_build_session_out(s, now, can_open, can_close, mode, enrolled_count=enrolled))
 
     return SessionList(total=total, items=session_outs)
 
@@ -367,12 +452,14 @@ async def get_session(
     from sqlalchemy.orm import selectinload
     from app.models.course import Course
     from app.models.session import Session
+    from app.models.schedule import Schedule
 
     result = await db.execute(
         select(Session)
         .options(
             selectinload(Session.course).selectinload(Course.room),
-            selectinload(Session.schedule)
+            selectinload(Session.schedule).selectinload(Schedule.time_slot),
+            selectinload(Session.schedule).selectinload(Schedule.end_time_slot),
         )
         .where(Session.id == session_id)
     )
@@ -478,8 +565,7 @@ async def open_session(
             status_code=400, detail="Only FLEXIBLE sessions can be opened manually."
         )
 
-    if session.status == "closed":
-        raise HTTPException(status_code=400, detail="Cannot open a closed session.")
+    # Removed limitation: Flexible sessions can be opened even if currently closed
     if session.status == "active":
         raise HTTPException(status_code=400, detail="Session is already open.")
 
@@ -505,19 +591,12 @@ async def open_session(
     session.status = "active"
     # Restore end_time from schedule if it was cleared by a previous manual close
     if session.end_time is None and session.schedule_id:
-        from app.repositories.schedule_repository import ScheduleRepository
-        from app.repositories.time_slot_repository import TimeSlotRepository
-        sch_repo = ScheduleRepository(db)
-        ts_repo = TimeSlotRepository(db)
-        schedule = await sch_repo.get_by_id(session.schedule_id)
-        if schedule and schedule.time_slot_id:
-            ts = await ts_repo.get_by_id(schedule.time_slot_id)
-            if ts:
-                from datetime import time
-                end_t = ts.end_time if isinstance(ts.end_time, time) else ts.end_time
-                session.end_time = datetime.combine(
-                    session.start_time.date(), end_t
-                ).replace(tzinfo=timezone.utc)
+        schedule = session.schedule
+        if schedule and schedule.time_slot:
+            end_slot = schedule.end_time_slot or schedule.time_slot
+            session.end_time = datetime.combine(
+                session.start_time.date(), end_slot.end_time
+            ).replace(tzinfo=session.start_time.tzinfo or timezone.utc)
     await db.commit()
     await db.refresh(session)
     return {"session_id": str(session.id), "status": "OPEN"}
@@ -555,10 +634,10 @@ async def close_session(
         session.status = "closed"
         return_status = "CLOSED"
     else:
-        # Temporarily pause — teacher can reopen later while window is still valid
-        # Use "scheduled" to avoid violating DB CheckConstraint("scheduled", "active", "closed")
-        session.status = "scheduled"
-        return_status = "CAN_OPEN"
+        # For flexible, teacher manually closed. Mark as closed so it appears in "Đã đóng" tab.
+        # They can still reopen it if the window hasn't expired.
+        session.status = "closed"
+        return_status = "CLOSED"
 
     await db.commit()
     await db.refresh(session)
@@ -605,8 +684,7 @@ async def generate_daily_sessions(
     If no date is provided, generates for today.
     External cron jobs or schedulers call this endpoint daily.
     """
-    from datetime import datetime, timezone
-    date_to_generate = target_date or datetime.now(timezone.utc).date()
+    date_to_generate = target_date or datetime.now(VIETNAM_TZ).date()
     svc = SessionGeneratorService(db)
     sessions = await svc.generate_sessions_for_date(date_to_generate)
     return {"generated": len(sessions), "date": str(date_to_generate)}

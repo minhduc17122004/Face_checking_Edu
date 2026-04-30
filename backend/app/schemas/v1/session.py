@@ -26,6 +26,7 @@ class SessionUpdate(BaseModel):
 class SessionOut(BaseModel):
     id: uuid.UUID
     course_id: uuid.UUID
+    course_code: Optional[str] = None
     course_name: Optional[str] = None
     schedule_id: uuid.UUID | None = None
     session_date: date | None = None
@@ -42,6 +43,12 @@ class SessionOut(BaseModel):
     updated_at: datetime
     room_name: Optional[str] = None
     day_of_week: Optional[int] = None
+    teacher_name: Optional[str] = None
+    time_slot_name: Optional[str] = None
+    present_count: int = 0
+    absent_count: int = 0
+    total_count: int = 0
+    enrolled_count: int = 0
 
     model_config = {"from_attributes": True}
 

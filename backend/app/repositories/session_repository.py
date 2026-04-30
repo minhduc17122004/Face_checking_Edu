@@ -5,7 +5,7 @@ from datetime import date
 from typing import Sequence
 
 from sqlalchemy import select, and_, func
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.session import Session
@@ -23,10 +23,39 @@ class SessionRepository(BaseRepository[Session]):
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
+    @staticmethod
+    def _session_schedule_load_options():
+        from app.models.course import Course as CourseModel
+        from app.models.teacher import Teacher as TeacherModel
+        from app.models.schedule import Schedule
+
+        return (
+            selectinload(Session.course).joinedload(CourseModel.room),
+            selectinload(Session.course)
+            .selectinload(CourseModel.teacher)
+            .selectinload(TeacherModel.user),
+            selectinload(Session.schedule).selectinload(Schedule.time_slot),
+            selectinload(Session.schedule).selectinload(Schedule.end_time_slot),
+        )
+
+    @staticmethod
+    def _append_session_date_filter(
+        conditions: list,
+        *,
+        session_date: date | None = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
+    ) -> None:
+        if date_from and date_to:
+            conditions.append(Session.session_date >= date_from)
+            conditions.append(Session.session_date <= date_to)
+        elif session_date:
+            conditions.append(Session.session_date == session_date)
+
     async def get_by_id(self, session_id: uuid.UUID) -> Session | None:
         result = await self.db.execute(
             select(Session)
-            .options(joinedload(Session.course))
+            .options(*self._session_schedule_load_options())
             .where(Session.id == session_id)
         )
         return result.scalar_one_or_none()
@@ -40,12 +69,7 @@ class SessionRepository(BaseRepository[Session]):
         limit: int = 100,
     ) -> Sequence[Session]:
         conditions = [Session.course_id == course_id, Session.deleted_at.is_(None)]
-        if session_date:
-            from datetime import datetime
-            start = datetime.combine(session_date, datetime.min.time())
-            end = datetime.combine(session_date, datetime.max.time())
-            conditions.append(Session.start_time >= start)
-            conditions.append(Session.start_time <= end)
+        self._append_session_date_filter(conditions, session_date=session_date)
         if status:
             conditions.append(Session.status == status)
         result = await self.db.execute(
@@ -77,15 +101,21 @@ class SessionRepository(BaseRepository[Session]):
         skip: int = 0,
         limit: int = 100,
     ) -> tuple[Sequence[Session], int]:
-        conditions = [Session.deleted_at.is_(None)]
+        from app.models.course import Course as CourseModel
+        from sqlalchemy import or_
+        # Hiển thị session nếu: course còn tồn tại, HOẶC session đã closed
+        # (course bị xoá mà session chưa đóng thì ẩn đi — session đã đóng thì vẫn giữ để toàn vẹn dữ liệu)
+        active_course_ids = select(CourseModel.id).where(CourseModel.deleted_at.is_(None))
+        conditions = [
+            Session.deleted_at.is_(None),
+            or_(
+                Session.course_id.in_(active_course_ids),
+                Session.status == "closed",
+            ),
+        ]
         if course_id:
             conditions.append(Session.course_id == course_id)
-        if session_date:
-            from datetime import datetime
-            start = datetime.combine(session_date, datetime.min.time())
-            end = datetime.combine(session_date, datetime.max.time())
-            conditions.append(Session.start_time >= start)
-            conditions.append(Session.start_time <= end)
+        self._append_session_date_filter(conditions, session_date=session_date)
         if status:
             conditions.append(Session.status == status)
         where_clause = and_(*conditions)
@@ -93,13 +123,9 @@ class SessionRepository(BaseRepository[Session]):
             select(func.count()).select_from(Session).where(where_clause)
         )
         total = count_result.scalar_one()
-        from app.models.course import Course as CourseModel
         result = await self.db.execute(
             select(Session)
-            .options(
-                joinedload(Session.course).joinedload(CourseModel.room),
-                joinedload(Session.schedule)
-            )
+            .options(*self._session_schedule_load_options())
             .where(where_clause)
             .offset(skip)
             .limit(limit)
@@ -140,6 +166,7 @@ class SessionRepository(BaseRepository[Session]):
         course_id: uuid.UUID,
         schedule_id: uuid.UUID | None = None,
         start_time,
+        session_date: date | None = None,
         end_time=None,
         checkin_window_start=None,
         checkin_window_end=None,
@@ -148,6 +175,7 @@ class SessionRepository(BaseRepository[Session]):
         session = Session(
             course_id=course_id,
             schedule_id=schedule_id,
+            session_date=session_date or start_time.date(),
             start_time=start_time,
             end_time=end_time,
             checkin_window_start=checkin_window_start,
@@ -251,12 +279,7 @@ class SessionRepository(BaseRepository[Session]):
             Session.course_id.in_(course_stmt),
             Session.deleted_at.is_(None),
         ]
-        if session_date:
-            from datetime import datetime
-            start = datetime.combine(session_date, datetime.min.time())
-            end = datetime.combine(session_date, datetime.max.time())
-            conditions.append(Session.start_time >= start)
-            conditions.append(Session.start_time <= end)
+        self._append_session_date_filter(conditions, session_date=session_date)
 
         result = await self.db.execute(
             select(Session)
@@ -277,7 +300,6 @@ class SessionRepository(BaseRepository[Session]):
     ) -> tuple[Sequence[Session], int]:
         """Get sessions for a room with active-first sorting + total count."""
         from app.models.course import Course as CourseModel
-        from datetime import datetime
         from sqlalchemy import case
 
         course_stmt = select(CourseModel.id).where(
@@ -291,11 +313,7 @@ class SessionRepository(BaseRepository[Session]):
             Session.course_id.in_(course_stmt),
             Session.deleted_at.is_(None),
         ]
-        if session_date:
-            start = datetime.combine(session_date, datetime.min.time())
-            end = datetime.combine(session_date, datetime.max.time())
-            conditions.append(Session.start_time >= start)
-            conditions.append(Session.start_time <= end)
+        self._append_session_date_filter(conditions, session_date=session_date)
 
         where_clause = and_(*conditions)
 
@@ -312,8 +330,8 @@ class SessionRepository(BaseRepository[Session]):
         result = await self.db.execute(
             select(Session)
             .options(
-                joinedload(Session.course),
-                joinedload(Session.attendance_config)
+                joinedload(Session.attendance_config),
+                *self._session_schedule_load_options(),
             )
             .where(where_clause)
             .order_by(active_order, Session.start_time.asc())
@@ -371,6 +389,8 @@ class SessionRepository(BaseRepository[Session]):
         self,
         teacher_id: int,
         session_date: date | None = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
         skip: int = 0,
         limit: int = 100,
     ) -> tuple[Sequence[Session], int]:
@@ -389,12 +409,12 @@ class SessionRepository(BaseRepository[Session]):
             Session.course_id.in_(course_stmt),
             Session.deleted_at.is_(None),
         ]
-        if session_date:
-            from datetime import datetime
-            start = datetime.combine(session_date, datetime.min.time())
-            end = datetime.combine(session_date, datetime.max.time())
-            conditions.append(Session.start_time >= start)
-            conditions.append(Session.start_time <= end)
+        self._append_session_date_filter(
+            conditions,
+            session_date=session_date,
+            date_from=date_from,
+            date_to=date_to,
+        )
 
         where_clause = and_(*conditions)
 
@@ -407,12 +427,55 @@ class SessionRepository(BaseRepository[Session]):
         # Data
         result = await self.db.execute(
             select(Session)
-            .options(
-                joinedload(Session.course).joinedload(CourseModel.room),
-                joinedload(Session.schedule)
-            )
+            .options(*self._session_schedule_load_options())
             .where(where_clause)
             .order_by(Session.start_time.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        return result.unique().scalars().all(), total
+
+    async def list_for_admin(
+        self,
+        session_date: date | None = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
+        skip: int = 0,
+        limit: int = 200,
+    ) -> tuple[Sequence[Session], int]:
+        """Return ALL sessions (admin view) with optional date filtering and full eager loading."""
+        from app.models.course import Course as CourseModel
+        from sqlalchemy import or_
+        # Hiển thị session nếu: course còn tồn tại, HOẶC session đã closed
+        # (course bị xoá mà session chưa đóng thì ẩn — session đã đóng thì giữ lại để toàn vẹn dữ liệu)
+        active_course_ids = select(CourseModel.id).where(CourseModel.deleted_at.is_(None))
+        conditions = [
+            Session.deleted_at.is_(None),
+            or_(
+                Session.course_id.in_(active_course_ids),
+                Session.status == "closed",
+            ),
+        ]
+
+        self._append_session_date_filter(
+            conditions,
+            session_date=session_date,
+            date_from=date_from,
+            date_to=date_to,
+        )
+
+        where_clause = and_(*conditions)
+
+        count_result = await self.db.execute(
+            select(func.count()).select_from(Session).where(where_clause)
+        )
+        total = count_result.scalar_one()
+
+        result = await self.db.execute(
+            select(Session)
+            .options(*self._session_schedule_load_options())
+            .where(where_clause)
+            .order_by(Session.start_time.asc())
             .offset(skip)
             .limit(limit)
         )

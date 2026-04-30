@@ -18,16 +18,22 @@ class CourseRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
+    @staticmethod
+    def _course_load_options():
+        schedule_load = selectinload(Course.schedules)
+        return (
+            joinedload(Course.teacher).joinedload(Teacher.user),
+            joinedload(Course.department),
+            joinedload(Course.room),
+            schedule_load.joinedload(Schedule.time_slot),
+            schedule_load.joinedload(Schedule.end_time_slot),
+        )
+
     # ── Read ──────────────────────────────────────────────────
     async def get_by_id(self, course_id: uuid.UUID) -> Course | None:
         result = await self.db.execute(
             select(Course)
-            .options(
-                joinedload(Course.teacher).joinedload(Teacher.user),
-                joinedload(Course.department),
-                joinedload(Course.room),
-                selectinload(Course.schedules).joinedload(Schedule.time_slot)
-            )
+            .options(*self._course_load_options())
             .where(
                 Course.id == course_id,
                 Course.deleted_at.is_(None),
@@ -38,12 +44,7 @@ class CourseRepository:
     async def get_all(self, skip: int = 0, limit: int = 200) -> Sequence[Course]:
         result = await self.db.execute(
             select(Course)
-            .options(
-                joinedload(Course.teacher).joinedload(Teacher.user),
-                joinedload(Course.department),
-                joinedload(Course.room),
-                selectinload(Course.schedules).joinedload(Schedule.time_slot)
-            )
+            .options(*self._course_load_options())
             .where(Course.deleted_at.is_(None))
             .offset(skip)
             .limit(limit)
@@ -56,12 +57,7 @@ class CourseRepository:
     ) -> Sequence[Course]:
         result = await self.db.execute(
             select(Course)
-            .options(
-                joinedload(Course.teacher).joinedload(Teacher.user),
-                joinedload(Course.department),
-                joinedload(Course.room),
-                selectinload(Course.schedules).joinedload(Schedule.time_slot)
-            )
+            .options(*self._course_load_options())
             .where(
                 Course.teacher_id == teacher_id,
                 Course.deleted_at.is_(None),
@@ -81,12 +77,7 @@ class CourseRepository:
     async def search_by_name(self, name: str) -> Sequence[Course]:
         result = await self.db.execute(
             select(Course)
-            .options(
-                joinedload(Course.teacher).joinedload(Teacher.user),
-                joinedload(Course.department),
-                joinedload(Course.room),
-                selectinload(Course.schedules).joinedload(Schedule.time_slot)
-            )
+            .options(*self._course_load_options())
             .where(
                 Course.course_name.ilike(f"%{name}%"),
                 Course.deleted_at.is_(None),
@@ -101,12 +92,7 @@ class CourseRepository:
     ) -> Sequence[Course]:
         result = await self.db.execute(
             select(Course)
-            .options(
-                joinedload(Course.teacher).joinedload(Teacher.user),
-                joinedload(Course.department),
-                joinedload(Course.room),
-                selectinload(Course.schedules).joinedload(Schedule.time_slot)
-            )
+            .options(*self._course_load_options())
             .where(
                 Course.department_id == department_id,
                 Course.deleted_at.is_(None),
@@ -211,18 +197,36 @@ class CourseRepository:
         )
         return result.scalar_one()
 
+    async def count_enrolled_many(
+        self, course_ids: Sequence[uuid.UUID]
+    ) -> dict[uuid.UUID, int]:
+        """Return enrollment counts keyed by course_id."""
+        if not course_ids:
+            return {}
+
+        from app.models.course_enrollment import CourseEnrollment
+
+        result = await self.db.execute(
+            select(
+                CourseEnrollment.course_id,
+                sa_func.count().label("enrolled_count"),
+            )
+            .where(CourseEnrollment.course_id.in_(course_ids))
+            .group_by(CourseEnrollment.course_id)
+        )
+
+        counts = {course_id: 0 for course_id in course_ids}
+        for course_id, enrolled_count in result.all():
+            counts[course_id] = enrolled_count
+        return counts
+
     async def get_by_student(self, student_id: int) -> Sequence[Course]:
         """Return all courses a student is enrolled in."""
         from app.models.course_enrollment import CourseEnrollment
         result = await self.db.execute(
             select(Course)
             .join(CourseEnrollment, Course.id == CourseEnrollment.course_id)
-            .options(
-                joinedload(Course.teacher).joinedload(Teacher.user),
-                joinedload(Course.department),
-                joinedload(Course.room),
-                selectinload(Course.schedules).joinedload(Schedule.time_slot)
-            )
+            .options(*self._course_load_options())
             .where(
                 CourseEnrollment.student_id == student_id,
                 Course.deleted_at.is_(None),
@@ -235,12 +239,7 @@ class CourseRepository:
         """Return courses created by a specific user UUID."""
         result = await self.db.execute(
             select(Course)
-            .options(
-                joinedload(Course.teacher).joinedload(Teacher.user),
-                joinedload(Course.department),
-                joinedload(Course.room),
-                selectinload(Course.schedules).joinedload(Schedule.time_slot)
-            )
+            .options(*self._course_load_options())
             .where(
                 Course.created_by == user_id,
                 Course.deleted_at.is_(None),

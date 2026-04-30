@@ -9,12 +9,13 @@ import 'package:injectable/injectable.dart';
 class CsvUtil {
   Future<File> exportCheckInOutToCsv(List<CheckInOut> entries) async {
     List<List<dynamic>> csvData = [
-      ["Mã học sinh", "Tên học sinh", "Thời gian", "Trạng thái"],
+      ["Mã học sinh", "Tên học sinh", "Thời gian", "Trạng thái", "Giả mạo"],
       ...entries.map((e) => [
             e.pin,
             e.name,
             _formatDateTime(e.time),
             _getStatusDisplay(e),
+            e.isSpoof ? 'Có' : 'Không',
           ])
     ];
 
@@ -36,7 +37,8 @@ class CsvUtil {
         "Mã học sinh",
         "Tên học sinh",
         "Thời gian",
-        "Trạng thái"
+        "Trạng thái",
+        "Giả mạo"
       ];
       sheet.appendRow(headers);
 
@@ -46,6 +48,7 @@ class CsvUtil {
           e.name ?? '',
           _formatDateTime(e.time),
           _getStatusDisplay(e),
+          e.isSpoof ? 'Có' : 'Không',
         ];
         sheet.appendRow(row);
       }

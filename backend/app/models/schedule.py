@@ -46,8 +46,13 @@ class Schedule(Base):
     )
 
     day_of_week: Mapped[int] = mapped_column(Integer, nullable=False)
+    # start slot (= the period number used for uniqueness / backward compat)
     time_slot_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("time_slots.id"), nullable=False
+    )
+    # end slot — NULL means single-period (same as time_slot_id)
+    end_time_slot_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("time_slots.id"), nullable=True
     )
 
     # Room is no longer stored on Schedule (Phase 9)
@@ -80,21 +85,27 @@ class Schedule(Base):
     )
 
     # ── Relationships ──────────────────────────────────────────
-    # Renamed: classroom → course
     course: Mapped["Course"] = relationship(
         "Course", back_populates="schedules"
     )
     time_slot: Mapped["TimeSlot"] = relationship(
-        "TimeSlot", back_populates="schedules"
+        "TimeSlot", back_populates="schedules",
+        foreign_keys="Schedule.time_slot_id",
+    )
+    end_time_slot: Mapped[Optional["TimeSlot"]] = relationship(
+        "TimeSlot",
+        foreign_keys="Schedule.end_time_slot_id",
+        primaryjoin="Schedule.end_time_slot_id == TimeSlot.id",
     )
     sessions: Mapped[List["Session"]] = relationship(
         "Session", back_populates="schedule"
     )
 
     def __repr__(self) -> str:
+        end = f"-{self.end_time_slot_id}" if self.end_time_slot_id else ""
         return (
             f"<Schedule id={self.id} course={self.course_id} "
-            f"day={self.day_of_week} slot={self.time_slot_id}>"
+            f"day={self.day_of_week} slot={self.time_slot_id}{end}>"
         )
 
     @property

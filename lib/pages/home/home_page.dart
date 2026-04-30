@@ -1,21 +1,31 @@
 import 'dart:async';
+import 'package:face_time_keeping/common/api_client/data_state.dart';
 import 'package:face_time_keeping/common/utils/log_util.dart';
 import 'package:face_time_keeping/common/event/event_bus_event.dart';
 import 'package:face_time_keeping/common/event/event_bus_mixin.dart';
-import 'package:face_time_keeping/pages/checking/checking_page.dart';
 import 'package:face_time_keeping/pages/setting/setting_page.dart';
+import 'package:face_time_keeping/pages/setting/spoof_list_page.dart';
+import 'package:face_time_keeping/pages/checking/checking_page.dart';
 import 'package:face_time_keeping/route/app_route.dart';
 import 'package:face_time_keeping/route/navigator.dart';
 import 'package:face_time_keeping/di/injection.dart';
 import 'package:face_time_keeping/data/local/local_service.dart';
 import 'package:face_time_keeping/common/resources/index.dart';
 import 'package:face_time_keeping/common/utils/widgets/spacing.dart';
+import 'package:face_time_keeping/data/remote/session_service.dart';
+import 'package:face_time_keeping/entities/session.dart';
+import 'package:face_time_keeping/common/enums/session_attendance_mode.dart';
+import 'package:face_time_keeping/pages/account/account_cubit.dart';
+import 'package:face_time_keeping/pages/widgets/app_dialog.dart';
 
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+
+const Duration _homeSessionRefreshInterval = Duration(minutes: 25);
+const Duration _fallbackSessionDuration = Duration(minutes: 45);
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -27,16 +37,95 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with EventBusMixin {
   late final LocalService _localService;
   StreamSubscription<AvatarChangedEvent>? _avatarChangedSubscription;
+  Timer? _sessionRefreshTimer;
   bool _showPinVerification = false;
   String _displayName = 'Người dùng';
   String _avatarPath = '';
+  List<Session>? _todaySessions;
+  String? _generatedSessionsDateKey;
+  bool _isLoadingSessions = false;
+
+  bool get _isTeacherOrAdmin {
+    final role = _localService.getUserRole().toLowerCase();
+    return role == 'teacher' || role == 'admin';
+  }
+
+  void _openSessionsFocus(Session selectedSession) {
+    final sessions = List<Session>.from(_todaySessions ?? <Session>[])
+      ..sort((a, b) {
+        final aTime = a.startTime;
+        final bTime = b.startTime;
+        return aTime.compareTo(
+            bTime); // tăng dần: cũ nhất (CLOSED) → mới nhất (NOT_OPEN)
+      });
+    if (sessions.isEmpty) return;
+
+    final initialIndex = sessions.indexWhere((e) => e.id == selectedSession.id);
+
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierDismissible: true,
+        barrierColor: Colors.black.withOpacity(0.50),
+        barrierLabel:
+            MaterialLocalizations.of(context).modalBarrierDismissLabel,
+        transitionDuration: const Duration(milliseconds: 320),
+        reverseTransitionDuration: const Duration(milliseconds: 220),
+        pageBuilder: (_, __, ___) {
+          return _SessionsFocusPage(
+            sessions: sessions,
+            initialIndex: initialIndex < 0 ? 0 : initialIndex,
+            isTeacherOrAdmin: _isTeacherOrAdmin,
+            onCheckIn: (session) {
+              Navigator.of(context).pop();
+
+              AppNavigator.pushNamed(
+                RouterName.checking,
+                arguments: const CheckingArgs(isCheckIn: true),
+              );
+            },
+            onOpen: (session) async {
+              Navigator.of(context).pop();
+              await _openSession(session.id);
+            },
+            onClose: (session) async {
+              Navigator.of(context).pop();
+              await _closeSession(session.id);
+            },
+          );
+        },
+        transitionsBuilder: (_, animation, __, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
+          );
+
+          return FadeTransition(
+            opacity: curved,
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.96, end: 1).animate(curved),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   @override
   void initState() {
     super.initState();
     _localService = getIt<LocalService>();
     _localService.initDefaultData();
-    _loadUserProfile();
+    _loadUserInfo();
+    _fetchTodaySessions();
+    _sessionRefreshTimer = Timer.periodic(_homeSessionRefreshInterval, (_) {
+      if (mounted && !_isLoadingSessions) {
+        _fetchTodaySessions();
+      }
+    });
+
     _avatarChangedSubscription =
         listenEvent<AvatarChangedEvent>(_onAvatarChanged);
   }
@@ -51,16 +140,113 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
     });
   }
 
-  void _loadUserProfile() {
-    final fullName = _localService.getUserFullName().trim();
-    final email = _localService.getUserEmail().trim();
+  Future<void> _loadUserInfo() async {
+    final name = _localService.getUserFullName();
+    final avatar = _localService.getAvatarPath();
+    if (mounted) {
+      setState(() {
+        _displayName = name.isNotEmpty ? name : 'Người dùng';
+        _avatarPath = avatar;
+      });
+    }
+  }
 
-    final fallbackName =
-        email.isNotEmpty ? email.split('@').first : 'Người dùng';
+  Future<void> _fetchTodaySessions() async {
+    if (!mounted) return;
     setState(() {
-      _displayName = fullName.isNotEmpty ? fullName : fallbackName;
-      _avatarPath = _localService.getAvatarPath();
+      _isLoadingSessions = true;
     });
+    try {
+      final sessionService = getIt<SessionService>();
+      final now = DateTime.now();
+      final todayKey = _dateKey(now);
+
+      if (_generatedSessionsDateKey != todayKey) {
+        final generateResult = await sessionService.generateDailySessions(now);
+        if (generateResult.isSuccess) {
+          _generatedSessionsDateKey = todayKey;
+        }
+      }
+
+      final role = _localService.getUserRole().toLowerCase();
+      final DataState<List<Session>> result;
+      if (role == 'admin') {
+        result = await sessionService.getAdminSessions(date: now);
+      } else if (role == 'teacher') {
+        result = await sessionService.getTeacherSessions(date: now);
+      } else {
+        result = await sessionService.getSessions(date: now);
+      }
+
+      if (result.isSuccess && mounted) {
+        final sessions = (result.data ?? [])
+            .where((session) => _isSameLocalDate(session.startTime, now))
+            .toList();
+        // Sắp xếp dựa trên mappedStatus do backend cung cấp (source of truth):
+        // OPEN → CAN_OPEN/NOT_OPEN/UPCOMING → CLOSED
+        sessions.sort((a, b) {
+          int score(Session s) {
+            final ms = (s.mappedStatus ?? '').toUpperCase();
+            if (ms == 'OPEN') return 1;
+            if (ms == 'CLOSED') return 3;
+            return 2; // NOT_OPEN, CAN_OPEN, UPCOMING
+          }
+
+          final sA = score(a);
+          final sB = score(b);
+          if (sA != sB) return sA.compareTo(sB);
+
+          if (sA == 3) {
+            // Đã đóng: gần nhất lên trước (giảm dần)
+            return (b.endTime ?? b.startTime)
+                .compareTo(a.endTime ?? a.startTime);
+          }
+          // Sắp / đang: thời gian bắt đầu tăng dần
+          return a.startTime.compareTo(b.startTime);
+        });
+        setState(() {
+          _todaySessions = sessions;
+        });
+      }
+    } catch (e) {
+      pushLog('Error fetching today sessions: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingSessions = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _openSession(String id) async {
+    final sessionService = getIt<SessionService>();
+    final result = await sessionService.activateSession(id);
+    if (result.isSuccess) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Mở phiên học thành công')));
+      _fetchTodaySessions();
+    } else {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result.error ?? 'Lỗi mở phiên')));
+    }
+  }
+
+  Future<void> _closeSession(String id) async {
+    final sessionService = getIt<SessionService>();
+    final result = await sessionService.closeSession(id);
+    if (result.isSuccess) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Đóng phiên học thành công')));
+      _fetchTodaySessions();
+    } else {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result.error ?? 'Lỗi đóng phiên')));
+    }
   }
 
   String _getGreetingByTime() {
@@ -86,7 +272,51 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
   @override
   void dispose() {
     _avatarChangedSubscription?.cancel();
+    _sessionRefreshTimer?.cancel();
     super.dispose();
+  }
+
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AppDialog(
+          title: 'Đăng xuất',
+          icon: Icons.logout,
+          accentColor: AppColors.red600,
+          content: const Text('Bạn có chắc chắn muốn đăng xuất?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.gray200,
+              ),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final accountCubit = getIt<AccountCubit>();
+                await accountCubit.logout();
+                if (!mounted) return;
+                Navigator.of(dialogContext).pop();
+                AppNavigator.pushNamedAndRemoveUntil(
+                  RouterName.login,
+                  (_) => false,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.red600,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Đăng xuất'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -115,13 +345,8 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 8),
-                    _buildCheckInCard(),
-                    const SizedBox(height: 24),
+                    _buildTodaySessionsCard(),
                     _buildQuickAccess(),
-                    const SizedBox(height: 24),
-                    _buildRecentActivity(),
-                    const SizedBox(height: 8),
                   ],
                 ),
               ),
@@ -141,7 +366,7 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
 
     if (isNetworkAvatar) {
       return CachedNetworkImage(
-        imageUrl: '$_avatarPath?t=${DateTime.now().millisecondsSinceEpoch}',
+        imageUrl: _avatarPath,
         imageBuilder: (context, imageProvider) => Container(
           width: 48,
           height: 48,
@@ -259,37 +484,18 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
               ],
             ),
           ),
-          // Notification button
+          // Logout button
           GestureDetector(
-            onTap: () {
-              // TODO: implement notifications
-            },
+            onTap: _showLogoutDialog,
             child: Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.slate200.withOpacity(0.5),
+              decoration: const BoxDecoration(
+                color: AppColors.red100,
                 shape: BoxShape.circle,
               ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const Icon(Icons.notifications_outlined,
-                      size: 22, color: AppColors.slate900),
-                  Positioned(
-                    top: 8,
-                    right: 9,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: AppColors.red,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              child:
+                  const Icon(Icons.logout, size: 22, color: AppColors.red600),
             ),
           ),
         ],
@@ -297,161 +503,121 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
     );
   }
 
-  // ── Check-in Hero Card ───────────────────────────────────
-  Widget _buildCheckInCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.35),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
+  Widget _buildTodaySessionsCard() {
+    final sessions = _todaySessions ?? <Session>[];
+
+    // Ưu tiên phiên học đang diễn ra gần nhất (startTime lớn nhất = bắt đầu muộn nhất)
+    final ongoingSessions = sessions.where(_sessionIsActive).toList()
+      ..sort((a, b) => b.startTime.compareTo(a.startTime));
+
+    final selectedSession = _selectTodayRepresentativeSession(
+      sessions,
+      DateTime.now(),
+    );
+
+    final displaySessions =
+        selectedSession == null ? <Session>[] : <Session>[selectedSession];
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // decorative circles
-          Positioned(
-            right: -30,
-            top: -30,
-            child: Container(
-              width: 140,
-              height: 140,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.08),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Positioned(
-            left: -30,
-            bottom: -10,
-            child: Container(
-              width: 110,
-              height: 110,
-              decoration: BoxDecoration(
-                color: Colors.blue[300]!.withOpacity(0.15),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child:
-                          const Icon(Icons.face, color: Colors.white, size: 24),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.green300.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(99),
-                        border: Border.all(
-                          color: AppColors.green300.withOpacity(0.3),
-                        ),
-                      ),
-                      child: const Text(
-                        'Đang diễn ra',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.green200,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Điểm danh ngay',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'CS101: Nhập môn trí tuệ nhân tạo',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.blue[100],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'TRẠNG THÁI',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.blue[200],
-                            letterSpacing: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'Chưa ghi nhận',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        AppNavigator.pushNamed(RouterName.checking,
-                            arguments: const CheckingArgs(isCheckIn: true));
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: AppColors.primary,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      icon: const Icon(Icons.center_focus_strong, size: 18),
-                      label: const Text(
-                        'Quét khuôn mặt',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: _buildTodaySessionContent(
+              sessions: sessions,
+              ongoingSessions: ongoingSessions,
+              displaySessions: displaySessions,
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTodaySessionContent({
+    required List<Session> sessions,
+    required List<Session> ongoingSessions,
+    required List<Session> displaySessions,
+  }) {
+    if (_isLoadingSessions && sessions.isEmpty) {
+      return Container(
+        key: const ValueKey('loading-sessions'),
+        height: 256,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+        ),
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (sessions.isEmpty) {
+      return Container(
+        key: const ValueKey('empty-sessions'),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.slate200.withOpacity(0.7)),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.event_busy, color: AppColors.slate500),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Không có phiên học nào hôm nay',
+                style: TextStyle(
+                  color: AppColors.slate500,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      key: ValueKey(
+        'sessions-${displaySessions.map((e) => e.id).join("-")}',
+      ),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < displaySessions.length; i++)
+          Padding(
+            padding: EdgeInsets.only(
+              bottom: i == displaySessions.length - 1 ? 0 : 12,
+            ),
+            child: GestureDetector(
+              onTap: () => _openSessionsFocus(displaySessions[i]),
+              child: Hero(
+                tag: _sessionHeroTag(displaySessions[i]),
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: _SessionHeroCard(
+                    session: displaySessions[i],
+                    isTeacherOrAdmin: _isTeacherOrAdmin,
+                    teacherName: displaySessions[i].teacherName ?? '—',
+                    onRefresh: _isLoadingSessions ? null : _fetchTodaySessions,
+                    onCheckIn: _sessionIsActive(displaySessions[i])
+                        ? () {
+                            AppNavigator.pushNamed(
+                              RouterName.checking,
+                              arguments: const CheckingArgs(isCheckIn: true),
+                            );
+                          }
+                        : null,
+                    onOpen: () => _openSession(displaySessions[i].id),
+                    onClose: () => _closeSession(displaySessions[i].id),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -460,15 +626,6 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Truy cập nhanh',
-          style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.bold,
-            color: AppColors.slate900,
-          ),
-        ),
-        const SizedBox(height: 14),
         GridView.count(
           crossAxisCount: 2,
           crossAxisSpacing: 14,
@@ -490,24 +647,6 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
                 AppNavigator.pushNamed(RouterName.schedule);
               },
             ),
-            _QuickAccessCard(
-              icon: Icons.description_outlined,
-              title: 'Đơn xin phép',
-              subtitle: 'Tạo và theo dõi đơn',
-              iconBg: AppColors.teal50,
-              iconColor: AppColors.teal600,
-              onTap: () {},
-            ),
-            _QuickAccessCard(
-              icon: Icons.face_retouching_natural,
-              title: 'Đăng ký khuôn mặt',
-              subtitle: 'Cập nhật sinh trắc học',
-              iconBg: AppColors.blue50,
-              iconColor: AppColors.blue600,
-              onTap: () {
-                AppNavigator.pushNamed(RouterName.registerFace);
-              },
-            ),
             if (_localService.getUserRole().toLowerCase() == 'teacher' ||
                 _localService.getUserRole().toLowerCase() == 'admin')
               _QuickAccessCard(
@@ -520,63 +659,72 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
                   AppNavigator.pushNamed(RouterName.sessionManagement);
                 },
               ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  // ── Recent Activity ──────────────────────────────────────
-  Widget _buildRecentActivity() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Hoạt động gần đây',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-                color: AppColors.slate900,
+            if (_localService.getUserRole().toLowerCase() == 'admin')
+              _QuickAccessCard(
+                icon: Icons.security_rounded,
+                title: 'Cảnh báo giả mạo',
+                subtitle: 'Phát hiện bất thường',
+                iconBg: AppColors.red.withOpacity(0.1),
+                iconColor: AppColors.red,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const SpoofListPage()),
+                  );
+                },
               ),
+            _QuickAccessCard(
+              icon: Icons.school,
+              title: 'Học phần',
+              subtitle: 'Quản lý môn học',
+              iconBg: AppColors.blue50,
+              iconColor: AppColors.blue600,
+              onTap: () {
+                AppNavigator.pushNamed(RouterName.courseList);
+              },
             ),
-            TextButton(
-              onPressed: () {},
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: const Text(
-                'Xem tất cả',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.primary,
-                ),
-              ),
+            _QuickAccessCard(
+              icon: Icons.history,
+              title: 'Lịch sử',
+              subtitle: 'Lịch sử điểm danh',
+              iconBg: AppColors.green100,
+              iconColor: AppColors.green600,
+              onTap: () {
+                AppNavigator.pushNamed(RouterName.attendanceHistory);
+              },
+            ),
+            _QuickAccessCard(
+              icon: Icons.assignment_ind_outlined,
+              title: 'Đơn xin phép',
+              subtitle:
+                  (_localService.getUserRole().toLowerCase() == 'teacher' ||
+                          _localService.getUserRole().toLowerCase() == 'admin')
+                      ? 'Quản lý đơn xin phép'
+                      : 'Gửi yêu cầu nghỉ',
+              iconBg: AppColors.teal50,
+              iconColor: AppColors.teal600,
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Tính năng đang phát triển'),
+                    duration: Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+            ),
+            _QuickAccessCard(
+              icon: Icons.person_outline,
+              title: 'Tài khoản',
+              subtitle: 'Thông tin cá nhân',
+              iconBg: AppColors.slate200,
+              iconColor: AppColors.slate900,
+              onTap: () {
+                AppNavigator.pushNamed(RouterName.account);
+              },
             ),
           ],
-        ),
-        const SizedBox(height: 12),
-        _ActivityItem(
-          icon: Icons.check_circle,
-          iconBg: AppColors.green100,
-          iconColor: AppColors.green600,
-          title: 'Phòng thí nghiệm Vật lý',
-          subtitle: 'Đã điểm danh • 09:45',
-          time: 'Hôm nay',
-        ),
-        const SizedBox(height: 10),
-        _ActivityItem(
-          icon: Icons.cancel,
-          iconBg: AppColors.red100,
-          iconColor: AppColors.red600,
-          title: 'Toán 201',
-          subtitle: 'Vắng mặt • Không quét',
-          time: 'Hôm qua',
         ),
       ],
     );
@@ -671,7 +819,6 @@ class _PinVerificationPageState extends State<_PinVerificationPage> {
         if (mounted) {
           HapticFeedback.heavyImpact();
           widget.onVerified();
-          dispose();
         }
       } else {
         _attemptCount++;
@@ -1112,144 +1259,706 @@ class _QuickAccessCard extends StatelessWidget {
   }
 }
 
-class _ActivityItem extends StatelessWidget {
-  const _ActivityItem({
-    required this.icon,
-    required this.iconBg,
-    required this.iconColor,
-    required this.title,
-    required this.subtitle,
-    required this.time,
+String _sessionHeroTag(Session session) => 'today-session-${session.id}';
+
+Session? _selectTodayRepresentativeSession(
+  List<Session> sessions,
+  DateTime now,
+) {
+  if (sessions.isEmpty) return null;
+
+  final active = sessions.where(_sessionIsActive).toList()
+    ..sort((a, b) => b.startTime.compareTo(a.startTime));
+  if (active.isNotEmpty) return active.first;
+
+  final canOpen = sessions.where((s) {
+    final mappedStatus = (s.mappedStatus ?? '').toUpperCase();
+    return !_sessionIsClosed(s) &&
+        (s.canOpen || mappedStatus == 'CAN_OPEN') &&
+        _sessionEffectiveEnd(s).toLocal().isAfter(now);
+  }).toList()
+    ..sort((a, b) => _sessionDistanceFromNow(a, now)
+        .compareTo(_sessionDistanceFromNow(b, now)));
+  if (canOpen.isNotEmpty) return canOpen.first;
+
+  final stillInWindow = sessions.where((s) {
+    final mappedStatus = (s.mappedStatus ?? s.status.name).toUpperCase();
+    final waiting = mappedStatus == 'NOT_OPEN' ||
+        mappedStatus == 'UPCOMING' ||
+        s.status == SessionStatus.scheduled;
+    return waiting &&
+        !_sessionIsClosed(s) &&
+        !_sessionStartsInFuture(s, now) &&
+        _sessionEffectiveEnd(s).toLocal().isAfter(now);
+  }).toList()
+    ..sort((a, b) => b.startTime.compareTo(a.startTime));
+  if (stillInWindow.isNotEmpty) return stillInWindow.first;
+
+  final future = sessions.where((s) {
+    final mappedStatus = (s.mappedStatus ?? s.status.name).toUpperCase();
+    final waiting = mappedStatus == 'NOT_OPEN' ||
+        mappedStatus == 'UPCOMING' ||
+        s.status == SessionStatus.scheduled;
+    return waiting && !_sessionIsClosed(s) && _sessionStartsInFuture(s, now);
+  }).toList()
+    ..sort((a, b) => a.startTime.compareTo(b.startTime));
+  if (future.isNotEmpty) return future.first;
+
+  final recentlyEnded = sessions.where(_sessionIsClosed).toList()
+    ..sort(
+        (a, b) => _sessionEffectiveEnd(b).compareTo(_sessionEffectiveEnd(a)));
+  if (recentlyEnded.isNotEmpty) return recentlyEnded.first;
+
+  return null;
+}
+
+DateTime _sessionEffectiveEnd(Session session) {
+  final explicitEnd = session.endTime;
+  if (explicitEnd != null) return explicitEnd;
+
+  return session.startTime.add(_fallbackSessionDuration);
+}
+
+String _dateKey(DateTime date) {
+  final local = date.toLocal();
+  return '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
+}
+
+bool _isSameLocalDate(DateTime a, DateTime b) {
+  final localA = a.toLocal();
+  final localB = b.toLocal();
+  return localA.year == localB.year &&
+      localA.month == localB.month &&
+      localA.day == localB.day;
+}
+
+bool _sessionStartsInFuture(Session session, DateTime now) {
+  return session.startTime.toLocal().isAfter(now);
+}
+
+int _sessionDistanceFromNow(Session session, DateTime now) {
+  return session.startTime.toLocal().difference(now).inMilliseconds.abs();
+}
+
+bool _sessionIsActive(Session session) {
+  final mappedStatus = (session.mappedStatus ?? '').toUpperCase();
+  final now = DateTime.now();
+
+  // If the session is explicitly closed or end time has passed, it's NOT active
+  final isClosed = mappedStatus == 'CLOSED' ||
+      session.status == SessionStatus.closed ||
+      _sessionEffectiveEnd(session).toLocal().isBefore(now);
+
+  if (isClosed) return false;
+
+  return mappedStatus == 'OPEN' || session.status == SessionStatus.active;
+}
+
+bool _sessionIsClosed(Session session) {
+  final now = DateTime.now();
+  final mappedStatus = (session.mappedStatus ?? '').toUpperCase();
+
+  return mappedStatus == 'CLOSED' ||
+      session.status == SessionStatus.closed ||
+      _sessionEffectiveEnd(session).toLocal().isBefore(now);
+}
+
+String _sessionStatusLabel(Session session) {
+  if (_sessionIsActive(session)) return 'Đang diễn ra';
+  if (_sessionIsClosed(session)) return 'Đã kết thúc';
+  return 'Sắp diễn ra';
+}
+
+class _SessionsFocusPage extends StatefulWidget {
+  const _SessionsFocusPage({
+    required this.sessions,
+    required this.initialIndex,
+    required this.isTeacherOrAdmin,
+    required this.onCheckIn,
+    required this.onOpen,
+    required this.onClose,
   });
 
-  final IconData icon;
-  final Color iconBg;
-  final Color iconColor;
-  final String title;
-  final String subtitle;
-  final String time;
+  final List<Session> sessions;
+  final int initialIndex;
+  final bool isTeacherOrAdmin;
+  final ValueChanged<Session> onCheckIn;
+  final ValueChanged<Session> onOpen;
+  final ValueChanged<Session> onClose;
+
+  @override
+  State<_SessionsFocusPage> createState() => _SessionsFocusPageState();
+}
+
+class _SessionsFocusPageState extends State<_SessionsFocusPage> {
+  late final PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+
+    _pageController = PageController(
+      initialPage: widget.initialIndex,
+      viewportFraction: 0.84,
+    );
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.slate200.withOpacity(0.5)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: iconColor, size: 24),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.slate900,
+    // Card sẽ tự co giãn theo nội dung để show full
+
+    return Material(
+      color: Colors.transparent,
+      child: SafeArea(
+        // Bao ngoài toàn bộ bằng GestureDetector để bắt sự kiện tap ra ngoài (dismiss)
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => Navigator.of(context).pop(),
+          child: Stack(
+            children: [
+              // ── PageView overlay toàn màn hình ──────────────────────
+              PageView.builder(
+                clipBehavior: Clip.none,
+                controller: _pageController,
+                scrollDirection: Axis.vertical,
+                itemCount: widget.sessions.length,
+                onPageChanged: (index) {
+                  setState(() => _currentIndex = index);
+                },
+                itemBuilder: (context, index) {
+                  final session = widget.sessions[index];
+
+                  return AnimatedBuilder(
+                    animation: _pageController,
+                    builder: (context, child) {
+                      double delta = 0;
+
+                      if (_pageController.hasClients &&
+                          _pageController.position.haveDimensions) {
+                        delta =
+                            (_pageController.page ?? _currentIndex.toDouble()) -
+                                index;
+                      } else {
+                        delta = (_currentIndex - index).toDouble();
+                      }
+
+                      final scale =
+                          (1 - delta.abs() * 0.06).clamp(0.92, 1.0).toDouble();
+
+                      final opacity =
+                          (1 - delta.abs() * 0.25).clamp(0.55, 1.0).toDouble();
+
+                      return Center(
+                        child: Opacity(
+                          opacity: opacity,
+                          child: Transform.scale(
+                            scale: scale,
+                            child: child,
+                          ),
+                        ),
+                      );
+                    },
+                    // Sử dụng Padding horizontal + SizedBox height thay vì Expanded/Padding dọc
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+
+                      // Chặn sự kiện tap bubble up lên GestureDetector ngoài cùng
+                      child: GestureDetector(
+                        onTap: () {},
+                        child: Hero(
+                          tag: _sessionHeroTag(session),
+                          child: Material(
+                            type: MaterialType.transparency,
+                            child: _SessionHeroCard(
+                              session: session,
+                              expanded: true,
+                              isTeacherOrAdmin: widget.isTeacherOrAdmin,
+                              teacherName: session.teacherName ?? '—',
+                              onCheckIn: _sessionIsActive(session)
+                                  ? () => widget.onCheckIn(session)
+                                  : null,
+                              onOpen: () => widget.onOpen(session),
+                              onClose: () => widget.onClose(session),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              // ── Indicator Positioned — overlay, không đẩy layout PageView ──
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 16,
+                child: IgnorePointer(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    child: Text(
+                      '${_currentIndex + 1}/${widget.sessions.length}',
+                      key: ValueKey(_currentIndex),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.slate500,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          Text(
-            time,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: AppColors.slate400,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _InfoCard extends StatelessWidget {
-  const _InfoCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
+class _SessionHeroCard extends StatelessWidget {
+  const _SessionHeroCard({
+    required this.session,
+    required this.isTeacherOrAdmin,
+    required this.teacherName,
+    this.expanded = false,
+    this.onRefresh,
+    this.onCheckIn,
+    this.onOpen,
+    this.onClose,
   });
 
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
+  final Session session;
+  final bool isTeacherOrAdmin;
+  final String teacherName;
+  final bool expanded;
+  final VoidCallback? onRefresh;
+  final VoidCallback? onCheckIn;
+  final VoidCallback? onOpen;
+  final VoidCallback? onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final isActive = _sessionIsActive(session);
+    final isClosed = _sessionIsClosed(session);
+    final statusLabel = _sessionStatusLabel(session);
+
+    final actionButton = _buildActionButton(
+      isActive: isActive,
+      isClosed: isClosed,
+    );
+
+    String timeSlotStr = 'Chưa cập nhật';
+    if (session.timeSlotName != null) {
+      final now = DateTime.now();
+      final isToday = session.startTime.year == now.year &&
+          session.startTime.month == now.month &&
+          session.startTime.day == now.day;
+
+      if (isToday) {
+        timeSlotStr = 'Hôm nay - ${session.timeSlotName}';
+      } else if (session.dayOfWeek != null) {
+        final dow = session.dayOfWeek!;
+        final dowStr = (dow == 1 || dow == 8) ? 'Chủ nhật' : 'Thứ $dow';
+        timeSlotStr = '$dowStr - ${session.timeSlotName}';
+      } else {
+        timeSlotStr = session.timeSlotName!;
+      }
+    }
+
+    final double collapsedHeight = actionButton != null ? 250 : 220;
+
+    final double radius = expanded ? 28 : 24;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minHeight: expanded ? 320 : collapsedHeight,
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(radius),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.fintechCardLight.withOpacity(0.28),
+              blurRadius: expanded ? 34 : 24,
+              offset: const Offset(0, 14),
+            ),
+            BoxShadow(
+              color: AppColors.fintechCardDark.withOpacity(0.30),
+              blurRadius: 50,
+              offset: const Offset(0, 20),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(radius),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Positioned.fill(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      stops: [0.0, 0.48, 1.0],
+                      colors: [
+                        AppColors.fintechCardDark,
+                        AppColors.fintechCardMedium,
+                        AppColors.fintechCardLight,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                child: Image.asset(
+                  AssetImages.imgCardImage,
+                  fit: BoxFit.cover,
+                  colorBlendMode: BlendMode.screen,
+                ),
+              ),
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(-0.45, 0.35),
+                      radius: 0.95,
+                      colors: [
+                        Colors.white.withOpacity(0.13),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomLeft,
+                      end: Alignment.topRight,
+                      colors: [
+                        Colors.black.withOpacity(0.08),
+                        Colors.transparent,
+                        Colors.white.withOpacity(0.08),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // ── Main card content ──────────────────────────
+              SizedBox(
+                width: double.infinity,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final padding = EdgeInsets.symmetric(
+                      horizontal: expanded ? 28 : 22,
+                      vertical: expanded ? 24 : 20,
+                    );
+                    final title =
+                        '${session.courseName?.isNotEmpty == true ? session.courseName : 'Chưa cập nhật'} (${session.courseCode ?? 'N/A'})';
+
+                    Widget buildHeader() {
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: _OutlinePill(
+                              text:
+                                  '${_formatTime(session.startTime)} - ${_formatTime(_sessionEffectiveEnd(session))}',
+                              trailingText: statusLabel,
+                              fontSize: expanded ? 15 : 13,
+                              horizontal: 14,
+                              vertical: 7,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          if (onRefresh != null)
+                            GestureDetector(
+                              onTap: onRefresh,
+                              child: Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.13),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.28),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.refresh,
+                                  color: Colors.white,
+                                  size: 17,
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    }
+
+                    Widget buildBody() {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: expanded ? null : 2,
+                            overflow: expanded
+                                ? TextOverflow.visible
+                                : TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: expanded ? 22 : 18,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              height: 1.2,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          _buildFeatureCheck(
+                              Icons.co_present, 'Giáo viên: $teacherName'),
+                          const SizedBox(height: 8),
+                          _buildFeatureCheck(Icons.schedule, timeSlotStr),
+                          const SizedBox(height: 8),
+                          _buildFeatureCheck(
+                            Icons.meeting_room,
+                            'Phòng: ${session.roomName ?? 'Chưa cập nhật'}',
+                          ),
+                          if (expanded) ...[
+                            const SizedBox(height: 8),
+                            _buildFeatureCheck(
+                              Icons.people_outline,
+                              'Sĩ số: ${session.enrolledCount} sinh viên',
+                            ),
+                            const SizedBox(height: 8),
+                            _buildFeatureCheck(
+                              Icons.settings_outlined,
+                              'Chế độ: ${session.attendanceMode?.label ?? 'N/A'}',
+                            ),
+                          ],
+                        ],
+                      );
+                    }
+
+                    Widget buildFooter() {
+                      if (actionButton == null) {
+                        return const SizedBox.shrink();
+                      }
+
+                      return Padding(
+                        padding: EdgeInsets.zero,
+                        child: Align(
+                          alignment: Alignment.bottomRight,
+                          child: actionButton,
+                        ),
+                      );
+                    }
+
+                    return Padding(
+                      padding: padding,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          buildHeader(),
+                          SizedBox(height: expanded ? 32 : 16),
+                          buildBody(),
+                          if (actionButton != null)
+                            SizedBox(height: expanded ? 32 : 16),
+                          buildFooter(),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatTime(DateTime? time) {
+    if (time == null) return '--:--';
+    final localTime = time.toLocal();
+    return '${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
+  }
+
+  Widget _buildFeatureCheck(IconData icon, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.22),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            color: Colors.white,
+            size: 12,
+          ),
+        ),
+        const SizedBox(width: 7),
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: expanded ? 15 : 13,
+              fontWeight: FontWeight.w500,
+              color: Colors.white.withOpacity(0.95),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget? _buildActionButton({
+    required bool isActive,
+    required bool isClosed,
+  }) {
+    String buttonText;
+    VoidCallback? onPressed;
+
+    if (isTeacherOrAdmin) {
+      if (session.canOpen && !isActive && !isClosed) {
+        buttonText = 'Mở phiên';
+        onPressed = onOpen;
+      } else if (session.canClose && isActive) {
+        buttonText = 'Đóng phiên';
+        onPressed = onClose;
+      } else {
+        return null;
+      }
+    } else {
+      if (!isActive) return null;
+      buttonText = 'Điểm danh';
+      onPressed = onCheckIn;
+    }
+
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: expanded ? 22 : 18,
+          vertical: expanded ? 14 : 12,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.82),
+            width: 1.2,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              buttonText,
+              style: TextStyle(
+                fontSize: expanded ? 15 : 13,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OutlinePill extends StatelessWidget {
+  const _OutlinePill({
+    required this.text,
+    required this.fontSize,
+    this.trailingText,
+    this.horizontal = 18,
+    this.vertical = 8,
+  });
+
+  final String text;
+  final String? trailingText;
+  final double fontSize;
+  final double horizontal;
+  final double vertical;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontal,
+        vertical: vertical,
+      ),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: Colors.white.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.82),
+          width: 1.15,
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+      child: trailingText == null
+          ? Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: fontSize,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+                height: 1,
+              ),
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  text,
+                  style: TextStyle(
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white.withOpacity(0.9),
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    trailingText!,
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      height: 1,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 24,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: AppColors.slate500,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

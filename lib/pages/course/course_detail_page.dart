@@ -228,6 +228,8 @@ class _CourseDetailPageState extends State<CourseDetailPage>
                 final schedule = state.schedules.first;
                 final ts = schedule.timeSlot;
                 if (ts == null) return const SizedBox.shrink();
+                final rangeEndTime =
+                    schedule.endTimeSlot?.endTime ?? ts.endTime;
 
                 int p(String t) {
                   final parts = t.split(':');
@@ -242,7 +244,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
                 }
 
                 final slotStart = p(ts.startTime);
-                final slotEnd = p(ts.endTime);
+                final slotEnd = p(rangeEndTime);
                 final openMin = slotStart + course.customWindowStartMinutes;
                 final closeMin = (slotStart + course.customWindowEndMinutes)
                     .clamp(openMin, slotEnd);
@@ -363,7 +365,7 @@ class _CourseDetailPageState extends State<CourseDetailPage>
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  schedule.timeSlot?.displayTime ?? '',
+                  '${schedule.slotLabel}: ${schedule.displayTimeRange}',
                   style: const TextStyle(
                     fontSize: 13,
                     color: AppColors.slate500,

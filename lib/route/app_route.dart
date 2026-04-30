@@ -33,7 +33,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../pages/bootstrap/bootstrap_page.dart';
-import '../pages/tab/tab.dart';
+import 'package:face_time_keeping/pages/home/home_page.dart';
+import 'package:face_time_keeping/pages/account/account_page.dart';
+import 'package:face_time_keeping/pages/history/attendance_history_page.dart';
 import 'package:face_time_keeping/pages/setting/spoof_list_page.dart' as face_spoof;
 
 // ignore_for_file: avoid_classes_with_only_static_members
@@ -75,6 +77,8 @@ class RouterName {
   static const String deviceRequestSubmit = '/settings/device-request-submit';
   static const String attendanceCheckin = '/attendance-checkin';
   static const String spoofList = '/spoofList';
+  static const String attendanceHistory = '/attendanceHistory';
+  static const String account = '/account';
 }
 
 class AppRoutes {
@@ -86,7 +90,7 @@ class AppRoutes {
       case RouterName.boostrap:
         return _materialRoute(settings, const BootstrapPage());
       case RouterName.home:
-        return _materialRoute(settings, const TabPage());
+        return _materialRoute(settings, const HomePage());
       case RouterName.domain:
         return _materialRoute(settings, const DomainPage());
       case RouterName.login:
@@ -180,6 +184,10 @@ class AppRoutes {
         );
       case RouterName.spoofList:
         return _materialRoute(settings, const face_spoof.SpoofListPage());
+      case RouterName.attendanceHistory:
+        return _materialRoute(settings, const AttendanceHistoryPage());
+      case RouterName.account:
+        return _materialRoute(settings, const AccountPage());
     }
     return null;
   }

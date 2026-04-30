@@ -6,7 +6,9 @@ class Schedule {
   final String courseName;
   final int dayOfWeek;
   final int timeSlotId;
+  final int? endTimeSlotId;
   final TimeSlot? timeSlot;
+  final TimeSlot? endTimeSlot;
   final DateTime createdAt;
 
   const Schedule({
@@ -15,7 +17,9 @@ class Schedule {
     required this.courseName,
     required this.dayOfWeek,
     required this.timeSlotId,
+    this.endTimeSlotId,
     this.timeSlot,
+    this.endTimeSlot,
     required this.createdAt,
   });
 
@@ -24,13 +28,19 @@ class Schedule {
     if (json['time_slot'] != null) {
       ts = TimeSlot.fromJson(json['time_slot'] as Map<String, dynamic>);
     }
+    TimeSlot? endTs;
+    if (json['end_time_slot'] != null) {
+      endTs = TimeSlot.fromJson(json['end_time_slot'] as Map<String, dynamic>);
+    }
     return Schedule(
       id: json['id'] as String,
       courseId: json['course_id'] as String,
       courseName: json['course_name'] as String? ?? 'Unknown',
       dayOfWeek: json['day_of_week'] as int,
       timeSlotId: json['time_slot_id'] as int,
+      endTimeSlotId: json['end_time_slot_id'] as int?,
       timeSlot: ts,
+      endTimeSlot: endTs,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
@@ -40,6 +50,7 @@ class Schedule {
       'course_id': courseId,
       'day_of_week': dayOfWeek,
       'time_slot_id': timeSlotId,
+      'end_time_slot_id': endTimeSlotId,
     };
   }
 
@@ -57,7 +68,24 @@ class Schedule {
     return days[dayOfWeek - 1];
   }
 
+  int get resolvedEndTimeSlotId => endTimeSlotId ?? timeSlotId;
+
+  String get slotLabel {
+    final startPeriod = timeSlot?.periodNumber;
+    final endPeriod = endTimeSlot?.periodNumber ?? startPeriod;
+    if (startPeriod == null) return 'Tiết ?';
+    if (startPeriod == endPeriod) return 'Tiết $startPeriod';
+    return 'Tiết $startPeriod-$endPeriod';
+  }
+
+  String get displayTimeRange {
+    final start = timeSlot?.startTime;
+    final end = endTimeSlot?.endTime ?? timeSlot?.endTime;
+    if (start == null || end == null) return slotLabel;
+    return '$start - $end';
+  }
+
   @override
   String toString() =>
-      'Schedule(id: $id, courseId: $courseId, day: $dayName, slot: $timeSlotId)';
+      'Schedule(id: $id, courseId: $courseId, day: $dayName, slot: $timeSlotId-$resolvedEndTimeSlotId)';
 }

@@ -5,6 +5,8 @@ class RoomSession {
   final String id;
   final String courseId;
   final String courseName;
+  final String? courseCode;
+  final String? teacherName;
   final DateTime sessionDate;
   final DateTime startTime;
   final DateTime? endTime;
@@ -25,6 +27,8 @@ class RoomSession {
     required this.id,
     required this.courseId,
     required this.courseName,
+    this.courseCode,
+    this.teacherName,
     required this.sessionDate,
     required this.startTime,
     this.endTime,
@@ -46,6 +50,8 @@ class RoomSession {
       id: json['id'] as String,
       courseId: json['course_id'] as String,
       courseName: json['course_name'] as String,
+      courseCode: json['course_code'] as String?,
+      teacherName: json['teacher_name'] as String?,
       sessionDate: DateTime.parse(json['session_date'] as String),
       startTime: DateTime.parse(json['start_time'] as String),
       endTime: json['end_time'] != null

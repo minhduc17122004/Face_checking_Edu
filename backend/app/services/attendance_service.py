@@ -7,6 +7,7 @@ from typing import overload
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -423,7 +424,8 @@ class AttendanceService:
             confidence = req.confidence
             device_id = req.device_id
             sync_time = req.sync_time
-            minutes_diff = None
+            minutes_diff = getattr(req, "minutes_diff", None)
+            is_spoof = getattr(req, "is_spoof", False)
             skip_audit = False
         else:
             session_id = kwargs["session_id"]
@@ -434,6 +436,7 @@ class AttendanceService:
             device_id = kwargs.get("device_id")
             sync_time = kwargs.get("sync_time")
             minutes_diff = kwargs.get("minutes_diff")
+            is_spoof = kwargs.get("is_spoof", False)
             skip_audit = kwargs.get("skip_audit", False)
 
         # 0. Auto-transition session status
@@ -516,6 +519,7 @@ class AttendanceService:
             confidence=confidence,
             device_id=device_id,
             calculated_minutes_diff=calculated_minutes_diff,
+            is_spoof=is_spoof,
             skip_audit=skip_audit,
         )
         await self.db.commit()
@@ -533,6 +537,7 @@ class AttendanceService:
         confidence: float | None,
         device_id: uuid.UUID | None,
         calculated_minutes_diff: int | None,
+        is_spoof: bool = False,
         skip_audit: bool,
     ) -> Attendance:
         """Low-level attendance writer — flush only (no commit).
@@ -549,6 +554,7 @@ class AttendanceService:
             confidence=confidence,
             device_id=device_id,
             minutes_diff=calculated_minutes_diff,
+            is_spoof=is_spoof,
         )
         self.audit.log_attendance_created(
             attendance_id=record.id,
@@ -819,6 +825,7 @@ class AttendanceService:
                     checkin_time=att.checkin_time,
                     status=att.status,
                     minutes_diff=att.minutes_diff,
+                    is_spoof=att.is_spoof,
                 ))
 
             return AttendanceHistoryList(total=total, items=items)
@@ -912,18 +919,30 @@ class AttendanceService:
         failed = 0
         skipped = 0
 
+        def _checkin_time_from_item(item) -> datetime:
+            checkin_time = item.timestamp or datetime.now(timezone.utc)
+            if item.timestamp and item.timestamp.tzinfo is None:
+                return item.timestamp.replace(tzinfo=timezone.utc)
+            if item.timestamp:
+                return item.timestamp.astimezone(timezone.utc)
+            return checkin_time
+
         for item in req.items:
             try:
+                checkin_time = _checkin_time_from_item(item)
+                if item.session_id is None and item.room_id is None:
+                    results.append(BulkCheckinItemResult(
+                        local_id=item.local_id,
+                        success=False,
+                        error="Either session_id or room_id must be provided.",
+                    ))
+                    failed += 1
+                    continue
+
                 # Resolve session_id
                 resolved_session_id = item.session_id
                 if resolved_session_id is None:
                     # room_id + timestamp → session
-                    checkin_time = item.timestamp or datetime.now(timezone.utc)
-                    if item.timestamp and item.timestamp.tzinfo is None:
-                        checkin_time = item.timestamp.replace(tzinfo=timezone.utc)
-                    elif item.timestamp:
-                        checkin_time = item.timestamp.astimezone(timezone.utc)
-
                     session = await self._resolve_session_by_room_timestamp(
                         item.room_id, checkin_time
                     )
@@ -936,13 +955,6 @@ class AttendanceService:
                         failed += 1
                         continue
                     resolved_session_id = session.id
-                else:
-                    checkin_time = item.timestamp or datetime.now(timezone.utc)
-                    if item.timestamp and item.timestamp.tzinfo is None:
-                        checkin_time = item.timestamp.replace(tzinfo=timezone.utc)
-                    elif item.timestamp:
-                        checkin_time = item.timestamp.astimezone(timezone.utc)
-
                 # Resolve true student_id
                 resolved_student_id = item.student_id
                 if item.server_user_id or item.pin:
@@ -976,36 +988,38 @@ class AttendanceService:
                     skipped += 1
                     continue
 
-                # Validate and auto-transition session before writing
-                await self._ensure_session_active(resolved_session_id)
+                async with self.db.begin_nested():
+                    # Validate and auto-transition session before writing
+                    await self._ensure_session_active(resolved_session_id)
 
-                # Calculate auto_status and minutes_diff matching create_attendance logic
-                session_ref = await self.session_repo.get_by_id(resolved_session_id)
-                provided_status = item.status or "present"
-                provided_minutes_diff = getattr(item, "minutes_diff", None)
+                    # Calculate auto_status and minutes_diff matching create_attendance logic
+                    session_ref = await self.session_repo.get_by_id(resolved_session_id)
+                    provided_status = item.status or "present"
+                    provided_minutes_diff = getattr(item, "minutes_diff", None)
 
-                if session_ref and provided_minutes_diff is None:
-                    delta = checkin_time - session_ref.start_time
-                    provided_minutes_diff = int(delta.total_seconds() / 60)
-                    if provided_minutes_diff < 0:
-                        provided_status = "early"
-                    elif provided_minutes_diff == 0:
-                        provided_status = "on_time"
-                    else:
-                        provided_status = "late"
+                    if session_ref and provided_minutes_diff is None:
+                        delta = checkin_time - session_ref.start_time
+                        provided_minutes_diff = int(delta.total_seconds() / 60)
+                        if provided_minutes_diff < 0:
+                            provided_status = "early"
+                        elif provided_minutes_diff == 0:
+                            provided_status = "on_time"
+                        else:
+                            provided_status = "late"
 
-                # Flush-only write — single commit after the full loop
-                record = await self._persist_attendance(
-                    session_id=resolved_session_id,
-                    student_id=resolved_student_id,
-                    checkin_time=checkin_time,
-                    sync_time=None,
-                    auto_status=provided_status,
-                    confidence=None,
-                    device_id=None,
-                    calculated_minutes_diff=provided_minutes_diff,
-                    skip_audit=True,
-                )
+                    # Flush-only write - single commit after the full loop
+                    record = await self._persist_attendance(
+                        session_id=resolved_session_id,
+                        student_id=resolved_student_id,
+                        checkin_time=checkin_time,
+                        sync_time=None,
+                        auto_status=provided_status,
+                        confidence=None,
+                        device_id=None,
+                        calculated_minutes_diff=provided_minutes_diff,
+                        is_spoof=item.is_spoof,
+                        skip_audit=True,
+                    )
                 results.append(BulkCheckinItemResult(
                     local_id=item.local_id,
                     success=True,
@@ -1024,6 +1038,18 @@ class AttendanceService:
                     local_id=item.local_id,
                     success=False,
                     error=str(e.detail),
+                ))
+                failed += 1
+            except IntegrityError as e:
+                logger.warning(
+                    "bulk_checkin item integrity error local_id=%s: %s",
+                    item.local_id,
+                    e.orig,
+                )
+                results.append(BulkCheckinItemResult(
+                    local_id=item.local_id,
+                    success=False,
+                    error="Invalid session, student, or duplicate attendance record.",
                 ))
                 failed += 1
             except Exception as e:
@@ -1133,7 +1159,7 @@ class AttendanceService:
         result = await self.db.execute(base_stmt)
         rows = result.all()
 
-        headers = ["Mã SV", "Tên học sinh", "Học phần", "Thời gian", "Trạng thái", "Sớm/Trễ (phút)"]
+        headers = ["Mã SV", "Tên học sinh", "Học phần", "Thời gian", "Trạng thái", "Sớm/Trễ (phút)", "Giả mạo"]
 
         if format == "excel":
             try:
@@ -1154,7 +1180,8 @@ class AttendanceService:
                         course.course_name if course else "",
                         time_str,
                         att.status,
-                        att.minutes_diff if att.minutes_diff is not None else ""
+                        att.minutes_diff if att.minutes_diff is not None else "",
+                        "Có" if att.is_spoof else "Không"
                     ])
                 
                 stream = io.BytesIO()
@@ -1173,7 +1200,8 @@ class AttendanceService:
                 course.course_name if course else "",
                 time_str,
                 att.status,
-                att.minutes_diff if att.minutes_diff is not None else ""
+                att.minutes_diff if att.minutes_diff is not None else "",
+                "Có" if att.is_spoof else "Không"
             ])
         # Return as bytes with utf-8-sig for Excel compatibility
         return stream.getvalue().encode('utf-8-sig'), "csv", "text/csv"

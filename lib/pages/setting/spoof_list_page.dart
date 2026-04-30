@@ -4,6 +4,8 @@ import 'package:face_time_keeping/data/local/local_service.dart';
 import 'package:face_time_keeping/di/injection.dart';
 import 'package:face_time_keeping/entities/check_in_out.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:face_time_keeping/pages/setting/cubit/attendance_report_cubit.dart';
 import 'package:intl/intl.dart';
 
 class SpoofListPage extends StatefulWidget {
@@ -36,22 +38,64 @@ class _SpoofListPageState extends State<SpoofListPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
-      appBar: AppBar(
-        title: const Text(
-          'Danh sách giả mạo khuôn mặt',
-          style: TextStyle(color: AppColors.slate900, fontWeight: FontWeight.bold, fontSize: 18),
+    return BlocProvider.value(
+      value: getIt<AttendanceReportCubit>(),
+      child: BlocListener<AttendanceReportCubit, AttendanceReportState>(
+        listenWhen: (previous, current) =>
+            previous.isSyncing && !current.isSyncing,
+        listener: (context, state) {
+          if (state.syncMessage != null && state.syncMessage!.isNotEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.syncMessage!)),
+            );
+          }
+        },
+        child: Scaffold(
+          backgroundColor: AppColors.backgroundLight,
+          appBar: AppBar(
+            title: const Text(
+              'Danh sách giả mạo khuôn mặt',
+              style: TextStyle(
+                  color: AppColors.slate900,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18),
+            ),
+            backgroundColor: Colors.white,
+            elevation: 0.5,
+            iconTheme: const IconThemeData(color: AppColors.slate900),
+            actions: [
+              BlocBuilder<AttendanceReportCubit, AttendanceReportState>(
+                builder: (context, state) {
+                  if (state.isSyncing) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.only(right: 16.0),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    );
+                  }
+                  return IconButton(
+                    icon: const Icon(Icons.cloud_upload_outlined, color: AppColors.primary),
+                    tooltip: 'Đồng bộ lên server',
+                    onPressed: () {
+                      context.read<AttendanceReportCubit>().syncToBackend();
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
+          body: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _spoofRecords.isEmpty
+                  ? _buildEmptyState()
+                  : _buildList(),
         ),
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        iconTheme: const IconThemeData(color: AppColors.slate900),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _spoofRecords.isEmpty
-              ? _buildEmptyState()
-              : _buildList(),
     );
   }
 
@@ -95,9 +139,12 @@ class _SpoofCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('SpoofRecord details. roomId: ${record.roomId}, courseName: ${record.courseName}, isSpoof: ${record.isSpoof}, sessionId_nullable: N/A');
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm:ss');
     final roomDisplay = record.roomId != null ? 'Phòng: ${record.roomId}' : '';
-    final studentDisplay = record.pin != null ? '${record.pin} - ${record.name}' : record.name;
+    final courseDisplay = record.courseName ?? '';
+    final studentDisplay =
+        record.pin != null ? '${record.pin} - ${record.name}' : record.name;
 
     return Container(
       decoration: BoxDecoration(
@@ -123,7 +170,7 @@ class _SpoofCard extends StatelessWidget {
               width: 80,
               height: 80,
               color: AppColors.slate200,
-              child: _buildImage(),
+              child: _buildImage(context),
             ),
           ),
           const SizedBox(width: 16),
@@ -132,29 +179,38 @@ class _SpoofCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                const Row(
                   children: [
-                    const Icon(Icons.warning_amber_rounded, color: AppColors.red, size: 16),
-                    const SizedBox(width: 4),
-                    const Text(
+                    Icon(Icons.warning_amber_rounded,
+                        color: AppColors.red, size: 16),
+                    SizedBox(width: 4),
+                    Text(
                       'Phát hiện giả mạo',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.red, fontSize: 13),
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.red,
+                          fontSize: 13),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Text(
                   studentDisplay,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.slate900),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: AppColors.slate900),
                 ),
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(Icons.access_time, size: 14, color: AppColors.slate500),
+                    const Icon(Icons.access_time,
+                        size: 14, color: AppColors.slate500),
                     const SizedBox(width: 4),
                     Text(
                       dateFormat.format(record.time),
-                      style: const TextStyle(fontSize: 13, color: AppColors.slate500),
+                      style: const TextStyle(
+                          fontSize: 13, color: AppColors.slate500),
                     ),
                   ],
                 ),
@@ -162,11 +218,37 @@ class _SpoofCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.room, size: 14, color: AppColors.slate500),
+                      const Icon(Icons.room,
+                          size: 14, color: AppColors.slate500),
                       const SizedBox(width: 4),
-                      Text(
-                        roomDisplay,
-                        style: const TextStyle(fontSize: 13, color: AppColors.slate500),
+                      Expanded(
+                        child: Text(
+                          roomDisplay,
+                          style: const TextStyle(
+                              fontSize: 13, color: AppColors.slate500),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ]
+                ,
+                if (courseDisplay.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.school_outlined,
+                          size: 14, color: AppColors.slate500),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          courseDisplay,
+                          style: const TextStyle(
+                              fontSize: 13, color: AppColors.slate500),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
@@ -179,7 +261,7 @@ class _SpoofCard extends StatelessWidget {
     );
   }
 
-  Widget _buildImage() {
+  Widget _buildImage(BuildContext context) {
     if (record.imagePath == null || record.imagePath!.isEmpty) {
       return const Center(
         child: Icon(Icons.image_not_supported, color: AppColors.slate400),
@@ -191,11 +273,45 @@ class _SpoofCard extends StatelessWidget {
         child: Icon(Icons.broken_image, color: AppColors.slate400),
       );
     }
-    return Image.file(
-      file,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) =>
-          const Center(child: Icon(Icons.broken_image)),
+    return GestureDetector(
+      onTap: () {
+        showGeneralDialog(
+          context: context,
+          barrierColor: Colors.black.withOpacity(0.9),
+          barrierDismissible: true,
+          barrierLabel: 'Close',
+          pageBuilder: (context, animation, secondaryAnimation) {
+            return SafeArea(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  InteractiveViewer(
+                    child: Image.file(file, fit: BoxFit.contain),
+                  ),
+                  Positioned(
+                    top: 16,
+                    right: 16,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: IconButton(
+                        icon: const Icon(Icons.close,
+                            color: Colors.white, size: 32),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+      child: Image.file(
+        file,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            const Center(child: Icon(Icons.broken_image)),
+      ),
     );
   }
 }

@@ -15,6 +15,7 @@ class ManualCheckinRequest(BaseModel):
     checkin_time: Optional[datetime] = None  # legacy alias, defaults to server now
     status: str = "present"
     device_id: Optional[str] = None
+    is_spoof: bool = False
 
     @model_validator(mode="after")
     def validate_target(self) -> "ManualCheckinRequest":
@@ -44,6 +45,7 @@ class AttendanceRecordResponse(BaseModel):
     status: str
     minutes_diff: Optional[int] = None
     device_id: Optional[uuid.UUID] = None
+    is_spoof: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -84,6 +86,7 @@ class AttendanceHistoryItem(BaseModel):
     checkin_time: datetime
     status: str
     minutes_diff: Optional[int] = None
+    is_spoof: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -106,16 +109,10 @@ class BulkCheckinItem(BaseModel):
     device_id: Optional[str] = None
     status: str = "present"
     minutes_diff: Optional[int] = None
+    is_spoof: bool = False
     
     server_user_id: Optional[uuid.UUID] = None  # UUID representation of Student (user_id)
     pin: Optional[str] = None  # student_code
-
-
-    @model_validator(mode="after")
-    def validate_target(self) -> "BulkCheckinItem":
-        if self.session_id is None and self.room_id is None:
-            raise ValueError("Either session_id or room_id must be provided")
-        return self
 
 
 class BulkCheckinRequest(BaseModel):

@@ -85,6 +85,9 @@ class Attendance(Base):
     # Phase 9: minutes difference from start_time (room derived from session → course)
     minutes_diff: Mapped[Optional[int]] = mapped_column(nullable=True)
 
+    # Spoof detection flag
+    is_spoof: Mapped[bool] = mapped_column(default=False, server_default='false')
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

@@ -64,7 +64,8 @@ class _LoginPageState extends State<LoginPage> {
               break;
             case RequestStatus.success:
               IgnoreLoadingIndicator().hide(context);
-              _showSyncStudentsDialog();
+              AppNavigator.pushNamedAndRemoveUntil(
+                  RouterName.home, (_) => false);
               break;
             case RequestStatus.failed:
               IgnoreLoadingIndicator().hide(context);
@@ -307,118 +308,118 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  void _showSyncStudentsDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return BlocProvider.value(
-          value: _bloc,
-          child: BlocBuilder<LoginBloc, LoginState>(
-            builder: (context, state) {
-              return AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                title: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.blue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.cloud_upload,
-                        color: AppColors.blue,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'Đồng bộ dữ liệu học sinh',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Có dữ liệu học sinh chưa được đồng bộ lên server.',
-                      style: TextStyle(fontSize: 15),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.yellow.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: AppColors.yellow.withOpacity(0.3),
-                        ),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: AppColors.orange,
-                            size: 20,
-                          ),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Bạn có muốn đồng bộ ngay bây giờ không?',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: AppColors.orange,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(dialogContext).pop();
-                      AppNavigator.pushNamedAndRemoveUntil(
-                          RouterName.home, (_) => false);
-                    },
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.gray200,
-                    ),
-                    child: const Text('Để sau'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () async {
-                      await _bloc.syncLocalStudentsToServer();
-                      AppNavigator.pushNamedAndRemoveUntil(
-                          RouterName.home, (_) => false);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.blue,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text('Đồng bộ ngay'),
-                  ),
-                ],
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
+  // void _showSyncStudentsDialog() {
+  // showDialog(
+  // context: context,
+  // barrierDismissible: false,
+  // builder: (BuildContext dialogContext) {
+  // return BlocProvider.value(
+  // value: _bloc,
+  // child: BlocBuilder<LoginBloc, LoginState>(
+  // builder: (context, state) {
+  // return AlertDialog(
+  // shape: RoundedRectangleBorder(
+  // borderRadius: BorderRadius.circular(16),
+  // ),
+  // title: Row(
+  // children: [
+  // Container(
+  // padding: const EdgeInsets.all(8),
+  // decoration: BoxDecoration(
+  // color: AppColors.blue.withOpacity(0.1),
+  // borderRadius: BorderRadius.circular(8),
+  // ),
+  // child: const Icon(
+  // Icons.cloud_upload,
+  // color: AppColors.blue,
+  // size: 24,
+  // ),
+  // ),
+  // const SizedBox(width: 12),
+  // const Expanded(
+  // child: Text(
+  // 'Đồng bộ dữ liệu học sinh',
+  // style: TextStyle(
+  // fontSize: 18,
+  // fontWeight: FontWeight.bold,
+  // ),
+  // ),
+  // ),
+  // ],
+  // ),
+  // content: Column(
+  // mainAxisSize: MainAxisSize.min,
+  // crossAxisAlignment: CrossAxisAlignment.start,
+  // children: [
+  // const Text(
+  // 'Có dữ liệu học sinh chưa được đồng bộ lên server.',
+  // style: TextStyle(fontSize: 15),
+  // ),
+  // const SizedBox(height: 12),
+  // Container(
+  // padding: const EdgeInsets.all(12),
+  // decoration: BoxDecoration(
+  // color: AppColors.yellow.withOpacity(0.1),
+  // borderRadius: BorderRadius.circular(8),
+  // border: Border.all(
+  // color: AppColors.yellow.withOpacity(0.3),
+  // ),
+  // ),
+  // child: const Row(
+  // children: [
+  // Icon(
+  // Icons.info_outline,
+  // color: AppColors.orange,
+  // size: 20,
+  // ),
+  // SizedBox(width: 8),
+  // Expanded(
+  // child: Text(
+  // 'Bạn có muốn đồng bộ ngay bây giờ không?',
+  // style: TextStyle(
+  // fontSize: 14,
+  // color: AppColors.orange,
+  // ),
+  // ),
+  // ),
+  // ],
+  // ),
+  // ),
+  // ],
+  // ),
+  // actions: [
+  // TextButton(
+  // onPressed: () {
+  // Navigator.of(dialogContext).pop();
+  // AppNavigator.pushNamedAndRemoveUntil(
+  // RouterName.home, (_) => false);
+  // },
+  // style: TextButton.styleFrom(
+  // foregroundColor: AppColors.gray200,
+  // ),
+  // child: const Text('Để sau'),
+  // ),
+  // ElevatedButton(
+  // onPressed: () async {
+  // await _bloc.syncLocalStudentsToServer();
+  // AppNavigator.pushNamedAndRemoveUntil(
+  // RouterName.home, (_) => false);
+  // },
+  // style: ElevatedButton.styleFrom(
+  // backgroundColor: AppColors.blue,
+  // foregroundColor: Colors.white,
+  // shape: RoundedRectangleBorder(
+  // borderRadius: BorderRadius.circular(8),
+  // ),
+  // ),
+  // child: const Text('Đồng bộ ngay'),
+  // ),
+  // ],
+  // );
+  // },
+  // ),
+  // );
+  // },
+  // );
+  // }
 }

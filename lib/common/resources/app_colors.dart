@@ -67,4 +67,9 @@ class AppColors {
 
   static const teal600 = Color(0xFF0D9488);
   static const teal50 = Color(0xFFF0FDFA);
+
+  // Card Colors
+  static const fintechCardDark = Color(0xFF20009E);
+  static const fintechCardMedium = Color(0xFF0627C8);
+  static const fintechCardLight = Color(0xFF0096FF);
 }

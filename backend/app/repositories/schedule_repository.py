@@ -27,7 +27,11 @@ class ScheduleRepository(BaseRepository[Schedule]):
     async def get_by_id(self, schedule_id: uuid.UUID) -> Schedule | None:
         result = await self.db.execute(
             select(Schedule)
-            .options(joinedload(Schedule.time_slot), joinedload(Schedule.course))
+            .options(
+                joinedload(Schedule.time_slot),
+                joinedload(Schedule.end_time_slot),
+                joinedload(Schedule.course),
+            )
             .where(Schedule.id == schedule_id)
         )
         return result.scalar_one_or_none()
@@ -37,7 +41,11 @@ class ScheduleRepository(BaseRepository[Schedule]):
     ) -> Sequence[Schedule]:
         result = await self.db.execute(
             select(Schedule)
-            .options(joinedload(Schedule.time_slot), joinedload(Schedule.course))
+            .options(
+                joinedload(Schedule.time_slot),
+                joinedload(Schedule.end_time_slot),
+                joinedload(Schedule.course),
+            )
             .where(
                 and_(
                     Schedule.course_id == course_id,
@@ -51,7 +59,11 @@ class ScheduleRepository(BaseRepository[Schedule]):
     async def get_by_course(self, course_id: uuid.UUID) -> Sequence[Schedule]:
         result = await self.db.execute(
             select(Schedule)
-            .options(joinedload(Schedule.time_slot), joinedload(Schedule.course))
+            .options(
+                joinedload(Schedule.time_slot),
+                joinedload(Schedule.end_time_slot),
+                joinedload(Schedule.course),
+            )
             .where(
                 and_(
                     Schedule.course_id == course_id,
@@ -86,7 +98,11 @@ class ScheduleRepository(BaseRepository[Schedule]):
         total = count_result.scalar_one()
         result = await self.db.execute(
             select(Schedule)
-            .options(joinedload(Schedule.time_slot), joinedload(Schedule.course))
+            .options(
+                joinedload(Schedule.time_slot),
+                joinedload(Schedule.end_time_slot),
+                joinedload(Schedule.course),
+            )
             .where(where_clause)
             .offset(skip)
             .limit(limit)
@@ -102,11 +118,14 @@ class ScheduleRepository(BaseRepository[Schedule]):
         *,
         day_of_week: int | None = None,
         time_slot_id: int | None = None,
+        end_time_slot_id: int | None = None,
     ) -> Schedule:
         if day_of_week is not None:
             schedule.day_of_week = day_of_week
         if time_slot_id is not None:
             schedule.time_slot_id = time_slot_id
+        if end_time_slot_id is not None:
+            schedule.end_time_slot_id = end_time_slot_id
         await self.db.flush()
         await self.db.refresh(schedule)
         return schedule

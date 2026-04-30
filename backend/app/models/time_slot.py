@@ -34,6 +34,7 @@ class TimeSlot(Base):
     schedules: Mapped[List["Schedule"]] = relationship(
         "Schedule",
         back_populates="time_slot",
+        foreign_keys="Schedule.time_slot_id",
     )
 
     def __repr__(self) -> str:

@@ -42,8 +42,11 @@ enum SessionStatus {
 class Session {
   final String id;
   final String courseId;
+  final String? courseCode;
   final String? courseName;
+  final String? teacherName;
   final String? roomName;
+  final String? timeSlotName;
   final int? dayOfWeek;
   final String? scheduleId;
   final DateTime? sessionDate;
@@ -59,13 +62,17 @@ class Session {
   final int presentCount;
   final int absentCount;
   final int totalCount;
+  final int enrolledCount;
   final DateTime createdAt;
 
   const Session({
     required this.id,
     required this.courseId,
+    this.courseCode,
     this.courseName,
+    this.teacherName,
     this.roomName,
+    this.timeSlotName,
     this.dayOfWeek,
     this.scheduleId,
     this.sessionDate,
@@ -81,6 +88,7 @@ class Session {
     this.presentCount = 0,
     this.absentCount = 0,
     this.totalCount = 0,
+    this.enrolledCount = 0,
     required this.createdAt,
   });
 
@@ -88,8 +96,11 @@ class Session {
     return Session(
       id: json['id'] as String,
       courseId: json['course_id'] as String,
+      courseCode: json['course_code'] as String?,
       courseName: json['course_name'] as String?,
+      teacherName: json['teacher_name'] as String?,
       roomName: json['room_name'] as String?,
+      timeSlotName: json['time_slot_name'] as String?,
       dayOfWeek: json['day_of_week'] as int?,
       scheduleId: json['schedule_id'] as String?,
       sessionDate: json['session_date'] != null
@@ -114,6 +125,7 @@ class Session {
       presentCount: json['present_count'] as int? ?? 0,
       absentCount: json['absent_count'] as int? ?? 0,
       totalCount: json['total_count'] as int? ?? 0,
+      enrolledCount: json['enrolled_count'] as int? ?? 0,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
@@ -121,6 +133,7 @@ class Session {
   Map<String, dynamic> toJson() {
     return {
       'course_id': courseId,
+      'course_code': courseCode,
       'schedule_id': scheduleId,
       'session_date':
           sessionDate != null ? _dateToIso(sessionDate!) : null,
@@ -139,8 +152,11 @@ class Session {
   Session copyWith({
     String? id,
     String? courseId,
+    String? courseCode,
     String? courseName,
+    String? teacherName,
     String? roomName,
+    String? timeSlotName,
     int? dayOfWeek,
     String? scheduleId,
     DateTime? sessionDate,
@@ -156,13 +172,17 @@ class Session {
     int? presentCount,
     int? absentCount,
     int? totalCount,
+    int? enrolledCount,
     DateTime? createdAt,
   }) {
     return Session(
       id: id ?? this.id,
       courseId: courseId ?? this.courseId,
+      courseCode: courseCode ?? this.courseCode,
       courseName: courseName ?? this.courseName,
+      teacherName: teacherName ?? this.teacherName,
       roomName: roomName ?? this.roomName,
+      timeSlotName: timeSlotName ?? this.timeSlotName,
       dayOfWeek: dayOfWeek ?? this.dayOfWeek,
       scheduleId: scheduleId ?? this.scheduleId,
       sessionDate: sessionDate ?? this.sessionDate,
@@ -178,6 +198,7 @@ class Session {
       presentCount: presentCount ?? this.presentCount,
       absentCount: absentCount ?? this.absentCount,
       totalCount: totalCount ?? this.totalCount,
+      enrolledCount: enrolledCount ?? this.enrolledCount,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -188,12 +209,25 @@ class Session {
   }
 
   String get formattedStartTime {
-    return '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}';
+    final localTime = startTime.toLocal();
+    return '${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
   }
 
   String get formattedEndTime {
     if (endTime == null) return '';
-    return '${endTime!.hour.toString().padLeft(2, '0')}:${endTime!.minute.toString().padLeft(2, '0')}';
+    final localTime = endTime!.toLocal();
+    return '${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
+  }
+
+  String get formattedCheckinWindow {
+    String fmt(DateTime dt) {
+      final l = dt.toLocal();
+      return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
+    }
+    final start = checkinWindowStart ?? startTime;
+    final end   = checkinWindowEnd   ?? endTime;
+    if (end == null) return fmt(start);
+    return '${fmt(start)} - ${fmt(end)}';
   }
 
   @override

@@ -16,6 +16,7 @@ from app.schemas.schedule_schema import (
     ScheduleOut,
     ScheduleWithTimeSlot,
     ScheduleList,
+    ScheduleListWithTimeSlot,
 )
 
 router = APIRouter(prefix="/schedules", tags=["Schedules"])
@@ -68,13 +69,13 @@ async def create_schedule(
     return ScheduleOut.model_validate(schedule)
 
 
-@router.get("/", response_model=ScheduleList)
+@router.get("/", response_model=ScheduleListWithTimeSlot)
 async def list_schedules(
     course_id: uuid.UUID | None = Query(None),
     day_of_week: int | None = Query(None, ge=1, le=7),
     _: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
-) -> ScheduleList:
+) -> ScheduleListWithTimeSlot:
     """List schedules with optional filters."""
     query = select(Schedule).where(Schedule.deleted_at.is_(None))
     count_query = select(func.count(Schedule.id)).where(Schedule.deleted_at.is_(None))
@@ -86,7 +87,11 @@ async def list_schedules(
         query = query.where(Schedule.day_of_week == day_of_week)
         count_query = count_query.where(Schedule.day_of_week == day_of_week)
 
-    query = query.options(selectinload(Schedule.time_slot)).order_by(
+    query = query.options(
+        selectinload(Schedule.time_slot),
+        selectinload(Schedule.end_time_slot),
+        selectinload(Schedule.course),
+    ).order_by(
         Schedule.day_of_week, Schedule.time_slot_id
     )
 
@@ -95,9 +100,9 @@ async def list_schedules(
 
     items = result.scalars().all()
     total = count_result.scalar_one()
-    return ScheduleList(
+    return ScheduleListWithTimeSlot(
         total=total,
-        items=[ScheduleOut.model_validate(i) for i in items],
+        items=[ScheduleWithTimeSlot.model_validate(i) for i in items],
     )
 
 
@@ -110,7 +115,11 @@ async def get_schedule(
     """Get a specific schedule with time slot details."""
     result = await db.execute(
         select(Schedule)
-        .options(selectinload(Schedule.time_slot))
+        .options(
+            selectinload(Schedule.time_slot),
+            selectinload(Schedule.end_time_slot),
+            selectinload(Schedule.course),
+        )
         .where(Schedule.id == schedule_id, Schedule.deleted_at.is_(None))
     )
     schedule = result.scalar_one_or_none()

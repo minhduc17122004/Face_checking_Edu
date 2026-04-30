@@ -258,7 +258,7 @@ class _ScheduleCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  slotDisplay,
+                  '${schedule.slotLabel}: ${schedule.displayTimeRange}',
                   style: const TextStyle(
                     fontSize: 14,
                     color: AppColors.slate500,

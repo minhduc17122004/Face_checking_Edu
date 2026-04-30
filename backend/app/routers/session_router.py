@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, date, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, cast, Date
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
@@ -62,6 +62,7 @@ async def create_session(
     session = Session(
         course_id=body.course_id,
         schedule_id=body.schedule_id,
+        session_date=body.session_date,
         start_time=start_time,
         end_time=end_time,
         checkin_window_start=body.checkin_window_start,
@@ -90,8 +91,8 @@ async def list_sessions(
         query = query.where(Session.course_id == course_id)
         count_query = count_query.where(Session.course_id == course_id)
     if session_date:
-        query = query.where(cast(Session.start_time, Date) == session_date)
-        count_query = count_query.where(cast(Session.start_time, Date) == session_date)
+        query = query.where(Session.session_date == session_date)
+        count_query = count_query.where(Session.session_date == session_date)
     if status_filter:
         query = query.where(Session.status == status_filter)
         count_query = count_query.where(Session.status == status_filter)

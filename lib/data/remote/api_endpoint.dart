@@ -52,6 +52,7 @@ class ApiEndpoint {
   static const String sessionSummary = "/api/v1/sessions/{id}/summary";
   static const String sessionGenerateDaily = "/api/v1/sessions/generate-daily";
   static const String sessionTeacher = "/api/v1/sessions/teacher";
+  static const String sessionAdmin = "/api/v1/sessions/admin";
   static const String sessionTeacherActiveOrNext =
       "/api/v1/sessions/teacher/active-or-next";
 

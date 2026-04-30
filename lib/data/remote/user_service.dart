@@ -114,11 +114,21 @@ class UserServiceImplement implements UserService {
 
         final actualImported = await _localService.importFaceData(faceDataList);
 
-        // Clear recovery IDs ONLY if import successfully completes (no throw)
-        await _localService.clearPendingRecoveryStudentIds();
+        try {
+          // Clear recovery IDs ONLY if import successfully completes (no throw).
+          await _localService.clearPendingRecoveryStudentIds();
+        } catch (cleanupError) {
+          await pushLog(
+              'Non-fatal cleanup error after pullFaceData import: $cleanupError');
+        }
 
-        // Broadcast event so UI refreshes to show recovered faces silently
-        EventBusMixin.shareStaticEvent(SyncStudentEvent(status: 'silent'));
+        try {
+          // Broadcast event so UI refreshes to show recovered faces silently.
+          EventBusMixin.shareStaticEvent(SyncStudentEvent(status: 'silent'));
+        } catch (eventError) {
+          await pushLog(
+              'Non-fatal UI event error after pullFaceData import: $eventError');
+        }
 
         final msg = actualImported > 0
             ? 'Tải về $actualImported khuôn mặt thành công'

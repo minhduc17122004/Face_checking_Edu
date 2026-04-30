@@ -25,7 +25,6 @@
   import 'package:face_time_keeping/common/event/event_bus_event.dart'
       hide Student;
   import 'package:face_time_keeping/common/event/event_bus_mixin.dart';
-  import 'package:flutter/material.dart';
   import 'package:geolocator/geolocator.dart';
   import 'package:injectable/injectable.dart';
   import 'package:path_provider/path_provider.dart';
@@ -113,6 +112,8 @@
     Future<String?> getActiveRoomId();
     Future<void> saveActiveRoomName(String roomName);
     Future<String?> getActiveRoomName();
+    Future<void> saveActiveCourseName(String courseName);
+    Future<String?> getActiveCourseName();
 
     // --- EDU Pending Check-In (offline queue) ---
     Future<void> savePendingEduCheckIn(PendingEduCheckIn item);
@@ -184,14 +185,14 @@
         }
 
         final normalizedSearchName = normalizeString(name);
-        
+
         // 3a. Exact normalized name match
         var p = persons.firstWhereOrNull((p) => normalizeString(p.name ?? '') == normalizedSearchName);
         if (p != null) return p;
-        
+
         // 3b. Bulletproof Fallback: Diacritic-insensitive normalized match
         final searchNameNoDia = normalizedSearchName.removeVietnameseDiacritics();
-        p = persons.firstWhereOrNull((p) => 
+        p = persons.firstWhereOrNull((p) =>
             normalizeString(p.name ?? '').removeVietnameseDiacritics() == searchNameNoDia);
         if (p != null) return p;
       }
@@ -1226,7 +1227,8 @@
         {DateTime? sessionStartTime, String? sessionId}) async {
       // null is false, int is minutes late
       try {
-        final activeRoomId = await _getActiveRoomIdSafely();
+        // Chỉ load fallback activeRoomId & courseName nếu quá trình checkIn thuộc về một phiên (sessionId != null)
+        final activeRoomId = sessionId != null ? await _getActiveRoomIdSafely() : null;
         final normalizedRoomId =
             (checkIn.roomId != null && checkIn.roomId!.trim().isNotEmpty)
                 ? checkIn.roomId!.trim()
@@ -1240,6 +1242,8 @@
         final resolvedPin = studentPerson?.pin ?? checkIn.pin;
         final resolvedStudentId = studentPerson?.studentId ?? checkIn.studentId;
 
+        final courseName = sessionId != null ? await getActiveCourseName() : null;
+
         final checkInToSave =
             (normalizedRoomId != null && normalizedRoomId.isNotEmpty)
                 ? checkIn.copyWith(
@@ -1248,6 +1252,7 @@
                     status: status,
                     pin: resolvedPin,
                     studentId: resolvedStudentId,
+                    courseName: courseName,
                   )
                 : checkIn.copyWith(
                     minutesLate: minutesLate,
@@ -1255,6 +1260,8 @@
                     pin: resolvedPin,
                     studentId: resolvedStudentId,
                     isSpoof: checkIn.isSpoof,
+                    courseName: courseName,
+                    roomId: null,
                   );
 
         await _hiveService.saveCheckInOut(checkInToSave);
@@ -1606,6 +1613,16 @@
     @override
     Future<String?> getActiveRoomName() async {
       return _sharedPreferences.get<String>(SharedPrefsKey.activeRoomName);
+    }
+
+    @override
+    Future<void> saveActiveCourseName(String courseName) async {
+      await _sharedPreferences.put<String>(SharedPrefsKey.activeCourseName, courseName);
+    }
+
+    @override
+    Future<String?> getActiveCourseName() async {
+      return _sharedPreferences.get<String>(SharedPrefsKey.activeCourseName);
     }
 
     @override

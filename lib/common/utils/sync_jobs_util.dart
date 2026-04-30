@@ -27,6 +27,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:workmanager/workmanager.dart';
 // ignore: depend_on_referenced_packages
+import 'package:intl/date_symbol_data_local.dart';
+// ignore: depend_on_referenced_packages
 import 'package:intl/intl.dart';
 import '../../data/local/local_service.dart';
 
@@ -66,9 +68,11 @@ void callbackDispatcher() {
       await configureDependencies(environment);
 
       final locale = PlatformDispatcher.instance.locale;
+      final localeName = Intl.canonicalizedLocale(locale.toLanguageTag());
       await S.load(locale);
       await initializeMessages(locale.languageCode);
-      Intl.defaultLocale = locale.toLanguageTag();
+      await initializeDateFormatting(localeName, null);
+      Intl.defaultLocale = localeName;
 
       await SyncJobsUtil._headlessInitLocalNotifications();
       final hiveService = getIt<HiveService>();
@@ -111,18 +115,34 @@ void callbackDispatcher() {
             sendPort.send(null);
           }
 
-          await SyncJobsUtil._showNotification(
+          await SyncJobsUtil._safeShowNotification(
             title: 'Đồng bộ dữ liệu thành công',
             body:
-                'Dữ liệu đã được cập nhật vào lúc ${DateFormat('HH:mm dd/MM').format(DateTime.now())}',
+                'Dữ liệu đã được cập nhật vào lúc ${SyncJobsUtil._formatNotificationTime()}',
           );
         } else if (taskName.contains(_faceDataPeriodicUniqueName)) {
-          await userService.pushFaceData(url: url);
-          await userService.pullFaceData(url: url);
-          await SyncJobsUtil._showNotification(
+          final push = await userService.pushFaceData(url: url);
+          final pull = await userService.pullFaceData(url: url);
+
+          if (!push.isSuccess || !pull.isSuccess) {
+            final errors = <String>[
+              if (!push.isSuccess)
+                'Đẩy lên: ${push.error ?? 'Lỗi không xác định'}',
+              if (!pull.isSuccess)
+                'Tải về: ${pull.error ?? 'Lỗi không xác định'}',
+            ].join('\n');
+
+            await SyncJobsUtil._safeShowNotification(
+              title: 'Đồng bộ dữ liệu khuôn mặt thất bại',
+              body: errors,
+            );
+            return Future.value(false);
+          }
+
+          await SyncJobsUtil._safeShowNotification(
             title: 'Đồng bộ dữ liệu khuôn mặt thành công',
             body:
-                'Dữ liệu khuôn mặt đã được cập nhật vào lúc ${DateFormat('HH:mm dd/MM').format(DateTime.now())}',
+                'Dữ liệu khuôn mặt đã được cập nhật vào lúc ${SyncJobsUtil._formatNotificationTime()}',
           );
           debugPrint('sync face data done');
         } else if (taskName.contains(_studentDataPeriodicUniqueName)) {
@@ -186,8 +206,12 @@ void callbackDispatcher() {
         }
       } else if (Platform.isIOS) {
         if (taskName == 'com.example.face_time_keeping.processing1') {
-          await userService.pushFaceData(url: url);
-          await userService.pullFaceData(url: url);
+          final push = await userService.pushFaceData(url: url);
+          final pull = await userService.pullFaceData(url: url);
+
+          if (!push.isSuccess || !pull.isSuccess) {
+            return Future.value(false);
+          }
           debugPrint('sync face data done');
         } else if (taskName == 'com.example.face_time_keeping.processing2') {
           await userService.syncCheckInOutData(url: url);
@@ -248,18 +272,22 @@ void callbackDispatcher() {
       return Future.value(true);
     } catch (e) {
       debugPrint('Error in sync jobs: $e');
-      final loggingService = getIt<LoggingService>();
-      final localService = getIt<LocalService>();
-      final url = localService.getServerUrl();
-      await loggingService.log(
-          ApiInfo(
-            response: LoggingApiResponse(
-              message: e.toString(),
+      try {
+        final loggingService = getIt<LoggingService>();
+        final localService = getIt<LocalService>();
+        final url = localService.getServerUrl();
+        await loggingService.log(
+            ApiInfo(
+              response: LoggingApiResponse(
+                message: e.toString(),
+              ),
             ),
-          ),
-          url: url);
+            url: url);
+      } catch (logError) {
+        debugPrint('Error logging sync job failure: $logError');
+      }
 
-      await SyncJobsUtil._showNotification(
+      await SyncJobsUtil._safeShowNotification(
         title: 'Đồng bộ dữ liệu thất bại',
         body: 'Đã xảy ra lỗi khi đồng bộ dữ liệu tự động.',
       );
@@ -286,10 +314,10 @@ class SyncJobsUtil {
     tz.initializeTimeZones();
 
     // Notification tap handler
-    final androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    final initSettings = InitializationSettings(
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const initSettings = InitializationSettings(
       android: androidInit,
-      iOS: const DarwinInitializationSettings(),
+      iOS: DarwinInitializationSettings(),
     );
 
     await _fln.initialize(
@@ -327,16 +355,15 @@ class SyncJobsUtil {
   }
 
   static Future<void> cancelSyncData(SyncSchedule syncSchedule) async {
-    await Workmanager()
-        .cancelByUniqueName('$_uniqueName-$syncSchedule');
+    await Workmanager().cancelByUniqueName('$_uniqueName-$syncSchedule');
     await Workmanager()
         .cancelByUniqueName('$_periodicUniqueName-$syncSchedule');
   }
 
   static Future<void> cancelSyncFaceData(
       SyncFaceSchedule syncFaceSchedule) async {
-    await Workmanager().cancelByUniqueName(
-        '$_faceDataPeriodicUniqueName-$syncFaceSchedule');
+    await Workmanager()
+        .cancelByUniqueName('$_faceDataPeriodicUniqueName-$syncFaceSchedule');
   }
 
   static Future<void> scheduleSyncFaceData(
@@ -485,7 +512,7 @@ class SyncJobsUtil {
 // reInit local notifications
   static Future<void> _headlessInitLocalNotifications() async {
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    final initSettings =
+    const initSettings =
         InitializationSettings(android: androidInit, iOS: null);
     await _fln.initialize(initSettings);
 
@@ -515,5 +542,30 @@ class SyncJobsUtil {
     );
     const details = NotificationDetails(android: android);
     await _fln.show(1001, title, body, details);
+  }
+
+  static Future<void> _safeShowNotification({
+    required String title,
+    required String body,
+  }) async {
+    try {
+      await _showNotification(title: title, body: body);
+    } catch (e) {
+      debugPrint('Error showing sync notification: $e');
+      try {
+        await pushLog('Error showing sync notification: $e');
+      } catch (logError) {
+        debugPrint('Error logging sync notification failure: $logError');
+      }
+    }
+  }
+
+  static String _formatNotificationTime() {
+    try {
+      return DateFormat('HH:mm dd/MM').format(DateTime.now());
+    } catch (e) {
+      debugPrint('Error formatting sync notification time: $e');
+      return DateTime.now().toString().substring(0, 16);
+    }
   }
 }

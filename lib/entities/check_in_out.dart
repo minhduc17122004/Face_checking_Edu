@@ -34,6 +34,8 @@ class CheckInOut extends HiveObject {
   int? minutesLate;
   @HiveField(13)
   bool isSpoof;
+  @HiveField(14)
+  String? courseName;
 
   CheckInOut({
     this.id,
@@ -51,6 +53,7 @@ class CheckInOut extends HiveObject {
     this.status,
     this.minutesLate,
     this.isSpoof = false,
+    this.courseName,
   });
   CheckInOut copyWith({
     int? id,
@@ -68,6 +71,7 @@ class CheckInOut extends HiveObject {
     String? status,
     int? minutesLate,
     bool? isSpoof,
+    String? courseName,
   }) =>
       CheckInOut(
         id: id ?? this.id,
@@ -85,6 +89,7 @@ class CheckInOut extends HiveObject {
         status: status ?? this.status,
         minutesLate: minutesLate ?? this.minutesLate,
         isSpoof: isSpoof ?? this.isSpoof,
+        courseName: courseName ?? this.courseName,
       );
   Map<String, dynamic> toSmallJson() {
     if (isCheckIn) {

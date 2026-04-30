@@ -79,6 +79,12 @@ async def export_attendance(
 ):
     """GET /api/v1/attendance/export — Export role-based attendance history."""
     from datetime import timedelta
+    export_format = format.lower()
+    if export_format not in {"csv", "excel"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="format must be either 'csv' or 'excel'.",
+        )
     
     # Adjust to_date to the end of the day so it includes records for that day
     if to_date:
@@ -100,7 +106,7 @@ async def export_attendance(
         course_id=course_id,
         from_date=from_date,
         to_date=to_date,
-        format=format.lower(),
+        format=export_format,
     )
     
     filename = f"attendance_export_{datetime.now().strftime('%Y%m%d%H%M%S')}.{ext}"

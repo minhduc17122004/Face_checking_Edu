@@ -26,6 +26,7 @@ class SharedPrefsKey {
   static const String userRole = 'userRole';
   static const String activeRoom = 'active_room';
   static const String activeRoomName = 'active_room_name';
+  static const String activeCourseName = 'active_course_name';
 
   /// Comma-separated list of student PINs (studentCode) that were manually
   /// reset at local level.  importFaceData will skip re-importing embeddings

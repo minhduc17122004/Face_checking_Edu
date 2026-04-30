@@ -65,6 +65,10 @@ class Course {
   final int? dayOfWeek;
   final int? timeSlotId;
   final String? timeSlotName;
+  final int? startTimeSlotId;
+  final int? endTimeSlotId;
+  final String? startTimeSlotName;
+  final String? endTimeSlotName;
   final int? totalSessions;
   final int? credits;
   final bool isCourseActiveNow;
@@ -88,6 +92,10 @@ class Course {
     this.dayOfWeek,
     this.timeSlotId,
     this.timeSlotName,
+    this.startTimeSlotId,
+    this.endTimeSlotId,
+    this.startTimeSlotName,
+    this.endTimeSlotName,
     this.totalSessions,
     this.credits,
     this.isCourseActiveNow = true,
@@ -116,6 +124,10 @@ class Course {
       dayOfWeek: json['day_of_week'] as int?,
       timeSlotId: json['time_slot_id'] as int?,
       timeSlotName: json['time_slot_name'] as String?,
+      startTimeSlotId: json['start_time_slot_id'] as int?,
+      endTimeSlotId: json['end_time_slot_id'] as int?,
+      startTimeSlotName: json['start_time_slot_name'] as String?,
+      endTimeSlotName: json['end_time_slot_name'] as String?,
       totalSessions: json['total_sessions'] as int?,
       credits: json['credits'] as int?,
       isCourseActiveNow: json['is_course_active_now'] ?? true,
@@ -161,6 +173,10 @@ class Course {
     int? dayOfWeek,
     int? timeSlotId,
     String? timeSlotName,
+    int? startTimeSlotId,
+    int? endTimeSlotId,
+    String? startTimeSlotName,
+    String? endTimeSlotName,
     int? totalSessions,
     int? credits,
     bool? isCourseActiveNow,
@@ -186,6 +202,10 @@ class Course {
       dayOfWeek: dayOfWeek ?? this.dayOfWeek,
       timeSlotId: timeSlotId ?? this.timeSlotId,
       timeSlotName: timeSlotName ?? this.timeSlotName,
+      startTimeSlotId: startTimeSlotId ?? this.startTimeSlotId,
+      endTimeSlotId: endTimeSlotId ?? this.endTimeSlotId,
+      startTimeSlotName: startTimeSlotName ?? this.startTimeSlotName,
+      endTimeSlotName: endTimeSlotName ?? this.endTimeSlotName,
       totalSessions: totalSessions ?? this.totalSessions,
       credits: credits ?? this.credits,
       isCourseActiveNow: isCourseActiveNow ?? this.isCourseActiveNow,

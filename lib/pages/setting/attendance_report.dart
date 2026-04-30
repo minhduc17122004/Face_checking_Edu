@@ -403,6 +403,14 @@ class _AttendanceReportState extends State<AttendanceReport> {
               textAlign: TextAlign.center,
             ),
           ),
+          Expanded(
+            flex: 1,
+            child: Text(
+              'Spoof',
+              style: headerStyle,
+              textAlign: TextAlign.center,
+            ),
+          ),
         ],
       ),
     );
@@ -526,6 +534,27 @@ class _AttendanceReportState extends State<AttendanceReport> {
                   ),
                 ),
               ),
+            ),
+          ),
+
+          // Giả mạo
+          Expanded(
+            flex: 1,
+            child: Center(
+              child: checkInOut.isSpoof
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.red.shade300),
+                      ),
+                      child: Icon(Icons.warning_amber_rounded,
+                          color: Colors.red.shade700, size: 16),
+                    )
+                  : Icon(Icons.check_circle_outline,
+                      color: Colors.green.shade400, size: 16),
             ),
           ),
         ],

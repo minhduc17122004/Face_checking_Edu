@@ -2,21 +2,22 @@ from __future__ import annotations
 """v1 Room Sessions router — /api/v1/rooms/{id}/sessions endpoint (Phase 9)."""
 import uuid
 from datetime import date
-from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from sqlalchemy.orm import joinedload
 
 from app.core.security import get_current_user_id
 from app.core.database import get_db
 from app.models.session import Session
-from app.models.course import Course
 from app.models.room import Room
+from app.models.schedule import Schedule
+from app.models.teacher import Teacher
+from app.models.attendance import Attendance
+from app.models.course_enrollment import CourseEnrollment
 from app.repositories.session_repository import SessionRepository
-from app.repositories.attendance_repository import AttendanceRepository
-from app.repositories.course_enrollment_repository import CourseEnrollmentRepository
+from app.services.session_generator_service import SessionGeneratorService
 from app.schemas.v1.room_session import RoomSessionResponse, RoomSessionList, RoomActiveSessionResponse
 
 router = APIRouter(prefix="/rooms", tags=["v1 — Room Sessions"])
@@ -30,18 +31,44 @@ async def _build_room_session_list(
     from datetime import datetime, timezone, timedelta
     now = datetime.now(timezone.utc)
     results = []
+    session_ids = [session.id for session in sessions]
+    course_ids = list(
+        {session.course_id for session in sessions if session.course_id is not None}
+    )
+
+    attendance_counts: dict[uuid.UUID, int] = {}
+    if session_ids:
+        att_result = await db.execute(
+            select(Attendance.session_id, func.count(Attendance.id))
+            .where(
+                and_(
+                    Attendance.session_id.in_(session_ids),
+                    Attendance.deleted_at.is_(None),
+                )
+            )
+            .group_by(Attendance.session_id)
+        )
+        attendance_counts = {
+            session_id: count for session_id, count in att_result.all()
+        }
+
+    enrollment_counts: dict[uuid.UUID, int] = {}
+    if course_ids:
+        enrollment_result = await db.execute(
+            select(CourseEnrollment.course_id, func.count(CourseEnrollment.id))
+            .where(CourseEnrollment.course_id.in_(course_ids))
+            .group_by(CourseEnrollment.course_id)
+        )
+        enrollment_counts = {
+            course_id: count for course_id, count in enrollment_result.all()
+        }
 
     for session in sessions:
         course_name = session.course.course_name if session.course else "Unknown"
-
-        # Count attendance for this session
-        att_repo = AttendanceRepository(db)
-        att_count = await att_repo.count_by_session(session.id)
-
-        # Count enrolled students
-        enroll_repo = CourseEnrollmentRepository(db)
-        enrollments = await enroll_repo.get_by_course(session.course_id)
-        enrolled_count = len(enrollments)
+        course_code = session.course.course_code if session.course else None
+        teacher_name = session.course.teacher_name if session.course else None
+        att_count = attendance_counts.get(session.id, 0)
+        enrolled_count = enrollment_counts.get(session.course_id, 0)
 
         mode = getattr(session.course, "attendance_mode", None) if session.course else "preset"
 
@@ -119,6 +146,8 @@ async def _build_room_session_list(
                 id=session.id,
                 course_id=session.course_id,
                 course_name=course_name,
+                course_code=course_code,
+                teacher_name=teacher_name,
                 session_date=session.session_date,
                 start_time=session.start_time,
                 end_time=session.end_time,
@@ -177,6 +206,7 @@ async def get_room_sessions(
         skip=skip,
         limit=limit,
     )
+    await SessionGeneratorService(db).sync_sessions(list(sessions))
 
     items = await _build_room_session_list(db, list(sessions))
     sorted_items = _sort_sessions(items)
@@ -205,7 +235,7 @@ async def get_room_active_session(
     if not room or room.deleted_at is not None:
         raise HTTPException(status_code=404, detail="Room not found")
 
-    # Subquery: IDs of non-deleted courses in this room
+    # Subquery: IDs of non-deleted courses in this room.
     course_stmt = select(CourseModel.id).where(
         and_(
             CourseModel.room_id == room_id,
@@ -213,30 +243,30 @@ async def get_room_active_session(
         )
     )
 
-    from datetime import datetime, timezone
+    from datetime import datetime, timezone, timedelta
     now_utc = datetime.now(timezone.utc)
-    today = now_utc.date()
-    start_of_day = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc)
-    end_of_day = datetime.combine(today, datetime.max.time(), tzinfo=timezone.utc)
+    today = now_utc.astimezone(timezone(timedelta(hours=7))).date()
 
     # Find ALL sessions for today, even if closed, to check if they are physically ongoing
     active_q = await db.execute(
         select(Session)
         .options(
-            joinedload(Session.course),
+            joinedload(Session.course).joinedload(CourseModel.teacher).joinedload(Teacher.user),
             joinedload(Session.attendance_config),
+            joinedload(Session.schedule).joinedload(Schedule.time_slot),
+            joinedload(Session.schedule).joinedload(Schedule.end_time_slot),
         )
         .where(
             and_(
                 Session.course_id.in_(course_stmt),
-                Session.start_time >= start_of_day,
-                Session.start_time <= end_of_day,
+                Session.session_date == today,
                 Session.deleted_at.is_(None),
             )
         )
         .order_by(Session.start_time.asc())
     )
     sessions = active_q.unique().scalars().all()
+    await SessionGeneratorService(db).sync_sessions(list(sessions))
 
     if not sessions:
         return RoomActiveSessionResponse(session=None)

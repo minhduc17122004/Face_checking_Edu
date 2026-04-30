@@ -168,6 +168,7 @@ class AttendanceRepository(BaseRepository[Attendance]):
         confidence: float | None = None,
         device_id: uuid.UUID | None = None,
         minutes_diff: int | None = None,
+        is_spoof: bool = False,
     ) -> Attendance:
         record = Attendance(
             session_id=session_id,
@@ -178,6 +179,7 @@ class AttendanceRepository(BaseRepository[Attendance]):
             confidence=confidence,
             device_id=device_id,
             minutes_diff=minutes_diff,
+            is_spoof=is_spoof,
         )
         self.db.add(record)
         await self.db.flush()

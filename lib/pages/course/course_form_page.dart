@@ -65,7 +65,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
   int? _selectedTeacherId;
   String? _selectedRoomId;
   int? _selectedDayOfWeek;
-  int? _selectedTimeSlotId;
+  int? _selectedStartTimeSlotId;
+  int? _selectedEndTimeSlotId;
 
   bool _loadingDepartments = false;
   bool _loadingTeachers = false;
@@ -92,8 +93,12 @@ class _CourseFormViewState extends State<_CourseFormView> {
       _selectedDepartmentId = widget.course!.departmentId;
       _selectedRoomId = widget.course!.roomId;
       _selectedDayOfWeek = widget.course!.dayOfWeek;
-      _selectedTimeSlotId = widget.course!.timeSlotId;
-      _totalSessionsController.text = widget.course!.totalSessions?.toString() ?? '';
+      _selectedStartTimeSlotId =
+          widget.course!.startTimeSlotId ?? widget.course!.timeSlotId;
+      _selectedEndTimeSlotId =
+          widget.course!.endTimeSlotId ?? widget.course!.timeSlotId;
+      _totalSessionsController.text =
+          widget.course!.totalSessions?.toString() ?? '';
       _creditsController.text = widget.course!.credits?.toString() ?? '';
     } else {
       _startMinutesController.text = '0';
@@ -191,10 +196,18 @@ class _CourseFormViewState extends State<_CourseFormView> {
     }
   }
 
+  bool _isEndSlotBeforeStart(int startSlotId, int endSlotId) {
+    final startIndex = _timeSlots.indexWhere((slot) => slot.id == startSlotId);
+    final endIndex = _timeSlots.indexWhere((slot) => slot.id == endSlotId);
+
+    if (startIndex == -1 || endIndex == -1) return false;
+    return endIndex < startIndex;
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if ((_selectedDayOfWeek == null) != (_selectedTimeSlotId == null)) {
+    if ((_selectedDayOfWeek == null) != (_selectedStartTimeSlotId == null)) {
       showTopAlert(
         context,
         title: 'Vui lòng chọn đầy đủ cả Thứ và Tiết học.',
@@ -203,8 +216,22 @@ class _CourseFormViewState extends State<_CourseFormView> {
       return;
     }
 
+    if (_selectedStartTimeSlotId != null &&
+        _selectedEndTimeSlotId != null &&
+        _isEndSlotBeforeStart(
+          _selectedStartTimeSlotId!,
+          _selectedEndTimeSlotId!,
+        )) {
+      showTopAlert(
+        context,
+        title: 'Tiết kết thúc phải >= Tiết bắt đầu.',
+        type: AlertType.error,
+      );
+      return;
+    }
+
     if (_selectedMode == AttendanceMode.custom) {
-      if (_selectedTimeSlotId == null) {
+      if (_selectedStartTimeSlotId == null) {
         showTopAlert(
           context,
           title:
@@ -215,18 +242,25 @@ class _CourseFormViewState extends State<_CourseFormView> {
       }
       final startMin = int.tryParse(_startMinutesController.text) ?? 0;
       final endMin = int.tryParse(_endMinutesController.text) ?? 0;
-      // Find selected time slot and compute its duration from "HH:mm" strings
-      final slot = _timeSlots.firstWhere(
-        (s) => s.id == _selectedTimeSlotId,
+      // Use the start and end slots for custom window computation
+      final startSlot = _timeSlots.firstWhere(
+        (s) => s.id == _selectedStartTimeSlotId,
         orElse: () => _timeSlots.first,
       );
+      final endSlot = _selectedEndTimeSlotId != null
+          ? _timeSlots.firstWhere(
+              (s) => s.id == _selectedEndTimeSlotId,
+              orElse: () => startSlot,
+            )
+          : startSlot;
+
       int _parseMinutes(String t) {
         final parts = t.split(':');
         return int.parse(parts[0]) * 60 + int.parse(parts[1]);
       }
 
       final slotDuration =
-          _parseMinutes(slot.endTime) - _parseMinutes(slot.startTime);
+          _parseMinutes(endSlot.endTime) - _parseMinutes(startSlot.startTime);
       if (endMin <= startMin) {
         showTopAlert(
           context,
@@ -265,7 +299,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
         customWindowStartMinutes: startMinutes,
         customWindowEndMinutes: endMinutes,
         dayOfWeek: _selectedDayOfWeek,
-        timeSlotId: _selectedTimeSlotId,
+        startTimeSlotId: _selectedStartTimeSlotId,
+        endTimeSlotId: _selectedEndTimeSlotId,
         totalSessions: int.tryParse(_totalSessionsController.text),
         credits: int.tryParse(_creditsController.text),
       );
@@ -282,7 +317,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
         customWindowStartMinutes: startMinutes,
         customWindowEndMinutes: endMinutes,
         dayOfWeek: _selectedDayOfWeek,
-        timeSlotId: _selectedTimeSlotId,
+        startTimeSlotId: _selectedStartTimeSlotId,
+        endTimeSlotId: _selectedEndTimeSlotId,
         totalSessions: int.tryParse(_totalSessionsController.text),
         credits: int.tryParse(_creditsController.text),
       );
@@ -572,13 +608,19 @@ class _CourseFormViewState extends State<_CourseFormView> {
                   onChanged: (val) => setState(() => _selectedDayOfWeek = val),
                 ),
               ),
-              const SizedBox(width: 12),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Slot range: start → end
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Expanded(
                 child: _buildDropdownField<int>(
-                  label: 'Tiết học',
-                  icon: Icons.access_time,
+                  label: 'Tiết bắt đầu',
+                  icon: Icons.play_circle_outline,
                   hint: 'Chọn tiết',
-                  value: _selectedTimeSlotId,
+                  value: _selectedStartTimeSlotId,
                   items: _timeSlots
                       .map((s) => DropdownMenuItem<int>(
                             value: s.id,
@@ -586,18 +628,66 @@ class _CourseFormViewState extends State<_CourseFormView> {
                                 overflow: TextOverflow.ellipsis),
                           ))
                       .toList(),
-                  onChanged: (val) => setState(() {
-                    _selectedTimeSlotId = val;
-                    // If time slot cleared while custom mode is active → fallback to preset
-                    if (val == null && _selectedMode == AttendanceMode.custom) {
-                      _selectedMode = AttendanceMode.preset;
-                    }
-                  }),
+                  onChanged: _loadingTimeSlots
+                      ? null
+                      : (val) => setState(() {
+                            _selectedStartTimeSlotId = val;
+                            // Auto-set end to start if not set or end < start
+                            if (val != null) {
+                              final startIdx =
+                                  _timeSlots.indexWhere((s) => s.id == val);
+                              final endIdx = _selectedEndTimeSlotId != null
+                                  ? _timeSlots.indexWhere(
+                                      (s) => s.id == _selectedEndTimeSlotId)
+                                  : -1;
+                              if (endIdx < startIdx) {
+                                _selectedEndTimeSlotId = val;
+                              }
+                            } else {
+                              _selectedEndTimeSlotId = null;
+                              if (_selectedMode == AttendanceMode.custom) {
+                                _selectedMode = AttendanceMode.preset;
+                              }
+                            }
+                          }),
+                  isLoading: _loadingTimeSlots,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildDropdownField<int>(
+                  label: 'Tiết kết thúc',
+                  icon: Icons.stop_circle_outlined,
+                  hint: 'Chọn tiết',
+                  value: _selectedEndTimeSlotId,
+                  items: _timeSlots
+                      .where((s) {
+                        if (_selectedStartTimeSlotId == null) return true;
+                        final startIdx = _timeSlots.indexWhere(
+                            (t) => t.id == _selectedStartTimeSlotId);
+                        final myIdx = _timeSlots.indexOf(s);
+                        return myIdx >= startIdx;
+                      })
+                      .map((s) => DropdownMenuItem<int>(
+                            value: s.id,
+                            child: Text('Tiết ${s.periodNumber}',
+                                overflow: TextOverflow.ellipsis),
+                          ))
+                      .toList(),
+                  onChanged: _loadingTimeSlots ||
+                          _selectedStartTimeSlotId == null
+                      ? null
+                      : (val) => setState(() => _selectedEndTimeSlotId = val),
                   isLoading: _loadingTimeSlots,
                 ),
               ),
             ],
           ),
+          // Show selected range summary
+          if (_selectedStartTimeSlotId != null) ...[
+            const SizedBox(height: 8),
+            _buildSlotRangeSummary(),
+          ],
         ],
       ),
     );
@@ -612,6 +702,57 @@ class _CourseFormViewState extends State<_CourseFormView> {
     {'value': 6, 'label': 'Thứ Bảy'},
     {'value': 7, 'label': 'Chủ Nhật'},
   ];
+
+  Widget _buildSlotRangeSummary() {
+    if (_selectedStartTimeSlotId == null || _timeSlots.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final startSlot =
+        _timeSlots.firstWhere((s) => s.id == _selectedStartTimeSlotId);
+    final endSlot = _selectedEndTimeSlotId != null
+        ? _timeSlots.firstWhere((s) => s.id == _selectedEndTimeSlotId)
+        : startSlot;
+
+    final isSingle = startSlot.id == endSlot.id;
+    final slotLabel = isSingle
+        ? 'Tiết ${startSlot.periodNumber}'
+        : 'Tiết ${startSlot.periodNumber}-${endSlot.periodNumber}';
+    final timeRange = '${startSlot.startTime} – ${endSlot.endTime}';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.blue50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.slate200),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.access_time_filled,
+              color: AppColors.blue600, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 12, color: AppColors.slate600),
+                children: [
+                  TextSpan(
+                    text: slotLabel,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.blue600,
+                    ),
+                  ),
+                  TextSpan(text: '  ($timeRange)'),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildDropdownField<T>({
     required String label,
@@ -742,8 +883,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
             description: ' Tự động mở/đóng trong khoảng thời gian của tiết học',
             icon: Icons.tune,
             color: AppColors.teal600,
-            disabled: _selectedTimeSlotId == null,
-            disabledHint: 'Vui lòng chọn Tiết học trước',
+            disabled: _selectedStartTimeSlotId == null,
+            disabledHint: 'Vui lòng chọn Tiết bắt đầu trước',
           ),
           if (_selectedMode == AttendanceMode.custom) ...[
             const SizedBox(height: 16),
@@ -864,13 +1005,18 @@ class _CourseFormViewState extends State<_CourseFormView> {
   Widget _buildCustomTimeInputs() {
     // Compute live preview from selected time slot + current field values
     String _previewText() {
-      if (_selectedTimeSlotId == null || _timeSlots.isEmpty) {
+      if (_selectedStartTimeSlotId == null || _timeSlots.isEmpty) {
         return 'Chọn Tiết học để xem khoảng thời gian';
       }
-      final slot = _timeSlots.firstWhere(
-        (s) => s.id == _selectedTimeSlotId,
+      final startSlot = _timeSlots.firstWhere(
+        (s) => s.id == _selectedStartTimeSlotId,
         orElse: () => _timeSlots.first,
       );
+      final endSlot = _selectedEndTimeSlotId != null
+          ? _timeSlots.firstWhere((s) => s.id == _selectedEndTimeSlotId,
+              orElse: () => startSlot)
+          : startSlot;
+
       int parseMinutes(String t) {
         final parts = t.split(':');
         if (parts.length < 2) return 0;
@@ -883,9 +1029,9 @@ class _CourseFormViewState extends State<_CourseFormView> {
         return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
       }
 
-      final slotStartMin = parseMinutes(slot.startTime);
-      final slotEndMin = parseMinutes(slot.endTime);
-      final slotDuration = slotEndMin - slotStartMin;
+      final slotStartMin = parseMinutes(startSlot.startTime);
+      final slotEndMin = parseMinutes(endSlot.endTime);
+      final totalDuration = slotEndMin - slotStartMin;
 
       final startMin = int.tryParse(_startMinutesController.text) ?? 0;
       final endMin = int.tryParse(_endMinutesController.text) ?? 0;
@@ -899,10 +1045,10 @@ class _CourseFormViewState extends State<_CourseFormView> {
       if (endMin <= startMin) {
         return '⚠️ Kết thúc ($endMin) phải sau Bắt đầu ($startMin)';
       }
-      if (endMin > slotDuration) {
-        return '⚠️ Kết thúc ($endMin phút) vượt thời lượng tiết ($slotDuration phút) — Chốt: $closeStr (bị cắt)';
+      if (endMin > totalDuration) {
+        return '⚠️ Kết thúc ($endMin phút) vượt thời lượng buổi học ($totalDuration phút) — Chốt: $closeStr (bị cắt)';
       }
-      return '🕐 Mở: $openStr  →  Đóng: $closeStr  (trong tiết ${slot.startTime}–${slot.endTime})';
+      return '🕐 Mở: $openStr  →  Đóng: $closeStr  (trong buổi học ${startSlot.startTime}–${endSlot.endTime})';
     }
 
     return Container(
@@ -959,10 +1105,11 @@ class _CourseFormViewState extends State<_CourseFormView> {
                 color: (int.tryParse(_startMinutesController.text) ?? 0) >=
                             (int.tryParse(_endMinutesController.text) ?? 0) ||
                         (int.tryParse(_endMinutesController.text) ?? 0) >
-                            (_selectedTimeSlotId != null && _timeSlots.isNotEmpty
+                            (_selectedStartTimeSlotId != null &&
+                                    _timeSlots.isNotEmpty
                                 ? () {
                                     final s = _timeSlots.firstWhere(
-                                        (s) => s.id == _selectedTimeSlotId,
+                                        (s) => s.id == _selectedStartTimeSlotId,
                                         orElse: () => _timeSlots.first);
                                     int p(String t) {
                                       final parts = t.split(':');

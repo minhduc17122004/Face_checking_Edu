@@ -83,7 +83,8 @@ class CourseBloc extends Cubit<CourseState> with EventBusMixin {
     int customWindowStartMinutes = 0,
     int customWindowEndMinutes = 30,
     int? dayOfWeek,
-    int? timeSlotId,
+    int? startTimeSlotId,
+    int? endTimeSlotId,
     int? totalSessions,
     int? credits,
   }) async {
@@ -98,7 +99,8 @@ class CourseBloc extends Cubit<CourseState> with EventBusMixin {
       customWindowStartMinutes: customWindowStartMinutes,
       customWindowEndMinutes: customWindowEndMinutes,
       dayOfWeek: dayOfWeek,
-      timeSlotId: timeSlotId,
+      startTimeSlotId: startTimeSlotId,
+      endTimeSlotId: endTimeSlotId,
       totalSessions: totalSessions,
       credits: credits,
     );
@@ -129,7 +131,8 @@ class CourseBloc extends Cubit<CourseState> with EventBusMixin {
     int? customWindowStartMinutes,
     int? customWindowEndMinutes,
     int? dayOfWeek,
-    int? timeSlotId,
+    int? startTimeSlotId,
+    int? endTimeSlotId,
     int? totalSessions,
     int? credits,
   }) async {
@@ -145,7 +148,8 @@ class CourseBloc extends Cubit<CourseState> with EventBusMixin {
       customWindowStartMinutes: customWindowStartMinutes,
       customWindowEndMinutes: customWindowEndMinutes,
       dayOfWeek: dayOfWeek,
-      timeSlotId: timeSlotId,
+      startTimeSlotId: startTimeSlotId,
+      endTimeSlotId: endTimeSlotId,
       totalSessions: totalSessions,
       credits: credits,
     );

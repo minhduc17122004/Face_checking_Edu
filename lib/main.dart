@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer';
+import 'dart:ui' as ui;
 import 'package:face_time_keeping/common/event/event_bus_event.dart';
 import 'package:face_time_keeping/common/event/event_bus_mixin.dart';
 import 'package:face_time_keeping/common/utils/isolate_listen_util.dart';
@@ -9,6 +10,10 @@ import 'package:face_time_keeping/entities/person.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+// ignore: depend_on_referenced_packages
+import 'package:intl/date_symbol_data_local.dart';
+// ignore: depend_on_referenced_packages
+import 'package:intl/intl.dart';
 import 'package:injectable/injectable.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -23,6 +28,7 @@ void main() async {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      await _initializeDateFormattingForAppLocale();
       const String environment = String.fromEnvironment(
         'ENVIRONMENT',
         defaultValue: Environment.prod,
@@ -67,6 +73,21 @@ void main() async {
       log('error: $error');
     },
   );
+}
+
+Future<void> _initializeDateFormattingForAppLocale() async {
+  final locale = ui.PlatformDispatcher.instance.locale;
+  final localeName = Intl.canonicalizedLocale(
+    locale.countryCode?.isNotEmpty == true
+        ? locale.toString()
+        : locale.languageCode,
+  );
+
+  await initializeDateFormatting(localeName, null);
+  if (locale.languageCode != localeName) {
+    await initializeDateFormatting(locale.languageCode, null);
+  }
+  Intl.defaultLocale = localeName;
 }
 
 class AppBlocObserver extends BlocObserver {

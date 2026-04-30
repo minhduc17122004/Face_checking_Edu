@@ -6,6 +6,7 @@ import 'package:face_time_keeping/pages/course/bloc/course_bloc.dart';
 import 'package:face_time_keeping/pages/course/bloc/course_state.dart';
 import 'package:face_time_keeping/common/enums/request_status.dart';
 import 'package:face_time_keeping/common/resources/app_colors.dart';
+import 'package:face_time_keeping/data/local/local_service.dart';
 import 'package:face_time_keeping/data/remote/attendance_history_service.dart';
 import 'package:face_time_keeping/di/injection.dart';
 import 'package:face_time_keeping/pages/history/bloc/attendance_history_bloc.dart';
@@ -124,6 +125,15 @@ class _AttendanceHistoryViewState extends State<_AttendanceHistoryView> {
       child: Stack(
         alignment: Alignment.center,
         children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.arrow_back, color: AppColors.slate900),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ),
           const Text(
             'LỊCH SỬ ĐIỂM DANH',
             style: TextStyle(
@@ -275,36 +285,43 @@ class _AttendanceHistoryViewState extends State<_AttendanceHistoryView> {
     IconData statusIcon;
     Color iconBg;
 
-    switch (item.status) {
-      case 'early':
-        statusColor = AppColors.teal600;
-        iconBg = AppColors.teal50;
-        statusIcon = Icons.alarm;
-        break;
-      case 'on_time':
-        statusColor = AppColors.green600;
-        iconBg = AppColors.green100;
-        statusIcon = Icons.check_circle;
-        break;
-      case 'late':
-        statusColor = AppColors.orange;
-        iconBg = AppColors.orange50;
-        statusIcon = Icons.access_time_filled;
-        break;
-      case 'present':
-        statusColor = AppColors.green600;
-        iconBg = AppColors.green100;
-        statusIcon = Icons.check_circle;
-        break;
-      case 'absent':
-        statusColor = AppColors.red600;
-        iconBg = AppColors.red100;
-        statusIcon = Icons.cancel;
-        break;
-      default:
-        statusColor = AppColors.slate500;
-        iconBg = AppColors.slate200;
-        statusIcon = Icons.help_outline;
+    if (item.isSpoof) {
+      // Spoof override — always red warning style
+      statusColor = AppColors.red600;
+      iconBg = AppColors.red100;
+      statusIcon = Icons.warning_amber_rounded;
+    } else {
+      switch (item.status) {
+        case 'early':
+          statusColor = AppColors.teal600;
+          iconBg = AppColors.teal50;
+          statusIcon = Icons.alarm;
+          break;
+        case 'on_time':
+          statusColor = AppColors.green600;
+          iconBg = AppColors.green100;
+          statusIcon = Icons.check_circle;
+          break;
+        case 'late':
+          statusColor = AppColors.orange;
+          iconBg = AppColors.orange50;
+          statusIcon = Icons.access_time_filled;
+          break;
+        case 'present':
+          statusColor = AppColors.green600;
+          iconBg = AppColors.green100;
+          statusIcon = Icons.check_circle;
+          break;
+        case 'absent':
+          statusColor = AppColors.red600;
+          iconBg = AppColors.red100;
+          statusIcon = Icons.cancel;
+          break;
+        default:
+          statusColor = AppColors.slate500;
+          iconBg = AppColors.slate200;
+          statusIcon = Icons.help_outline;
+      }
     }
 
     return Container(
@@ -312,6 +329,9 @@ class _AttendanceHistoryViewState extends State<_AttendanceHistoryView> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: item.isSpoof
+            ? Border.all(color: AppColors.red.withOpacity(0.4), width: 1.5)
+            : null,
         boxShadow: [
           BoxShadow(
             color: AppColors.slate900.withOpacity(0.05),
@@ -404,7 +424,7 @@ class _AttendanceHistoryViewState extends State<_AttendanceHistoryView> {
                     borderRadius: BorderRadius.circular(99),
                   ),
                   child: Text(
-                    item.statusLabel,
+                    item.isSpoof ? 'Giả mạo' : item.statusLabel,
                     style: TextStyle(
                       color: statusColor,
                       fontSize: 11,
@@ -436,8 +456,9 @@ class _AttendanceHistoryViewState extends State<_AttendanceHistoryView> {
 
   void _showExportDialog(BuildContext context) {
     final courseBloc = getIt<CourseBloc>();
-    courseBloc.loadCourses(mine: true);
-    
+    final role = getIt<LocalService>().getUserRole().toLowerCase();
+    courseBloc.loadCourses(mine: role != 'admin');
+
     String? selectedCourseId;
     String? selectedCourseName;
 
@@ -445,7 +466,8 @@ class _AttendanceHistoryViewState extends State<_AttendanceHistoryView> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setState) => AlertDialog(
-          title: const Text('Xuất dữ liệu điểm danh', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          title: const Text('Xuất dữ liệu điểm danh',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -455,19 +477,24 @@ class _AttendanceHistoryViewState extends State<_AttendanceHistoryView> {
                   builder: (context, state) {
                     return DropdownButtonFormField<String?>(
                       value: selectedCourseId,
-                      decoration: const InputDecoration(labelText: 'Lọc theo học phần'),
+                      decoration:
+                          const InputDecoration(labelText: 'Lọc theo học phần'),
                       isExpanded: true,
                       items: [
-                        const DropdownMenuItem(value: null, child: Text('Tất cả học phần')),
+                        const DropdownMenuItem(
+                            value: null, child: Text('Tất cả học phần')),
                         ...state.courses.map((c) => DropdownMenuItem(
-                          value: c.id,
-                          child: Text(c.courseName, overflow: TextOverflow.ellipsis),
-                        )),
+                              value: c.id,
+                              child: Text(c.courseName,
+                                  overflow: TextOverflow.ellipsis),
+                            )),
                       ],
                       onChanged: (val) => setState(() {
                         selectedCourseId = val;
                         selectedCourseName = state.courses
-                            .where((c) => c.id == val).firstOrNull?.courseName;
+                            .where((c) => c.id == val)
+                            .firstOrNull
+                            ?.courseName;
                       }),
                     );
                   },
@@ -634,18 +661,23 @@ class _AttendanceHistoryViewState extends State<_AttendanceHistoryView> {
           text: 'Báo Cáo Điểm Danh',
         );
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Xuất file sẵn sàng!'), backgroundColor: Colors.green),
+          const SnackBar(
+              content: Text('Xuất file sẵn sàng!'),
+              backgroundColor: Colors.green),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result.error ?? 'Xuất file thất bại'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text(result.error ?? 'Xuất file thất bại'),
+              backgroundColor: Colors.red),
         );
       }
     } catch (e) {
       if (mounted) {
         Navigator.of(context).pop(); // Đóng thẻ tải nếu lỗi ngầm định
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Có lỗi xảy ra: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Có lỗi xảy ra: $e'), backgroundColor: Colors.red),
         );
       }
     }

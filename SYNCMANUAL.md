@@ -55,7 +55,7 @@
 **Cách hoạt động:**
 
 - Lấy danh sách bản ghi điểm danh chưa đồng bộ từ bộ nhớ cục bộ
-- Gửi payload `bulk_users` lên `POST /api/attendance/history/sync_bulk_io`
+- Gửi payload `items` lên `POST /api/v1/attendance/bulk-check-in`
 - Server trả về trạng thái từng bản ghi, ứng dụng đánh dấu đã đồng bộ tương ứng
 - **Không upload khuôn mặt**, chỉ gửi thông tin thời gian và mã học sinh
 
@@ -120,7 +120,7 @@ Dữ liệu gửi/nhận tuân theo model `FaceData`:
 
 | Trường | Kiểu | Mô tả |
 |---|---|---|
-| `empId` | String | Mã học sinh |
+| `studentId` | String | Mã học sinh |
 | `name` | String | Tên học sinh |
 | `listEmbedding` | List[float] | Danh sách vector 128 chiều (mỗi vector là một lần đăng ký) |
 | `updatedTime` | DateTime | Thời điểm cập nhật cuối |
@@ -332,7 +332,7 @@ Bước 6: Kiểm tra đồng bộ điểm danh hàng ngày
 
 | Method | Endpoint | Mô tả |
 |---|---|---|
-| `POST` | `/api/attendance/history/sync_bulk_io` | Upload batch bản ghi điểm danh |
+| `POST` | `/api/v1/attendance/bulk-check-in` | **Bulk Check In**: Đồng bộ lịch sử điểm danh cục bộ từ thiết bị lên backend. <br> **Body**: `{ items[] }` <br> **Response**: `{ total, succeeded, failed, skipped, results[] }` |
 
 ### Đồng bộ học sinh
 

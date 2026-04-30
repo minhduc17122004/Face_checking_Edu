@@ -95,6 +95,27 @@ class CourseService:
         student = result.scalar_one_or_none()
         return student.id if student else None
 
+    async def _get_slot_ids_in_range(
+        self,
+        start_slot_id: int,
+        end_slot_id: int,
+    ) -> list[int]:
+        """Return all time_slot ids with period_number between start and end (inclusive)."""
+        result = await self._db.execute(
+            select(TimeSlot)
+            .where(
+                TimeSlot.period_number >= (
+                    select(TimeSlot.period_number).where(TimeSlot.id == start_slot_id).scalar_subquery()
+                ),
+                TimeSlot.period_number <= (
+                    select(TimeSlot.period_number).where(TimeSlot.id == end_slot_id).scalar_subquery()
+                ),
+            )
+            .order_by(TimeSlot.period_number)
+        )
+        slots = result.scalars().all()
+        return [s.id for s in slots]
+
     async def _validate_schedule_conflict(
         self,
         *,
@@ -206,16 +227,28 @@ class CourseService:
                     detail="Room not found.",
                 )
 
-        if (req.day_of_week is None) != (req.time_slot_id is None):
+        # Resolve effective slot range (new API takes priority over legacy time_slot_id)
+        eff_start_slot = req.start_time_slot_id or req.time_slot_id
+        eff_end_slot = req.end_time_slot_id or eff_start_slot
+
+        has_schedule = req.day_of_week is not None and eff_start_slot is not None
+        if (req.day_of_week is None) != (eff_start_slot is None):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cần cung cấp đầy đủ cả thứ học và tiết học.",
             )
 
-        if req.day_of_week is not None and req.time_slot_id is not None:
+        if eff_end_slot is not None and eff_start_slot is not None and eff_end_slot < eff_start_slot:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Tiết kết thúc phải >= tiết bắt đầu.",
+            )
+
+        if has_schedule:
+            # Conflict check: validate only the start slot (covers the whole block)
             await self._validate_schedule_conflict(
                 day_of_week=req.day_of_week,
-                time_slot_id=req.time_slot_id,
+                time_slot_id=eff_start_slot,
                 teacher_id=resolved_teacher_id,
                 room_id=req.room_id,
             )
@@ -233,17 +266,18 @@ class CourseService:
             credits=req.credits,
         )
 
-        # ── Phase 10: Automatic Schedule creation ───────────────────────────
-        if req.day_of_week is not None and req.time_slot_id is not None:
+        # ── Automatic Schedule creation (1 record, stores start→end range) ──
+        if has_schedule:
             from app.models.schedule import Schedule
-            schedule = Schedule(
-                course_id=course.id,
-                day_of_week=req.day_of_week,
-                time_slot_id=req.time_slot_id,
+            self._db.add(
+                Schedule(
+                    course_id=course.id,
+                    day_of_week=req.day_of_week,
+                    time_slot_id=eff_start_slot,
+                    end_time_slot_id=eff_end_slot if eff_end_slot != eff_start_slot else None,
+                )
             )
-            self._db.add(schedule)
             await self._db.flush()
-            # RE-FETCH to get the new schedule and keep teacher/user info loaded
             latest = await self.repo.get_by_id(course.id)
             if latest:
                 course = latest
@@ -407,19 +441,39 @@ class CourseService:
             if req.day_of_week is not None
             else (existing_schedule.day_of_week if existing_schedule else None)
         )
+        effective_start_slot = req.start_time_slot_id or req.time_slot_id
         effective_slot = (
-            req.time_slot_id
-            if req.time_slot_id is not None
+            effective_start_slot
+            if effective_start_slot is not None
             else (existing_schedule.time_slot_id if existing_schedule else None)
+        )
+        effective_end_slot = (
+            req.end_time_slot_id
+            if req.end_time_slot_id is not None
+            else (
+                (existing_schedule.end_time_slot_id or existing_schedule.time_slot_id)
+                if existing_schedule
+                else effective_slot
+            )
         )
 
         if (
-            (req.day_of_week is None) != (req.time_slot_id is None)
+            (req.day_of_week is None) != (effective_start_slot is None)
             and existing_schedule is None
         ):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cần cung cấp đầy đủ cả thứ học và tiết học.",
+            )
+
+        if (
+            effective_slot is not None
+            and effective_end_slot is not None
+            and effective_end_slot < effective_slot
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Tiáº¿t káº¿t thÃºc khÃ´ng Ä‘Æ°á»£c nhá» hÆ¡n tiáº¿t báº¯t Ä‘áº§u.",
             )
 
         if effective_day is not None and effective_slot is not None:
@@ -479,73 +533,107 @@ class CourseService:
 
             await self._db.flush()
 
-        # ── Phase 10: Automatic Schedule update ───────────────────────────
-        if req.day_of_week is not None or req.time_slot_id is not None:
-            from app.repositories.schedule_repository import ScheduleRepository
+        # ── Automatic Schedule update (multi-slot support) ─────────────────
+        normalized_end_slot = (
+            effective_end_slot
+            if effective_end_slot is not None and effective_end_slot != effective_slot
+            else None
+        )
+        schedule_changed = (
+            req.day_of_week is not None
+            or effective_start_slot is not None
+            or req.end_time_slot_id is not None
+        )
+
+        if schedule_changed and effective_day is not None and effective_slot is not None:
             from app.models.schedule import Schedule
-            schedule_repo = ScheduleRepository(self._db)
-            schedules = await schedule_repo.get_by_course(course.id)
 
-            if schedules:
-                # Update the first one
-                await schedule_repo.update(
-                    schedules[0],
-                    day_of_week=req.day_of_week,
-                    time_slot_id=req.time_slot_id,
-                )
-            elif req.day_of_week is not None and req.time_slot_id is not None:
-                # Create new one if it doesn't exist
-                new_sched = Schedule(
-                    course_id=course.id,
-                    day_of_week=req.day_of_week,
-                    time_slot_id=req.time_slot_id,
-                )
-                self._db.add(new_sched)
-                await self._db.flush()
+            stale_duplicates = [
+                s
+                for s in getattr(course, "schedules", [])
+                if s.deleted_at is not None
+                and s.day_of_week == effective_day
+                and s.time_slot_id == effective_slot
+            ]
+            for stale_schedule in stale_duplicates:
+                await self._db.delete(stale_schedule)
 
-            # RE-FETCH to get the new schedule and keep teacher/user info loaded
+            if existing_schedule is not None:
+                existing_schedule.day_of_week = effective_day
+                existing_schedule.time_slot_id = effective_slot
+                existing_schedule.end_time_slot_id = normalized_end_slot
+
+            else:
+                self._db.add(
+                    Schedule(
+                        course_id=course.id,
+                        day_of_week=effective_day,
+                        time_slot_id=effective_slot,
+                        end_time_slot_id=normalized_end_slot,
+                    )
+                )
+            await self._db.flush()
+
             latest = await self.repo.get_by_id(course.id)
             if latest:
                 course = latest
 
         return await self._build_course_out(course)
 
+    async def _fetch_slot(self, slot_id: int) -> "TimeSlot | None":
+        from app.repositories.time_slot_repository import TimeSlotRepository
+        try:
+            return await TimeSlotRepository(self._db).get_by_id(slot_id)
+        except Exception:
+            return None
+
     async def _build_course_out(self, course: "Course") -> CourseOut:
-        """Helper to build CourseOut with schedule info."""
+        """Helper to build CourseOut with schedule info (single Schedule record)."""
         out = CourseOut.model_validate(course)
         out.enrolled_count = await self.repo.count_enrolled(course.id)
 
-        # Safely check if 'schedules' relationship is loaded
-        # In async SQLAlchemy, accessing an un-loaded relation raises an error.
         schedules = getattr(course, "schedules", [])
-
-        # Filter for active ones (this might still trigger lazy load if 'schedules' is a lazy relation)
-        # To be absolutely safe in async, we check the object state if possible,
-        # but hasattr/getattr usually triggers it.
-        # However, for new/refreshed objects it might be OK if they were joinedloaded.
-
         if schedules:
-            active_schedules = [s for s in schedules if s.deleted_at is None]
-            if active_schedules:
-                primary: "Schedule" = active_schedules[0]
-                out.day_of_week = primary.day_of_week
-                out.time_slot_id = primary.time_slot_id
+            active = [s for s in schedules if s.deleted_at is None]
+            if active:
+                sched = active[0]  # Always a single record now
+                out.day_of_week = sched.day_of_week
 
-                # Fetch time slot info safely
-                ts_name = None
-                if hasattr(primary, "time_slot") and primary.time_slot:
-                    ts_name = f"Tiết {primary.time_slot.period_number}"
+                start_slot_id = sched.time_slot_id
+                end_slot_id = sched.end_time_slot_id or sched.time_slot_id
+
+                out.time_slot_id = start_slot_id
+                out.start_time_slot_id = start_slot_id
+                out.end_time_slot_id = end_slot_id
+
+                # Resolve period numbers for display
+                def _period(s_obj, slot_id: int) -> str | None:
+                    # Try loaded relationship first
+                    if slot_id == s_obj.time_slot_id and hasattr(s_obj, "time_slot") and s_obj.time_slot:
+                        return str(s_obj.time_slot.period_number)
+                    if slot_id == s_obj.end_time_slot_id and hasattr(s_obj, "end_time_slot") and s_obj.end_time_slot:
+                        return str(s_obj.end_time_slot.period_number)
+                    return None
+
+                start_period = _period(sched, start_slot_id)
+                end_period = _period(sched, end_slot_id)
+
+                # DB fallback
+                if start_period is None:
+                    ts = await self._fetch_slot(start_slot_id)
+                    start_period = str(ts.period_number) if ts else None
+                if end_period is None:
+                    ts = await self._fetch_slot(end_slot_id)
+                    end_period = str(ts.period_number) if ts else None
+
+                out.start_time_slot_name = f"Tiết {start_period}" if start_period else None
+                out.end_time_slot_name = f"Tiết {end_period}" if end_period else None
+
+                # Display: "Tiết 1" or "Tiết 1-3"
+                if start_period and end_period and start_period != end_period:
+                    out.time_slot_name = f"Tiết {start_period}-{end_period}"
                 else:
-                    # Fallback: fetch it from DB
-                    try:
-                        from app.repositories.time_slot_repository import TimeSlotRepository
-                        ts_repo = TimeSlotRepository(self._db)
-                        ts = await ts_repo.get_by_id(primary.time_slot_id)
-                        if ts:
-                            ts_name = f"Tiết {ts.period_number}"
-                    except Exception:
-                        pass
-                out.time_slot_name = ts_name
+                    out.time_slot_name = f"Tiết {start_period}" if start_period else None
 
         return out
 

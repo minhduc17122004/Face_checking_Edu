@@ -186,6 +186,12 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i995.CourseBloc(gh<_i256.CourseService>()));
     gh.factory<_i836.ScheduleBloc>(
         () => _i836.ScheduleBloc(gh<_i566.ScheduleService>()));
+    gh.factory<_i905.RoomSessionBloc>(() => _i905.RoomSessionBloc(
+          gh<_i1001.RoomSessionService>(),
+          gh<_i141.DeviceRequestService>(),
+          gh<_i840.LocalService>(),
+          gh<_i440.SessionService>(),
+        ));
     gh.singleton<_i664.AttendanceReportCubit>(() => _i664.AttendanceReportCubit(
           gh<_i840.LocalService>(),
           gh<_i440.EduSyncService>(),
@@ -208,11 +214,6 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i542.SessionManagementCubit(gh<_i440.SessionService>()));
     gh.factory<_i496.AttendanceHistoryBloc>(() =>
         _i496.AttendanceHistoryBloc(gh<_i102.AttendanceHistoryService>()));
-    gh.factory<_i905.RoomSessionBloc>(() => _i905.RoomSessionBloc(
-          gh<_i1001.RoomSessionService>(),
-          gh<_i141.DeviceRequestService>(),
-          gh<_i840.LocalService>(),
-        ));
     gh.factory<_i850.StudentGroupCubit>(() => _i850.StudentGroupCubit(
           gh<_i691.StudentGroupService>(),
           gh<_i276.DepartmentService>(),

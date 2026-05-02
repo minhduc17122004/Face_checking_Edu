@@ -46,8 +46,9 @@ class AttendanceRecordUI {
 
   String get minutesDiffLabel {
     if (minutesDiff == null) return '';
-    if (minutesDiff! > 0) return '+${minutesDiff}m';
-    return '${minutesDiff}m';
+    if (minutesDiff! < 0) return 'Sớm (${minutesDiff!.abs()} p)';
+    if (minutesDiff! > 0) return 'Muộn ($minutesDiff p)';
+    return '';
   }
 
   String get displayName => studentName ?? 'HS_$studentId';

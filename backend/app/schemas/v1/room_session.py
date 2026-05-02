@@ -53,3 +53,11 @@ class RoomActiveSessionResponse(BaseModel):
     session: Optional[RoomSessionResponse] = None
 
     model_config = {"from_attributes": True}
+
+class RoomEligibleCheckinSessionResponse(BaseModel):
+    """Response for GET /api/v1/rooms/{id}/eligible-checkin-session."""
+    session: Optional[RoomSessionResponse] = None
+    status: Literal["active", "early_openable", "blocked", "none"] = "none"
+    message: Optional[str] = None
+
+    model_config = {"from_attributes": True}

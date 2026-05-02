@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:face_time_keeping/data/remote/logging_service.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

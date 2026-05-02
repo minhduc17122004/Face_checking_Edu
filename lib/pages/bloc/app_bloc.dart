@@ -1,12 +1,9 @@
 import 'dart:async';
 import 'dart:developer';
 
-import 'package:easy_debounce/easy_debounce.dart';
 import 'package:face_time_keeping/common/event/event_bus_event.dart';
 import 'package:face_time_keeping/common/utils/location_util.dart';
 import 'package:face_time_keeping/data/local/hive_service.dart';
-
-import 'package:face_time_keeping/di/injection.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 

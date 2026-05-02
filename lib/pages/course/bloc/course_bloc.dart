@@ -11,25 +11,14 @@ import 'course_state.dart';
 
 @lazySingleton
 class CourseBloc extends Cubit<CourseState> with EventBusMixin {
-  CourseBloc(this._courseService) : super(CourseState()) {
-    listenEvent<CourseChangeEvent>((event) {
-      loadCourses(
-        departmentId: _lastDepartmentId,
-        mine: _lastMine,
-      );
-    });
-  }
+  CourseBloc(this._courseService) : super(CourseState());
 
   final CourseService _courseService;
-  String? _lastDepartmentId;
-  bool _lastMine = false;
 
   Future<void> loadCourses({
     String? departmentId,
     bool mine = false,
   }) async {
-    _lastDepartmentId = departmentId;
-    _lastMine = mine;
     emit(state.copyWith(requestStatus: RequestStatus.requesting));
     final result = await _courseService.getCourses(
       departmentId: departmentId,
@@ -215,7 +204,8 @@ class CourseBloc extends Cubit<CourseState> with EventBusMixin {
     }
   }
 
-  Future<List<Map<String, dynamic>>?> getAvailableStudents(String courseId) async {
+  Future<List<Map<String, dynamic>>?> getAvailableStudents(
+      String courseId) async {
     final result = await _courseService.getAvailableStudents(courseId);
     if (result.isSuccess) {
       return result.data;

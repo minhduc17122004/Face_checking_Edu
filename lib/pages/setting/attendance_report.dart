@@ -333,83 +333,80 @@ class _AttendanceReportState extends State<AttendanceReport> {
     }
     final width = MediaQuery.of(context).size.width;
     final isWideScreen = width > 600;
-    return Column(
-      children: [
-        _buildTableHeader(isWideScreen),
-        ...state.checkInOuts.map((checkInOut) =>
-            _buildTableRow(checkInOut, isWideScreen, state.roomNameById)),
-      ],
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width - 32),
+          child: IntrinsicWidth(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildTableHeader(isWideScreen),
+                ...state.checkInOuts.asMap().entries.map((entry) =>
+                    _buildTableRow(entry.value, isWideScreen, state.roomNameById, entry.key)),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildTableHeader(bool isWideScreen) {
-    const headerStyle = TextStyle(fontWeight: FontWeight.w600, fontSize: 12);
+    final headerStyle = TextStyle(
+      fontWeight: FontWeight.w700,
+      fontSize: 12,
+      color: Colors.blueGrey.shade700,
+    );
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50,
+        color: Colors.blueGrey.shade50,
         border: Border(
-          bottom: BorderSide(color: Colors.grey.shade200),
+          bottom: BorderSide(color: Colors.grey.shade200, width: 1.5),
         ),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              'Mã SV',
-              style: headerStyle,
-              textAlign: TextAlign.center,
-            ),
+          SizedBox(
+            width: 80,
+            child: Text('Mã SV', style: headerStyle, textAlign: TextAlign.center),
           ),
-          Expanded(
-            flex: 3,
-            child: Text(
-              'Tên Học Sinh',
-              style: headerStyle,
-              textAlign: TextAlign.center,
-            ),
+          SizedBox(
+            width: 130,
+            child: Text('Tên Học Sinh', style: headerStyle, textAlign: TextAlign.center),
           ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              'Phòng học',
-              style: headerStyle,
-              textAlign: TextAlign.center,
-            ),
+          SizedBox(
+            width: 90,
+            child: Text('Phòng học', style: headerStyle, textAlign: TextAlign.center),
           ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              'Thời gian',
-              style: headerStyle,
-              textAlign: TextAlign.center,
-            ),
+          SizedBox(
+            width: 72,
+            child: Text('Giờ vào', style: headerStyle, textAlign: TextAlign.center),
           ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              'Trạng thái',
-              style: headerStyle,
-              textAlign: TextAlign.center,
-            ),
+          SizedBox(
+            width: 90,
+            child: Text('Trạng thái', style: headerStyle, textAlign: TextAlign.center),
           ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              'Hình Ảnh',
-              style: headerStyle,
-              textAlign: TextAlign.center,
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Text(
-              'Spoof',
-              style: headerStyle,
-              textAlign: TextAlign.center,
-            ),
+          // Button "Xem thêm" column header
+          SizedBox(
+            width: 44,
+            child: Text('Chi tiết', style: headerStyle, textAlign: TextAlign.center),
           ),
         ],
       ),
@@ -417,156 +414,337 @@ class _AttendanceReportState extends State<AttendanceReport> {
   }
 
   Widget _buildTableRow(CheckInOut checkInOut, bool isWideScreen,
-      Map<String, String> roomNameById) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade100),
+      Map<String, String> roomNameById, int index) {
+    final rowKey = checkInOut.id != null
+        ? 'attendance_${checkInOut.id}'
+        : 'attendance_${checkInOut.studentId}_${checkInOut.time.millisecondsSinceEpoch}';
+
+    return Dismissible(
+      key: ValueKey(rowKey),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) async {
+        await _confirmDeleteAttendanceRecord(checkInOut);
+        return false;
+      },
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        color: Colors.red.shade600,
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Icon(Icons.delete, color: Colors.white),
+            SizedBox(width: 8),
+            Text(
+              'Xóa',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
-      child: Row(
-        children: [
-          // Mã SV
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-              child: Text(
-                checkInOut.pin ?? '--',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
+      child: Container(
+        decoration: BoxDecoration(
+          color: index.isEven ? Colors.white : Colors.grey.shade50,
+          border: Border(
+            bottom: BorderSide(color: Colors.grey.shade100),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              // Mã SV
+              SizedBox(
+                width: 80,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  child: Text(
+                    checkInOut.pin ?? '--',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.blueGrey.shade800,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-                textAlign: TextAlign.center,
               ),
-            ),
-          ),
 
-          // Tên Học Sinh
-          Expanded(
-            flex: 3,
-            child: Text(
-              textAlign: TextAlign.center,
-              checkInOut.name,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Colors.black87,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-
-          // Phòng học
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-              child: Text(
-                _displayRoomName(checkInOut.roomId, roomNameById),
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Colors.black87,
+              // Tên Học Sinh
+              SizedBox(
+                width: 130,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  child: Text(
+                    checkInOut.name,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.blueGrey.shade900,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
               ),
-            ),
-          ),
 
-          // Thời gian
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-              child: Text(
-                DateFormat('HH:mm').format(checkInOut.time),
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+              // Phòng học
+              SizedBox(
+                width: 90,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  child: Text(
+                    _displayRoomName(checkInOut.roomId, roomNameById),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.blueGrey.shade700,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-                textAlign: TextAlign.center,
               ),
-            ),
-          ),
 
-          // Trạng thái
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-              child: _buildStatusWidget(checkInOut),
-            ),
-          ),
+              // Thời gian
+              SizedBox(
+                width: 72,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  child: Text(
+                    DateFormat('HH:mm').format(checkInOut.time),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.blueGrey.shade800,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
 
-          // Hình Ảnh
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: InkWell(
-                onTap: () => checkInOut.imagePath != null &&
-                        checkInOut.imagePath!.isNotEmpty
-                    ? _showImageDialog(checkInOut.imagePath!)
-                    : null,
+              // Trạng thái
+              SizedBox(
+                width: 90,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  child: _buildStatusWidget(checkInOut),
+                ),
+              ),
+
+              // Button "Xem thêm" → bottom sheet
+              SizedBox(
+                width: 44,
+                child: Center(
+                  child: IconButton(
+                    onPressed: () => _showDetailSheet(checkInOut),
+                    icon: Icon(
+                      Icons.image_search_outlined,
+                      size: 18,
+                      color: Colors.blueGrey.shade400,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: 'Xem ảnh & chi tiết',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showDetailSheet(CheckInOut checkInOut) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle bar
+              Center(
                 child: Container(
                   width: 40,
-                  height: 60,
+                  height: 4,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: checkInOut.imagePath != null &&
-                            checkInOut.imagePath!.isNotEmpty
-                        ? _buildFileImage(checkInOut.imagePath!)
-                        : Container(
-                            color: Colors.grey.shade100,
-                            child: Icon(
-                              Icons.person,
-                              color: Colors.grey.shade400,
-                              size: 20,
-                            ),
-                          ),
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
-            ),
+              const SizedBox(height: 16),
+              // Name header
+              Text(
+                checkInOut.name,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.blueGrey.shade900,
+                ),
+              ),
+              if (checkInOut.pin != null) ...[  
+                const SizedBox(height: 2),
+                Text(
+                  'MSSV: ${checkInOut.pin}',
+                  style: TextStyle(fontSize: 13, color: Colors.blueGrey.shade500),
+                ),
+              ],
+              const SizedBox(height: 20),
+              // Photo
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Ảnh
+                  Container(
+                    width: 100,
+                    height: 130,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: checkInOut.imagePath != null &&
+                              checkInOut.imagePath!.isNotEmpty
+                          ? InkWell(
+                              onTap: () {
+                                Navigator.pop(ctx);
+                                _showImageDialog(checkInOut.imagePath!);
+                              },
+                              child: _buildFileImage(checkInOut.imagePath!),
+                            )
+                          : Container(
+                              color: Colors.grey.shade100,
+                              child: Icon(Icons.person,
+                                  color: Colors.grey.shade400, size: 40),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  // Info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _detailRow(Icons.access_time_outlined, 'Giờ vào',
+                            DateFormat('HH:mm dd/MM/yyyy').format(checkInOut.time)),
+                        const SizedBox(height: 12),
+                        _detailRow(
+                          checkInOut.isSpoof
+                              ? Icons.warning_amber_rounded
+                              : Icons.verified_user_outlined,
+                          'Giả mạo',
+                          checkInOut.isSpoof ? 'Có' : 'Không',
+                          valueColor: checkInOut.isSpoof
+                              ? Colors.red.shade600
+                              : Colors.green.shade600,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
           ),
+        );
+      },
+    );
+  }
 
-          // Giả mạo
-          Expanded(
-            flex: 1,
-            child: Center(
-              child: checkInOut.isSpoof
-                  ? Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: Colors.red.shade300),
-                      ),
-                      child: Icon(Icons.warning_amber_rounded,
-                          color: Colors.red.shade700, size: 16),
-                    )
-                  : Icon(Icons.check_circle_outline,
-                      color: Colors.green.shade400, size: 16),
+  Widget _detailRow(IconData icon, String label, String value, {Color? valueColor}) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.blueGrey.shade400),
+        const SizedBox(width: 6),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label,
+                style: TextStyle(fontSize: 11, color: Colors.blueGrey.shade400)),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: valueColor ?? Colors.blueGrey.shade800,
+              ),
             ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _confirmDeleteAttendanceRecord(CheckInOut checkInOut) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xác nhận xóa'),
+        content: Text(
+          'Bạn có chắc muốn xóa bản ghi của ${checkInOut.name} lúc '
+          '${DateFormat('HH:mm dd/MM/yyyy').format(checkInOut.time)} không?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Xóa'),
           ),
         ],
       ),
     );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await _cubit.deleteAttendanceRecord(checkInOut);
+      if (!mounted || _scaffoldMessenger == null) return;
+      _scaffoldMessenger!.showSnackBar(
+        const SnackBar(
+          content: Text('Đã xóa bản ghi cục bộ'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      if (!mounted || _scaffoldMessenger == null) return;
+      _scaffoldMessenger!.showSnackBar(
+        SnackBar(
+          content: Text('Lỗi khi xóa bản ghi: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   Widget _buildStatusWidget(CheckInOut checkInOut) {
     // Determine status from either properties (EDU mode) or standard fallback
     final isLate = checkInOut.status == 'late';
-    final isOnTime =
-        checkInOut.status == 'on_time' || checkInOut.status == 'early';
+    final isEarly = checkInOut.status == 'early';
+    final isOnTime = checkInOut.status == 'on_time';
     final isAbsent = checkInOut.status == 'absent';
 
     // Default fallback handling if property is null
@@ -583,6 +761,11 @@ class _AttendanceReportState extends State<AttendanceReport> {
       displayText = 'Trễ ${lateMins > 0 ? '($lateMins p)' : ''}';
       bgColor = Colors.orange.shade50;
       textColor = Colors.orange.shade800;
+    } else if (isEarly) {
+      final earlyMins = checkInOut.minutesLate?.abs() ?? 0;
+      displayText = 'Sớm${earlyMins > 0 ? ' ($earlyMins p)' : ''}';
+      bgColor = Colors.teal.shade50;
+      textColor = Colors.teal.shade700;
     } else if (isOnTime) {
       displayText = 'Đúng giờ';
       bgColor = Colors.green.shade50;

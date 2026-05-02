@@ -9,6 +9,18 @@ import '../../entities/room.dart';
 import '../../entities/course.dart';
 import 'api_endpoint.dart';
 
+class EligibleRoomSessionResult {
+  const EligibleRoomSessionResult({
+    this.session,
+    this.status,
+    this.message,
+  });
+
+  final RoomSession? session;
+  final String? status;
+  final String? message;
+}
+
 abstract class RoomSessionService {
   Future<DataState<List<Room>>> getRooms({int? limit, int? offset});
   Future<DataState<List<RoomSession>>> getRoomSessions(
@@ -17,8 +29,12 @@ abstract class RoomSessionService {
     int skip = 0,
     int limit = 100,
   });
+
   /// Returns the single active session for [roomId], or null if none.
   Future<DataState<RoomSession?>> getActiveRoomSession(String roomId);
+  Future<DataState<EligibleRoomSessionResult>> getEligibleCheckinSession(
+    String roomId,
+  );
   Future<DataState<List<Course>>> getRoomCourses(String roomId);
   Future<DataState<void>> activateSession(String sessionId);
   Future<DataState<void>> closeSession(String sessionId);
@@ -122,6 +138,74 @@ class RoomSessionServiceImplement implements RoomSessionService {
       await pushLog('Error in getActiveRoomSession: $e');
       return DataFailed<RoomSession?>(e.toString());
     }
+  }
+
+  @override
+  Future<DataState<EligibleRoomSessionResult>> getEligibleCheckinSession(
+    String roomId,
+  ) async {
+    try {
+      final path =
+          ApiEndpoint.roomEligibleCheckinSession.replaceAll('{id}', roomId);
+      final response = await _apiClient.dio.get<dynamic>(
+        path,
+        options: Options(
+          validateStatus: (status) => status != null && status < 500,
+        ),
+      );
+
+      if (response.statusCode == 404 || response.statusCode == 405) {
+        return DataFailed<EligibleRoomSessionResult>(
+          'Eligible check-in endpoint is not available',
+          code: response.statusCode,
+        );
+      }
+
+      final data = response.data;
+      if (response.statusCode == null || response.statusCode! >= 400) {
+        return DataFailed<EligibleRoomSessionResult>(
+          _extractErrorMessage(data) ?? 'Failed to load eligible session',
+          code: response.statusCode,
+        );
+      }
+
+      if (data is! Map<String, dynamic>) {
+        return const DataFailed<EligibleRoomSessionResult>(
+          'Invalid eligible session response',
+        );
+      }
+
+      final sessionJson = data['session'] ?? data['data'];
+      final session = sessionJson is Map<String, dynamic>
+          ? RoomSession.fromJson(sessionJson)
+          : null;
+
+      return DataSuccess<EligibleRoomSessionResult>(
+        EligibleRoomSessionResult(
+          session: session,
+          status: data['status'] as String?,
+          message: data['message'] as String?,
+        ),
+      );
+    } on DioError catch (e) {
+      await pushLog('Error in getEligibleCheckinSession: $e');
+      return DataFailed<EligibleRoomSessionResult>(
+        e.message,
+        code: e.response?.statusCode,
+      );
+    } on Exception catch (e) {
+      await pushLog('Error in getEligibleCheckinSession: $e');
+      return DataFailed<EligibleRoomSessionResult>(e.toString());
+    }
+  }
+
+  String? _extractErrorMessage(dynamic data) {
+    if (data is! Map<String, dynamic>) return null;
+    final message = data['message'] ?? data['detail'] ?? data['error'];
+    if (message is String && message.trim().isNotEmpty) {
+      return message;
+    }
+    return null;
   }
 
   @override

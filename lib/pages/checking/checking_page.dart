@@ -19,17 +19,25 @@ class CheckingArgs {
   final bool isCheckIn;
   final String? sessionId;
   final DateTime? sessionStartTime;
+
   /// When not null, late detection uses this time as the reference point
   /// (e.g. checkinWindowEnd when the session was manually closed).
-  /// When null AND sessionStartTime is provided, the student is always on-time
-  /// (they are checking in while the session is still active).
   final DateTime? lateReferenceTime;
+
+  /// When true, check-ins before [sessionStartTime] are saved as `early`.
+  /// Normal active sessions keep this false so they remain on-time.
+  final bool detectEarlyStatus;
+
+  /// When true, check-ins after the reference time are saved as `late`.
+  final bool detectLateStatus;
 
   const CheckingArgs({
     required this.isCheckIn,
     this.sessionId,
     this.sessionStartTime,
     this.lateReferenceTime,
+    this.detectEarlyStatus = false,
+    this.detectLateStatus = false,
   });
 }
 
@@ -108,12 +116,17 @@ class _CheckingPageState extends State<CheckingPage> {
             ),
           );
         }
-        _bloc.sessionStartTime = args?.lateReferenceTime ?? (
-          // During active session → always on-time (no reference = 0 minutes late)
-          args?.sessionStartTime != null ? null : null
-        );
+        final shouldDetectEarly = args?.detectEarlyStatus ?? false;
+        final shouldDetectLate = (args?.detectLateStatus ?? false) ||
+            args?.lateReferenceTime != null;
+        _bloc.sessionStartTime = args?.lateReferenceTime ??
+            (shouldDetectEarly || shouldDetectLate
+                ? args?.sessionStartTime
+                : null);
+        _bloc.detectEarlyStatus = shouldDetectEarly;
+        _bloc.detectLateStatus = shouldDetectLate;
         _bloc.sessionId = args?.sessionId;
-        
+
         return BlocProvider<CheckingBloc>(
           create: (_) => _bloc,
           child: BlocConsumer<CheckingBloc, CheckingState>(
@@ -369,7 +382,7 @@ class _CheckingPageState extends State<CheckingPage> {
         debugPrint('Switch camera button pressed');
         await _faceDetectorKey.currentState?.switchCamera();
       },
-      backgroundColor: AppColors.black.withOpacity(0.7),
+      backgroundColor: AppColors.black.withValues(alpha: 0.7),
       child: const Icon(
         Icons.flip_camera_ios_outlined,
         color: AppColors.white,

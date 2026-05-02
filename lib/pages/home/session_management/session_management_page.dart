@@ -269,7 +269,8 @@ class _SessionCard extends StatelessWidget {
               ),
             ],
           ),
-          if (session.attendanceMode == SessionAttendanceMode.custom &&
+          if ((session.attendanceMode == SessionAttendanceMode.custom ||
+                  session.attendanceMode == SessionAttendanceMode.preset) &&
               session.checkinWindowStart != null &&
               session.checkinWindowEnd != null) ...[
             const Spacing(height: 8),
@@ -279,7 +280,7 @@ class _SessionCard extends StatelessWidget {
                     size: 16, color: AppColors.slate400),
                 const SizedBox(width: 4),
                 Text(
-                  'Giờ điểm danh: ${DateFormat('HH:mm').format(session.checkinWindowStart!.toLocal())} - '
+                  'Cửa sổ điểm danh: ${DateFormat('HH:mm').format(session.checkinWindowStart!.toLocal())} - '
                   '${DateFormat('HH:mm').format(session.checkinWindowEnd!.toLocal())}',
                   style: const TextStyle(
                       fontSize: 13,

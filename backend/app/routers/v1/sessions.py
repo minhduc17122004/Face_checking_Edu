@@ -1,7 +1,7 @@
 from __future__ import annotations
 """v1 Sessions router — thin layer, no business logic."""
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +9,7 @@ from sqlalchemy import select
 
 from app.core.security import get_current_user_id
 from app.core.database import get_db
+from app.models.session import Session
 from app.repositories.session_repository import SessionRepository
 from app.repositories.course_repository import CourseRepository
 from app.services.course_service import CourseService
@@ -560,9 +561,12 @@ async def open_session(
         raise HTTPException(status_code=404, detail="Session not found.")
 
     mode = await config_svc.get_effective_mode(session.id)
-    if mode != "FLEXIBLE":
+    course_mode = getattr(session.course, "attendance_mode", None) if session.course else None
+    is_preset = course_mode == "preset"
+    if mode != "FLEXIBLE" and not is_preset:
         raise HTTPException(
-            status_code=400, detail="Only FLEXIBLE sessions can be opened manually."
+            status_code=400,
+            detail="Only FLEXIBLE sessions or preset sessions in the early window can be opened.",
         )
 
     # Removed limitation: Flexible sessions can be opened even if currently closed
@@ -570,17 +574,51 @@ async def open_session(
         raise HTTPException(status_code=400, detail="Session is already open.")
 
     now = datetime.now(timezone.utc)
-    if now < session.start_time:
-        raise HTTPException(status_code=400, detail="Session not started yet.")
-    if session.end_time and now > session.end_time:
-        raise HTTPException(status_code=400, detail="Session time window has expired.")
+    if is_preset:
+        early_start = session.start_time - timedelta(minutes=10)
+        if now < early_start:
+            raise HTTPException(
+                status_code=400,
+                detail="Preset session is not inside the early check-in window.",
+            )
+        if session.end_time and now > session.end_time:
+            raise HTTPException(status_code=400, detail="Session time window has expired.")
+    else:
+        if now < session.start_time:
+            raise HTTPException(status_code=400, detail="Session not started yet.")
+        if session.end_time and now > session.end_time:
+            raise HTTPException(status_code=400, detail="Session time window has expired.")
 
     siblings = await repo.get_by_course(session.course_id, skip=0, limit=500)
     previous = [s for s in siblings if s.start_time < session.start_time]
 
+    if is_preset and session.course and session.course.room_id:
+        from app.models.course import Course as CourseModel
+        from sqlalchemy import and_
+
+        room_previous_result = await db.execute(
+            select(Session)
+            .join(CourseModel, Session.course_id == CourseModel.id)
+            .where(
+                and_(
+                    CourseModel.room_id == session.course.room_id,
+                    CourseModel.deleted_at.is_(None),
+                    Session.id != session.id,
+                    Session.start_time < session.start_time,
+                    Session.deleted_at.is_(None),
+                    Session.status != "closed",
+                )
+            )
+            .order_by(Session.start_time.asc())
+        )
+        previous_by_id = {prev.id: prev for prev in previous}
+        for prev in room_previous_result.scalars().all():
+            previous_by_id[prev.id] = prev
+        previous = list(previous_by_id.values())
+
     for prev in previous:
         if prev.status != "closed":
-            if prev.end_time and prev.end_time < now:
+            if prev.end_time and prev.end_time <= now:
                 prev.status = "closed"
             else:
                 raise HTTPException(

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:face_time_keeping/common/utils/log_util.dart';
+import 'package:face_time_keeping/common/utils/sync_jobs_util.dart';
 import 'package:flutter/material.dart';
 import 'package:face_time_keeping/common/resources/app_colors.dart';
 import 'package:face_time_keeping/common/resources/styles/text_styles.dart';
@@ -85,6 +86,12 @@ class _SyncSchedulePageState extends State<SyncSchedulePage> {
             builder: (context, setDialogState) {
               int selectedHours = int.tryParse(hoursController.text) ?? 0;
               int selectedMinutes = int.tryParse(minutesController.text) ?? 0;
+              final selectedInterval = periodicSyncInterval(
+                hours: selectedHours,
+                minutes: selectedMinutes,
+              );
+              final isIntervalValid =
+                  selectedInterval >= minPeriodicSyncInterval;
 
               return AlertDialog(
                 title: const Text(
@@ -130,7 +137,9 @@ class _SyncSchedulePageState extends State<SyncSchedulePage> {
                                   ? _formatTimeOfDay(selectedTime!)
                                   : 'Chọn thời gian',
                               style: TextStyle(
-                                color: selectedTime != null ? Colors.black : Colors.grey[600],
+                                color: selectedTime != null
+                                    ? Colors.black
+                                    : Colors.grey[600],
                               ),
                             ),
                           ),
@@ -158,9 +167,11 @@ class _SyncSchedulePageState extends State<SyncSchedulePage> {
                                     decoration: InputDecoration(
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(8),
-                                        borderSide: const BorderSide(color: AppColors.gray200),
+                                        borderSide: const BorderSide(
+                                            color: AppColors.gray200),
                                       ),
-                                      contentPadding: const EdgeInsets.symmetric(
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
                                         horizontal: 12,
                                         vertical: 16,
                                       ),
@@ -168,7 +179,9 @@ class _SyncSchedulePageState extends State<SyncSchedulePage> {
                                     ),
                                     validator: (value) {
                                       final number = int.tryParse(value ?? '');
-                                      if (number == null || number < 0 || number > 24) {
+                                      if (number == null ||
+                                          number < 0 ||
+                                          number > 24) {
                                         return 'Từ 0-24';
                                       }
                                       return null;
@@ -196,9 +209,11 @@ class _SyncSchedulePageState extends State<SyncSchedulePage> {
                                     decoration: InputDecoration(
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(8),
-                                        borderSide: const BorderSide(color: AppColors.gray200),
+                                        borderSide: const BorderSide(
+                                            color: AppColors.gray200),
                                       ),
-                                      contentPadding: const EdgeInsets.symmetric(
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
                                         horizontal: 12,
                                         vertical: 16,
                                       ),
@@ -206,7 +221,9 @@ class _SyncSchedulePageState extends State<SyncSchedulePage> {
                                     ),
                                     validator: (value) {
                                       final number = int.tryParse(value ?? '');
-                                      if (number == null || number < 0 || number > 59) {
+                                      if (number == null ||
+                                          number < 0 ||
+                                          number > 59) {
                                         return 'Từ 0-59';
                                       }
                                       return null;
@@ -226,14 +243,24 @@ class _SyncSchedulePageState extends State<SyncSchedulePage> {
                             width: double.infinity,
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.blue[50],
+                              color: isIntervalValid
+                                  ? Colors.blue[50]
+                                  : Colors.red[50],
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.blue[200]!),
+                              border: Border.all(
+                                color: isIntervalValid
+                                    ? Colors.blue[200]!
+                                    : Colors.red[200]!,
+                              ),
                             ),
                             child: Text(
-                              'Lặp lại: ${_formatInterval(selectedHours, selectedMinutes)}',
+                              isIntervalValid
+                                  ? 'Lặp lại: ${_formatInterval(selectedHours, selectedMinutes)}'
+                                  : 'Khoảng thời gian tối thiểu là ${minPeriodicSyncInterval.inMinutes} phút',
                               style: TextStyle(
-                                color: Colors.blue[700],
+                                color: isIntervalValid
+                                    ? Colors.blue[700]
+                                    : Colors.red[700],
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -249,7 +276,7 @@ class _SyncSchedulePageState extends State<SyncSchedulePage> {
                     child: const Text('Hủy'),
                   ),
                   ElevatedButton(
-                    onPressed: selectedTime != null && (selectedHours > 0 || selectedMinutes > 0)
+                    onPressed: selectedTime != null && isIntervalValid
                         ? () {
                             if (formKey.currentState!.validate()) {
                               Navigator.pop(context, {
@@ -269,17 +296,33 @@ class _SyncSchedulePageState extends State<SyncSchedulePage> {
         },
       );
 
+      if (!mounted) return;
       if (result != null) {
         final time = result['time'] as TimeOfDay;
         final hours = result['hours'] as int;
         final minutes = result['minutes'] as int;
+        final interval = periodicSyncInterval(hours: hours, minutes: minutes);
+        if (interval < minPeriodicSyncInterval) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Khoảng thời gian đồng bộ tối thiểu là '
+                '${minPeriodicSyncInterval.inMinutes} phút',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
 
         final newSchedule = SyncSchedule(
           time: _formatTimeOfDay(time),
           repeatIntervalHours: hours,
           repeatIntervalMinutes: minutes,
         );
-        final scheduleResult = await _localService.scheduleSyncData(newSchedule);
+        final scheduleResult =
+            await _localService.scheduleSyncData(newSchedule);
+        if (!mounted) return;
         if (!scheduleResult) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -420,7 +463,9 @@ class _SyncSchedulePageState extends State<SyncSchedulePage> {
                         ),
                       ),
                       Expanded(
-                        child: _syncSchedules.isEmpty ? _buildEmptyState() : _buildScheduleList(),
+                        child: _syncSchedules.isEmpty
+                            ? _buildEmptyState()
+                            : _buildScheduleList(),
                       ),
                     ],
                   ),

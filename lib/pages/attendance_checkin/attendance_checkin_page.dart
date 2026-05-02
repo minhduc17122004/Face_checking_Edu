@@ -325,7 +325,11 @@ class _AttendanceCheckinViewState extends State<_AttendanceCheckinView> {
               Text(
                 record.minutesDiffLabel,
                 style: TextStyle(
-                  color: record.isLate ? AppColors.orange : AppColors.slate500,
+                  color: record.isLate
+                      ? AppColors.orange
+                      : record.isEarly
+                          ? AppColors.teal600
+                          : AppColors.slate500,
                   fontSize: 11,
                 ),
               ),

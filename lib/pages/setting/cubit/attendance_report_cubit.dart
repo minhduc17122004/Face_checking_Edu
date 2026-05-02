@@ -31,9 +31,10 @@ class AttendanceReportCubit extends Cubit<AttendanceReportState>
         emit(state.copyWith(status: RequestStatus.requesting));
       }
 
+      final filterDate = state.filterDate ?? DateTime.now();
       await _localService.refreshCheckInOutBox();
       if (!isClosed) {
-        await loadAttendanceReport();
+        await filterCheckInOuts(filterDate);
       }
     } catch (e) {
       await pushLog('Error in _refreshData: $e');
@@ -79,6 +80,26 @@ class AttendanceReportCubit extends Cubit<AttendanceReportState>
     } catch (e) {
       await pushLog('Error in filterCheckInOuts: $e');
       emit(state.copyWith(status: RequestStatus.failed, message: e.toString()));
+    }
+  }
+
+  Future<void> deleteAttendanceRecord(CheckInOut checkInOut) async {
+    try {
+      await _localService.deleteCheckInOut(checkInOut);
+      final filterDate = state.filterDate ?? checkInOut.time;
+      final checkInOuts = await _localService.getCheckInOutByDate(filterDate);
+      final unsyncedCount = await _countUnsyncedEdu();
+
+      emit(state.copyWith(
+        checkInOuts: checkInOuts,
+        unsyncedCount: unsyncedCount,
+        status: RequestStatus.success,
+        filterDate: filterDate,
+      ));
+    } catch (e) {
+      await pushLog('Error in deleteAttendanceRecord: $e');
+      emit(state.copyWith(status: RequestStatus.failed, message: e.toString()));
+      rethrow;
     }
   }
 

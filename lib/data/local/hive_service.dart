@@ -36,6 +36,7 @@ abstract class HiveService {
   Future<void> incrementEduRetryCount(String localId);
   Future<void> clearSyncedEduCheckIns();
   Future<void> clearAllEduCheckIns();
+  Future<void> deletePendingEduCheckInForRecord(CheckInOut checkInOut);
   Future<int> purgeInvalidEduCheckIns();
 }
 
@@ -336,13 +337,40 @@ class HiveServiceImplement implements HiveService {
   }
 
   @override
+  Future<void> deletePendingEduCheckInForRecord(CheckInOut checkInOut) async {
+    final box = await _getPendingEduBox();
+    final entries = box.toMap().entries.where((entry) {
+      final item = entry.value;
+      final sameTimestamp = item.timestamp.millisecondsSinceEpoch ==
+          checkInOut.time.millisecondsSinceEpoch;
+      final sameStudent = item.studentId == checkInOut.studentId;
+      final samePin = item.pin == checkInOut.pin ||
+          (item.pin == null || item.pin!.isEmpty) &&
+              (checkInOut.pin == null || checkInOut.pin!.isEmpty);
+      final sameRoom = item.roomId == checkInOut.roomId ||
+          (item.roomId == null || item.roomId!.isEmpty) &&
+              (checkInOut.roomId == null || checkInOut.roomId!.isEmpty);
+
+      return !item.isSynced &&
+          sameTimestamp &&
+          sameStudent &&
+          samePin &&
+          sameRoom;
+    }).toList();
+
+    await box.deleteAll(entries.map((entry) => entry.key));
+  }
+
+  @override
   Future<int> purgeInvalidEduCheckIns() async {
     final box = await _getPendingEduBox();
     int purgedCount = 0;
     final entries = box.toMap().entries.toList();
     for (final entry in entries) {
       final item = entry.value;
-      if (item.studentId == 0 && item.serverUserId == null && (item.pin == null || item.pin!.isEmpty)) {
+      if (item.studentId == 0 &&
+          item.serverUserId == null &&
+          (item.pin == null || item.pin!.isEmpty)) {
         await box.delete(entry.key);
         purgedCount++;
       }

@@ -3,6 +3,7 @@ import 'package:face_time_keeping/common/resources/app_colors.dart';
 import 'package:face_time_keeping/common/resources/app_theme.dart';
 import 'package:face_time_keeping/common/resources/styles/text_styles.dart';
 import 'package:face_time_keeping/common/utils/log_util.dart';
+import 'package:face_time_keeping/common/utils/sync_jobs_util.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:face_time_keeping/pages/setting/cubit/setting/setting_cubit.dart';
 import 'package:face_time_keeping/di/injection.dart';
@@ -15,7 +16,6 @@ import 'package:face_time_keeping/pages/setting/server_face_status_page.dart';
 import 'package:face_time_keeping/route/app_route.dart';
 import 'package:face_time_keeping/route/navigator.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 class SettingPage extends StatefulWidget {
   const SettingPage({Key? key}) : super(key: key);
@@ -60,7 +60,8 @@ class _SettingPageState extends State<SettingPage> {
     } catch (_) {}
     if (!mounted) return;
     if (!await _ensureServerConfigured()) return;
-    await pushLog('[UI ACTION] Người dùng mở Modal Quản lý Lịch Đồng bộ Khuôn mặt');
+    await pushLog(
+        '[UI ACTION] Người dùng mở Modal Quản lý Lịch Đồng bộ Khuôn mặt');
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -310,6 +311,30 @@ class _SettingPageState extends State<SettingPage> {
                                   child: ElevatedButton.icon(
                                     onPressed: () async {
                                       try {
+                                        final interval = periodicSyncInterval(
+                                          hours: hours,
+                                          minutes: minutes,
+                                        );
+                                        if (interval <
+                                            minPeriodicSyncInterval) {
+                                          ScaffoldMessenger.of(this.context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Khoảng thời gian đồng bộ tối thiểu là '
+                                                '${minPeriodicSyncInterval.inMinutes} phút',
+                                              ),
+                                              backgroundColor: AppColors.red,
+                                              behavior:
+                                                  SnackBarBehavior.floating,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                          );
+                                          return;
+                                        }
                                         await _settingCubit
                                             .saveSyncFaceSchedule(
                                           SyncFaceSchedule(
@@ -318,7 +343,7 @@ class _SettingPageState extends State<SettingPage> {
                                           ),
                                         );
                                         if (!mounted) return;
-                                        Navigator.of(context).pop();
+                                        Navigator.of(this.context).pop();
                                         ScaffoldMessenger.of(this.context)
                                             .showSnackBar(
                                           SnackBar(
@@ -545,7 +570,8 @@ class _SettingPageState extends State<SettingPage> {
   Future<void> _performSyncNow() async {
     if (!mounted) return;
 
-    await pushLog('[UI ACTION] Người dùng nhấn Bắt đầu Đồng bộ màn hình Cài Đặt (Thủ công)');
+    await pushLog(
+        '[UI ACTION] Người dùng nhấn Bắt đầu Đồng bộ màn hình Cài Đặt (Thủ công)');
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -601,10 +627,12 @@ class _SettingPageState extends State<SettingPage> {
 
       // If push actually uploaded data, we save the message. We don't skip pull!
       final pushData = push.data?.toString() ?? '';
-      final hadDataToPush = push.isSuccess && pushData != 'Không có dữ liệu để đồng bộ';
+      final hadDataToPush =
+          push.isSuccess && pushData != 'Không có dữ liệu để đồng bộ';
 
       if (hadDataToPush) {
-        await pushLog('[SYNC SUCCESS] Đẩy dữ liệu khuôn mặt thành công: $pushData');
+        await pushLog(
+            '[SYNC SUCCESS] Đẩy dữ liệu khuôn mặt thành công: $pushData');
       }
 
       // Always pull data from server so pending recoveries aren't skipped
@@ -612,17 +640,20 @@ class _SettingPageState extends State<SettingPage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).clearSnackBars();
-      
+
       if (pull.isSuccess || hadDataToPush) {
         if (pull.isSuccess) {
-          await pushLog('[SYNC SUCCESS] Tải về khuôn mặt thành công: ${pull.data}');
+          await pushLog(
+              '[SYNC SUCCESS] Tải về khuôn mặt thành công: ${pull.data}');
         }
-        
+
         String combinedMessage = '';
         if (hadDataToPush) {
           combinedMessage += 'Đẩy lên: $pushData\n';
         }
-        if (pull.isSuccess && pull.data != 'Không có dữ liệu mới' && pull.data != null) {
+        if (pull.isSuccess &&
+            pull.data != 'Không có dữ liệu mới' &&
+            pull.data != null) {
           combinedMessage += 'Tải về: ${pull.data}';
         }
 
@@ -745,98 +776,6 @@ class _SettingPageState extends State<SettingPage> {
     return true;
   }
 
-  Future<void> _syncData() async {
-    try {
-      if (!await _ensureServerConfigured()) return;
-      // Show loading snackbar
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                ),
-                SizedBox(width: 12),
-                Text('Đang đồng bộ dữ liệu...'),
-              ],
-            ),
-            duration: Duration(seconds: 30), // Long duration for sync operation
-            backgroundColor: AppColors.blue,
-          ),
-        );
-      }
-
-      final result = await _settingCubit.syncCheckInOutData();
-
-      // Clear any existing snackbars
-      if (mounted) {
-        ScaffoldMessenger.of(context).clearSnackBars();
-
-        if (result.isSuccess) {
-          // Show success snackbar
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.white),
-                  SizedBox(width: 12),
-                  Text('Đồng bộ dữ liệu thành công!'),
-                ],
-              ),
-              backgroundColor: AppColors.green,
-              duration: Duration(seconds: 3),
-            ),
-          );
-        } else {
-          // Show error snackbar
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.error, color: Colors.white),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                        'Đồng bộ thất bại: ${result.error ?? "Lỗi không xác định"}'),
-                  ),
-                ],
-              ),
-              backgroundColor: AppColors.red,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      await pushLog('Error in _syncData: $e');
-      // Clear loading snackbar and show error
-      if (mounted) {
-        ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text('Lỗi đồng bộ: $e'),
-                ),
-              ],
-            ),
-            backgroundColor: AppColors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    }
-  }
-
   @override
   void dispose() {
     _settingCubit.close();
@@ -866,15 +805,6 @@ class _SettingPageState extends State<SettingPage> {
                         const SizedBox(height: 10),
                         _buildSettingsCard([
                           _buildSettingItem(
-                            icon: Icons.sync_alt,
-                            iconBg: AppColors.blue50,
-                            iconColor: AppColors.blue600,
-                            title: 'Đồng bộ dữ liệu điểm danh',
-                            subtitle: 'Đồng bộ dữ liệu điểm danh hàng ngày',
-                            onTap: _syncData,
-                            isLast: false,
-                          ),
-                          _buildSettingItem(
                             icon: Icons.history_edu_outlined,
                             iconBg: AppColors.purple50,
                             iconColor: AppColors.purple600,
@@ -891,7 +821,8 @@ class _SettingPageState extends State<SettingPage> {
                             iconBg: AppColors.red100,
                             iconColor: AppColors.red600,
                             title: 'Danh sách giả mạo khuôn mặt',
-                            subtitle: 'Xem các lượt quét điểm danh bị cảnh báo giả mạo',
+                            subtitle:
+                                'Xem các lượt quét điểm danh bị cảnh báo giả mạo',
                             onTap: () {
                               AppNavigator.pushNamed(RouterName.spoofList);
                             },
@@ -929,8 +860,9 @@ class _SettingPageState extends State<SettingPage> {
                             icon: Icons.sync,
                             iconBg: AppColors.green100,
                             iconColor: AppColors.green600,
-                            title: 'Thiết lập đồng bộ dữ liệu',
-                            subtitle: 'Thiết lập thời gian đồng bộ dữ liệu',
+                            title: 'Thiết lập lịch đồng bộ điểm danh',
+                            subtitle:
+                                'Tự động gửi dữ liệu điểm danh offline lên server theo lịch',
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -947,12 +879,14 @@ class _SettingPageState extends State<SettingPage> {
                             iconBg: AppColors.blue50,
                             iconColor: AppColors.blue600,
                             title: 'Kiểm tra Server Face',
-                            subtitle: 'Xem danh sách khuôn mặt đã được lưu trên server',
+                            subtitle:
+                                'Xem danh sách khuôn mặt đã được lưu trên server',
                             onTap: () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const ServerFaceStatusPage(),
+                                  builder: (context) =>
+                                      const ServerFaceStatusPage(),
                                 ),
                               );
                             },

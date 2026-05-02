@@ -45,7 +45,7 @@ class CsvUtil {
       for (final e in entries) {
         final row = [
           e.pin ?? '',
-          e.name ?? '',
+          e.name,
           _formatDateTime(e.time),
           _getStatusDisplay(e),
           e.isSpoof ? 'Có' : 'Không',
@@ -74,7 +74,11 @@ class CsvUtil {
       final lateMins = checkInOut.minutesLate ?? 0;
       return 'Trễ${lateMins > 0 ? ' ($lateMins p)' : ''}';
     }
-    if (checkInOut.status == 'on_time' || checkInOut.status == 'early') {
+    if (checkInOut.status == 'early') {
+      final earlyMins = checkInOut.minutesLate?.abs() ?? 0;
+      return 'Sớm${earlyMins > 0 ? ' ($earlyMins p)' : ''}';
+    }
+    if (checkInOut.status == 'on_time') {
       return 'Đúng giờ';
     }
     return 'Có mặt';
@@ -82,18 +86,5 @@ class CsvUtil {
 
   String _formatDateTime(DateTime dt) {
     return dt.toIso8601String().split('.').first.replaceAll(':', '-');
-  }
-
-  DateTime? _parseDateTime(String input) {
-    try {
-      return DateTime.parse(input);
-    } catch (_) {
-      pushLog('Error in _parseDateTime: $_');
-      try {
-        return null;
-      } catch (_) {
-        return null;
-      }
-    }
   }
 }

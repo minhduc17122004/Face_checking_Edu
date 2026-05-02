@@ -77,10 +77,13 @@ class ApiEndpoint {
   // Phase 9: Room Sessions
   static const String roomSessions = "/api/v1/rooms/{id}/sessions";
   static const String roomActiveSession = "/api/v1/rooms/{id}/active-session";
+  static const String roomEligibleCheckinSession =
+      "/api/v1/rooms/{id}/eligible-checkin-session";
 
   // Phase 9: Attendance Check-in
   static const String attendanceCheckin = "/api/v1/attendance/check-in";
-  static const String attendanceBulkCheckin = "/api/v1/attendance/bulk-check-in";
+  static const String attendanceBulkCheckin =
+      "/api/v1/attendance/bulk-check-in";
   static const String attendanceSessionCheckins =
       "/api/v1/attendance/session/{id}/checkins";
   static const String attendanceSessionSummary =

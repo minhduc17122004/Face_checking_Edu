@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:camera/camera.dart';
@@ -34,6 +33,8 @@ class CheckingBloc extends Cubit<CheckingState> {
   /// The start time of the current session (used for late detection)
   DateTime? sessionStartTime;
   String? sessionId;
+  bool detectEarlyStatus = false;
+  bool detectLateStatus = false;
 
   final LocalService _localService;
   static AudioPlayer player = AudioPlayer();
@@ -136,8 +137,8 @@ class CheckingBloc extends Cubit<CheckingState> {
 
   Future<String> compressImageFromXFile(
     XFile xfile, {
-    int targetWidth = 400,
-    int quality = 10,
+    int targetWidth = 800,
+    int quality = 80,
   }) async {
     final String outputPath = "${xfile.path}_compressed.jpg";
 
@@ -158,7 +159,8 @@ class CheckingBloc extends Cubit<CheckingState> {
     return outputPath;
   }
 
-  Future<void> _checkInLocal(Student student, XFile file, {bool isSpoof = false}) async {
+  Future<void> _checkInLocal(Student student, XFile file,
+      {bool isSpoof = false}) async {
     try {
       emit(state.copyWith(checkingStatus: RequestStatus.requesting));
       final compressedImage = await compressImageFromXFile(file);
@@ -178,6 +180,8 @@ class CheckingBloc extends Cubit<CheckingState> {
         checkIn,
         sessionStartTime: sessionStartTime,
         sessionId: sessionId,
+        detectEarlyStatus: detectEarlyStatus,
+        detectLateStatus: detectLateStatus,
       );
       if (result['errorMessage'] != null) {
         emit(state.copyWith(

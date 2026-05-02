@@ -15,6 +15,20 @@ class CheckInWidget extends StatelessWidget {
         .format(checkInData?.time ?? DateTime.now());
     bool isLate =
         checkInData?.minutesLate != null && checkInData!.minutesLate! > 0;
+    bool isEarly =
+        checkInData?.minutesLate != null && checkInData!.minutesLate! < 0;
+    final statusColor = isLate
+        ? Colors.red
+        : isEarly
+            ? AppColors.teal600
+            : Colors.green;
+    final statusIcon =
+        isLate ? Icons.warning : (isEarly ? Icons.alarm : Icons.check_circle);
+    final statusText = isLate
+        ? 'Đến muộn ${checkInData!.minutesLate!} phút'
+        : isEarly
+            ? 'Sớm (${checkInData!.minutesLate!.abs()} p)'
+            : 'Đúng giờ';
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12.0),
@@ -51,18 +65,16 @@ class CheckInWidget extends StatelessWidget {
                   Row(
                     children: [
                       Icon(
-                        isLate ? Icons.warning : Icons.check_circle,
-                        color: isLate ? Colors.red : Colors.green,
+                        statusIcon,
+                        color: statusColor,
                         size: 20,
                       ),
                       const SizedBox(width: 5),
                       Expanded(
                         child: Text(
-                          isLate
-                              ? 'Đến muộn ${checkInData!.minutesLate!} phút'
-                              : 'Đúng giờ',
+                          statusText,
                           style: TextStyles.blackSmallRegular.copyWith(
-                            color: isLate ? Colors.red : Colors.green,
+                            color: statusColor,
                             fontWeight: FontWeight.w500,
                           ),
                         ),

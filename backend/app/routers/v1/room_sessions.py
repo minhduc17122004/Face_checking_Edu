@@ -1,7 +1,7 @@
 from __future__ import annotations
 """v1 Room Sessions router — /api/v1/rooms/{id}/sessions endpoint (Phase 9)."""
 import uuid
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,10 +18,70 @@ from app.models.attendance import Attendance
 from app.models.course_enrollment import CourseEnrollment
 from app.repositories.session_repository import SessionRepository
 from app.services.session_generator_service import SessionGeneratorService
-from app.schemas.v1.room_session import RoomSessionResponse, RoomSessionList, RoomActiveSessionResponse
+from app.schemas.v1.room_session import RoomSessionResponse, RoomSessionList, RoomActiveSessionResponse, RoomEligibleCheckinSessionResponse
 
 router = APIRouter(prefix="/rooms", tags=["v1 — Room Sessions"])
 
+
+PRESET_EARLY_CHECKIN_MINUTES = 10
+
+def _room_session_end(session: Session) -> datetime | None:
+    return session.end_time or (
+        session.start_time + timedelta(minutes=45) if session.start_time else None
+    )
+
+def _is_active_ongoing_session(session: Session, now: datetime) -> bool:
+    if session.status != "active" or session.start_time > now:
+        return False
+    end_time = _room_session_end(session)
+    return end_time is None or now < end_time
+
+def _is_preset_early_candidate(session: Session, now: datetime) -> bool:
+    mode = getattr(session.course, "attendance_mode", None) if session.course else None
+    if mode != "preset" or session.status != "scheduled":
+        return False
+    early_start = session.start_time - timedelta(minutes=PRESET_EARLY_CHECKIN_MINUTES)
+    return early_start <= now < session.start_time
+
+async def _get_room_sessions_for_early_window(
+    db: AsyncSession,
+    room_id: uuid.UUID,
+    now: datetime,
+) -> list[Session]:
+    from app.models.course import Course as CourseModel
+
+    local_tz = timezone(timedelta(hours=7))
+    local_now = now.astimezone(local_tz)
+    local_window_end = (now + timedelta(minutes=PRESET_EARLY_CHECKIN_MINUTES)).astimezone(local_tz)
+    dates = {local_now.date(), local_window_end.date()}
+
+    course_stmt = select(CourseModel.id).where(
+        and_(
+            CourseModel.room_id == room_id,
+            CourseModel.deleted_at.is_(None),
+        )
+    )
+
+    result = await db.execute(
+        select(Session)
+        .options(
+            joinedload(Session.course).joinedload(CourseModel.teacher).joinedload(Teacher.user),
+            joinedload(Session.attendance_config),
+            joinedload(Session.schedule).joinedload(Schedule.time_slot),
+            joinedload(Session.schedule).joinedload(Schedule.end_time_slot),
+        )
+        .where(
+            and_(
+                Session.course_id.in_(course_stmt),
+                Session.session_date.in_(dates),
+                Session.deleted_at.is_(None),
+            )
+        )
+        .order_by(Session.start_time.asc())
+    )
+    sessions = list(result.unique().scalars().all())
+    await SessionGeneratorService(db).sync_sessions(sessions)
+    return sessions
 
 async def _build_room_session_list(
     db: AsyncSession,
@@ -289,3 +349,66 @@ async def get_room_active_session(
         )
 
     return RoomActiveSessionResponse(session=active_item)
+
+@router.get("/{room_id}/eligible-checkin-session", response_model=RoomEligibleCheckinSessionResponse)
+async def get_room_eligible_checkin_session(
+    room_id: uuid.UUID,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the single room session eligible for check-in now."""
+    room_result = await db.execute(select(Room).where(Room.id == room_id))
+    room = room_result.scalar_one_or_none()
+    if not room or room.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    now = datetime.now(timezone.utc)
+    sessions = await _get_room_sessions_for_early_window(db, room_id, now)
+    if not sessions:
+        return RoomEligibleCheckinSessionResponse(
+            session=None,
+            status="none",
+            message="No session is available for this room.",
+        )
+
+    items = await _build_room_session_list(db, sessions)
+    active_item = next((item for item in items if item.mapped_status == "OPEN"), None)
+    if active_item is not None:
+        return RoomEligibleCheckinSessionResponse(session=active_item, status="active")
+
+    ongoing_session = next(
+        (session for session in sessions if _is_active_ongoing_session(session, now)),
+        None,
+    )
+    if ongoing_session is not None:
+        end_time = _room_session_end(ongoing_session)
+        end_text = ""
+        if end_time is not None:
+            end_text = end_time.astimezone(timezone(timedelta(hours=7))).strftime("%H:%M")
+        course_name = ongoing_session.course.course_name if ongoing_session.course else ""
+        return RoomEligibleCheckinSessionResponse(
+            session=None,
+            status="blocked",
+            message=(
+                f'Phòng đang có học phần "{course_name}" diễn ra đến {end_text}. '
+                "Chưa thể điểm danh sớm cho học phần kế tiếp."
+            ),
+        )
+
+    early_session = next(
+        (session for session in sessions if _is_preset_early_candidate(session, now)),
+        None,
+    )
+    if early_session is None:
+        return RoomEligibleCheckinSessionResponse(
+            session=None,
+            status="none",
+            message="No session is currently eligible for check-in.",
+        )
+
+    early_item = next((item for item in items if item.id == early_session.id), None)
+    return RoomEligibleCheckinSessionResponse(
+        session=early_item,
+        status="early_openable",
+        message="Preset session can be opened for early check-in.",
+    )

@@ -54,12 +54,18 @@
     void saveRecentDomain(String? domain);
     Future<void> clearServerRelatedData();
     Future<void> initApp();
-    Future<Map<String, dynamic>> checkIn(CheckInOut checkIn,
-        {DateTime? sessionStartTime, String? sessionId});
+    Future<Map<String, dynamic>> checkIn(
+      CheckInOut checkIn, {
+      DateTime? sessionStartTime,
+      String? sessionId,
+      bool detectEarlyStatus = false,
+      bool detectLateStatus = false,
+    });
     Future<Map<String, dynamic>> checkOut(CheckOut checkOut, Position location);
 
     Future<bool> isRegistered(int studentId);
     Future<List<CheckInOut>> getCheckInOutByDate(DateTime date);
+    Future<void> deleteCheckInOut(CheckInOut checkInOut);
     Future<List<BulkUser>?> getBulkUsers();
     Future<void> handleSyncResponse(SyncResponse syncResponse);
     Future<String?> getPinApp();
@@ -164,7 +170,8 @@
       _faceNative = FaceNative();
     }
 
-    Person? _findStudentPerson(List<Person> persons, int studentId, String name, String? pin) {
+    Person? _findStudentPerson(
+        List<Person> persons, int studentId, String name, String? pin) {
       // 1. Priority 1: Exact ID match (ignore if SDK returned 0)
       if (studentId != 0) {
         final p = persons.firstWhereOrNull((p) => p.studentId == studentId);
@@ -187,13 +194,15 @@
         final normalizedSearchName = normalizeString(name);
 
         // 3a. Exact normalized name match
-        var p = persons.firstWhereOrNull((p) => normalizeString(p.name ?? '') == normalizedSearchName);
+        var p = persons.firstWhereOrNull(
+            (p) => normalizeString(p.name ?? '') == normalizedSearchName);
         if (p != null) return p;
 
         // 3b. Bulletproof Fallback: Diacritic-insensitive normalized match
         final searchNameNoDia = normalizedSearchName.removeVietnameseDiacritics();
         p = persons.firstWhereOrNull((p) =>
-            normalizeString(p.name ?? '').removeVietnameseDiacritics() == searchNameNoDia);
+            normalizeString(p.name ?? '').removeVietnameseDiacritics() ==
+            searchNameNoDia);
         if (p != null) return p;
       }
 
@@ -360,9 +369,9 @@
         final syncFaceScheduleJson = jsonEncode(syncFaceSchedule.toJson());
         final oldSyncFaceSchedule = await getSyncFaceSchedule();
 
+        await SyncJobsUtil.scheduleSyncFaceData(syncFaceSchedule);
         await _sharedPreferences.put(
             SharedPrefsKey.syncFaceSchedule, syncFaceScheduleJson);
-        await SyncJobsUtil.scheduleSyncFaceData(syncFaceSchedule);
         if (oldSyncFaceSchedule != null) {
           await SyncJobsUtil.cancelSyncFaceData(oldSyncFaceSchedule);
         }
@@ -1220,24 +1229,51 @@
       }
     }
 
+    @override
+    Future<void> deleteCheckInOut(CheckInOut checkInOut) async {
+      try {
+        final id = checkInOut.id;
+        if (id == null) {
+          throw StateError('Không tìm thấy ID bản ghi cần xóa');
+        }
 
+        await _hiveService.deletePendingEduCheckInForRecord(checkInOut);
+        await _hiveService.deleteCheckInOut(id);
+        shareEvent(AttendanceChangeEvent());
+      } catch (e, stackTrace) {
+        await pushLog('Error in deleteCheckInOut: $e\n$stackTrace');
+        rethrow;
+      }
+    }
 
     @override
-    Future<Map<String, dynamic>> checkIn(CheckInOut checkIn,
-        {DateTime? sessionStartTime, String? sessionId}) async {
+    Future<Map<String, dynamic>> checkIn(
+      CheckInOut checkIn, {
+      DateTime? sessionStartTime,
+      String? sessionId,
+      bool detectEarlyStatus = false,
+      bool detectLateStatus = false,
+    }) async {
       // null is false, int is minutes late
       try {
         // Chỉ load fallback activeRoomId & courseName nếu quá trình checkIn thuộc về một phiên (sessionId != null)
-        final activeRoomId = sessionId != null ? await _getActiveRoomIdSafely() : null;
+        final activeRoomId =
+            sessionId != null ? await _getActiveRoomIdSafely() : null;
         final normalizedRoomId =
             (checkIn.roomId != null && checkIn.roomId!.trim().isNotEmpty)
                 ? checkIn.roomId!.trim()
                 : activeRoomId;
-        final minutesLate = _isLate(checkIn, sessionStartTime: sessionStartTime);
-        final status = minutesLate > 0 ? 'late' : 'on_time';
+        final minutesLate = _minutesDiff(
+          checkIn,
+          referenceTime: sessionStartTime,
+          detectEarlyStatus: detectEarlyStatus,
+          detectLateStatus: detectLateStatus,
+        );
+        final status = _statusFromMinutesDiff(minutesLate);
 
         final persons = await _hiveService.getAllPersons();
-        final studentPerson = _findStudentPerson(persons, checkIn.studentId, checkIn.name, checkIn.pin);
+        final studentPerson = _findStudentPerson(
+            persons, checkIn.studentId, checkIn.name, checkIn.pin);
 
         final resolvedPin = studentPerson?.pin ?? checkIn.pin;
         final resolvedStudentId = studentPerson?.studentId ?? checkIn.studentId;
@@ -1313,7 +1349,8 @@
         final activeRoomId = await _getActiveRoomIdSafely();
 
         final persons = await _hiveService.getAllPersons();
-        final studentPerson = _findStudentPerson(persons, checkOut.studentId, checkOut.name, checkOut.pin);
+        final studentPerson = _findStudentPerson(
+            persons, checkOut.studentId, checkOut.name, checkOut.pin);
 
         CheckInOut checkInOut = CheckInOut(
           pin: studentPerson?.pin ?? checkOut.pin,
@@ -1617,7 +1654,8 @@
 
     @override
     Future<void> saveActiveCourseName(String courseName) async {
-      await _sharedPreferences.put<String>(SharedPrefsKey.activeCourseName, courseName);
+      await _sharedPreferences.put<String>(
+          SharedPrefsKey.activeCourseName, courseName);
     }
 
     @override
@@ -1666,27 +1704,32 @@
       }
     }
 
-    /// Calculate minutes late.
-    ///
-    /// - If [sessionStartTime] is null → session is currently active,
-    ///   so the student is always on time. Returns 0.
-    /// - If [sessionStartTime] is provided → it carries the **late reference time**
-    ///   (i.e. `checkinWindowEnd` when the session was manually closed).
-    ///   Late = check-in time minus reference. Returns 0 when on time.
-    int _isLate(CheckInOut checkIn, {DateTime? sessionStartTime}) {
+    int _minutesDiff(
+      CheckInOut checkIn, {
+      DateTime? referenceTime,
+      bool detectEarlyStatus = false,
+      bool detectLateStatus = false,
+    }) {
       try {
-        if (sessionStartTime == null) {
-          // Session still active → always on time
+        if (referenceTime == null) {
           return 0;
         }
         final checkInTime = checkIn.time;
-        final diff = checkInTime.difference(sessionStartTime).inMinutes;
-        return diff > 0 ? diff : 0;
+        final diff = checkInTime.difference(referenceTime).inMinutes;
+        if (diff < 0 && detectEarlyStatus) return diff;
+        if (diff > 0 && detectLateStatus) return diff;
+        return 0;
       } catch (e) {
-        pushLog('Error checking minutes late: $e');
-        log('Error checking minutes late: $e');
+        pushLog('Error checking minutes diff: $e');
+        log('Error checking minutes diff: $e');
         return 0;
       }
+    }
+
+    String _statusFromMinutesDiff(int minutesDiff) {
+      if (minutesDiff < 0) return 'early';
+      if (minutesDiff > 0) return 'late';
+      return 'on_time';
     }
 
     @override
@@ -1700,8 +1743,6 @@
         return false;
       }
     }
-
-
 
     @override
     Future<int?> getUserId() async {

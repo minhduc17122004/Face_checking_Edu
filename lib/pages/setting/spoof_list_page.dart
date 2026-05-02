@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'package:face_time_keeping/common/api_client/data_state.dart';
 import 'package:face_time_keeping/common/resources/index.dart';
 import 'package:face_time_keeping/data/local/local_service.dart';
 import 'package:face_time_keeping/di/injection.dart';
 import 'package:face_time_keeping/entities/check_in_out.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:face_time_keeping/data/remote/room_service.dart';
 import 'package:face_time_keeping/pages/setting/cubit/attendance_report_cubit.dart';
 import 'package:intl/intl.dart';
 
@@ -17,23 +19,62 @@ class SpoofListPage extends StatefulWidget {
 
 class _SpoofListPageState extends State<SpoofListPage> {
   late final LocalService _localService;
+  late final RoomService _roomService;
   List<CheckInOut> _spoofRecords = [];
+  Map<String, String> _roomMap = {};
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _localService = getIt<LocalService>();
+    _roomService = getIt<RoomService>();
     _loadSpoofRecords();
   }
 
   Future<void> _loadSpoofRecords() async {
     setState(() => _isLoading = true);
-    final records = await _localService.getSpoofedCheckIns();
-    setState(() {
-      _spoofRecords = records;
-      _isLoading = false;
-    });
+    try {
+      final records = await _localService.getSpoofedCheckIns();
+
+      final uniqueRoomIds = records
+          .map((r) => r.roomId)
+          .where((id) => id != null && id.trim().isNotEmpty)
+          .cast<String>()
+          .toSet();
+
+      final roomMap = <String, String>{};
+
+      if (uniqueRoomIds.isNotEmpty) {
+        final roomResult = await _roomService.getRooms(limit: 200);
+        if (roomResult.isSuccess && roomResult.data != null) {
+          for (final room in roomResult.data!) {
+            if (uniqueRoomIds.contains(room.id)) {
+              roomMap[room.id] = room.displayName;
+            }
+          }
+        }
+      }
+
+      final activeRoomId = await _localService.getActiveRoomId();
+      final activeRoomName = await _localService.getActiveRoomName();
+      if (activeRoomId != null &&
+          activeRoomName != null &&
+          activeRoomId.isNotEmpty) {
+        roomMap.putIfAbsent(activeRoomId, () => activeRoomName);
+      }
+
+      if (mounted) {
+        setState(() {
+          _spoofRecords = records;
+          _roomMap = roomMap;
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -79,7 +120,8 @@ class _SpoofListPageState extends State<SpoofListPage> {
                     );
                   }
                   return IconButton(
-                    icon: const Icon(Icons.cloud_upload_outlined, color: AppColors.primary),
+                    icon: const Icon(Icons.cloud_upload_outlined,
+                        color: AppColors.primary),
                     tooltip: 'Đồng bộ lên server',
                     onPressed: () {
                       context.read<AttendanceReportCubit>().syncToBackend();
@@ -126,22 +168,27 @@ class _SpoofListPageState extends State<SpoofListPage> {
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final record = _spoofRecords[index];
-        return _SpoofCard(record: record);
+        return _SpoofCard(record: record, roomMap: _roomMap);
       },
     );
   }
 }
 
 class _SpoofCard extends StatelessWidget {
-  const _SpoofCard({required this.record});
+  const _SpoofCard({required this.record, required this.roomMap});
 
   final CheckInOut record;
+  final Map<String, String> roomMap;
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('SpoofRecord details. roomId: ${record.roomId}, courseName: ${record.courseName}, isSpoof: ${record.isSpoof}, sessionId_nullable: N/A');
+    debugPrint(
+        'SpoofRecord details. roomId: ${record.roomId}, courseName: ${record.courseName}, isSpoof: ${record.isSpoof}, sessionId_nullable: N/A');
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm:ss');
-    final roomDisplay = record.roomId != null ? 'Phòng: ${record.roomId}' : '';
+    final roomName = record.roomId != null
+        ? (roomMap[record.roomId] ?? record.roomId)
+        : null;
+    final roomDisplay = roomName != null ? 'Phòng: $roomName' : '';
     final courseDisplay = record.courseName ?? '';
     final studentDisplay =
         record.pin != null ? '${record.pin} - ${record.name}' : record.name;
@@ -232,8 +279,7 @@ class _SpoofCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                ]
-                ,
+                ],
                 if (courseDisplay.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Row(

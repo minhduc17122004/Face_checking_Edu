@@ -24,7 +24,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-const Duration _homeSessionRefreshInterval = Duration(minutes: 25);
+const Duration _homeSessionRefreshInterval = Duration(minutes: 1);
 const Duration _fallbackSessionDuration = Duration(minutes: 45);
 
 class HomePage extends StatefulWidget {
@@ -37,6 +37,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with EventBusMixin {
   late final LocalService _localService;
   StreamSubscription<AvatarChangedEvent>? _avatarChangedSubscription;
+  StreamSubscription<CourseChangeEvent>? _courseChangedSubscription;
   Timer? _sessionRefreshTimer;
   bool _showPinVerification = false;
   String _displayName = 'Người dùng';
@@ -44,6 +45,7 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
   List<Session>? _todaySessions;
   String? _generatedSessionsDateKey;
   bool _isLoadingSessions = false;
+  int _fetchTodaySessionsRequestId = 0;
 
   bool get _isTeacherOrAdmin {
     final role = _localService.getUserRole().toLowerCase();
@@ -128,6 +130,8 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
 
     _avatarChangedSubscription =
         listenEvent<AvatarChangedEvent>(_onAvatarChanged);
+    _courseChangedSubscription =
+        listenEvent<CourseChangeEvent>(_onCourseChanged);
   }
 
   void _onAvatarChanged(AvatarChangedEvent event) {
@@ -138,6 +142,11 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
     setState(() {
       _avatarPath = event.avatarPath;
     });
+  }
+
+  void _onCourseChanged(CourseChangeEvent event) {
+    _generatedSessionsDateKey = null;
+    _fetchTodaySessions(forceGenerate: true);
   }
 
   Future<void> _loadUserInfo() async {
@@ -151,8 +160,9 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
     }
   }
 
-  Future<void> _fetchTodaySessions() async {
+  Future<void> _fetchTodaySessions({bool forceGenerate = false}) async {
     if (!mounted) return;
+    final requestId = ++_fetchTodaySessionsRequestId;
     setState(() {
       _isLoadingSessions = true;
     });
@@ -161,7 +171,7 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
       final now = DateTime.now();
       final todayKey = _dateKey(now);
 
-      if (_generatedSessionsDateKey != todayKey) {
+      if (forceGenerate || _generatedSessionsDateKey != todayKey) {
         final generateResult = await sessionService.generateDailySessions(now);
         if (generateResult.isSuccess) {
           _generatedSessionsDateKey = todayKey;
@@ -178,9 +188,16 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
         result = await sessionService.getSessions(date: now);
       }
 
+      if (requestId != _fetchTodaySessionsRequestId) {
+        return;
+      }
+
       if (result.isSuccess && mounted) {
         final sessions = (result.data ?? [])
-            .where((session) => _isSameLocalDate(session.startTime, now))
+            .where((session) => _isSameLocalDate(
+                  session.sessionDate ?? session.startTime,
+                  now,
+                ))
             .toList();
         // Sắp xếp dựa trên mappedStatus do backend cung cấp (source of truth):
         // OPEN → CAN_OPEN/NOT_OPEN/UPCOMING → CLOSED
@@ -211,7 +228,7 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
     } catch (e) {
       pushLog('Error fetching today sessions: $e');
     } finally {
-      if (mounted) {
+      if (mounted && requestId == _fetchTodaySessionsRequestId) {
         setState(() {
           _isLoadingSessions = false;
         });
@@ -272,6 +289,7 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
   @override
   void dispose() {
     _avatarChangedSubscription?.cancel();
+    _courseChangedSubscription?.cancel();
     _sessionRefreshTimer?.cancel();
     super.dispose();
   }
@@ -562,11 +580,11 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: AppColors.slate200.withOpacity(0.7)),
         ),
-        child: const Row(
+        child: Row(
           children: [
-            Icon(Icons.event_busy, color: AppColors.slate500),
-            SizedBox(width: 12),
-            Expanded(
+            const Icon(Icons.event_busy, color: AppColors.slate500),
+            const SizedBox(width: 12),
+            const Expanded(
               child: Text(
                 'Không có phiên học nào hôm nay',
                 style: TextStyle(
@@ -575,6 +593,18 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
                 ),
               ),
             ),
+            if (!_isLoadingSessions)
+              IconButton(
+                icon: const Icon(Icons.refresh, color: AppColors.primary),
+                onPressed: () => _fetchTodaySessions(forceGenerate: true),
+                tooltip: 'Làm mới',
+              )
+            else
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
           ],
         ),
       );
@@ -601,7 +631,9 @@ class _HomePageState extends State<HomePage> with EventBusMixin {
                     session: displaySessions[i],
                     isTeacherOrAdmin: _isTeacherOrAdmin,
                     teacherName: displaySessions[i].teacherName ?? '—',
-                    onRefresh: _isLoadingSessions ? null : _fetchTodaySessions,
+                    onRefresh: _isLoadingSessions
+                        ? null
+                        : () => _fetchTodaySessions(forceGenerate: true),
                     onCheckIn: _sessionIsActive(displaySessions[i])
                         ? () {
                             AppNavigator.pushNamed(
@@ -1674,8 +1706,7 @@ class _SessionHeroCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: _OutlinePill(
-                              text:
-                                  '${_formatTime(session.startTime)} - ${_formatTime(_sessionEffectiveEnd(session))}',
+                              text: session.formattedCheckinWindow,
                               trailingText: statusLabel,
                               fontSize: expanded ? 15 : 13,
                               horizontal: 14,
@@ -1747,6 +1778,14 @@ class _SessionHeroCard extends StatelessWidget {
                               Icons.settings_outlined,
                               'Chế độ: ${session.attendanceMode?.label ?? 'N/A'}',
                             ),
+                            if (session.checkinWindowStart != null ||
+                                session.checkinWindowEnd != null) ...[
+                              const SizedBox(height: 8),
+                              _buildFeatureCheck(
+                                Icons.how_to_reg_outlined,
+                                'Cửa sổ điểm danh: ${session.formattedCheckinWindow}',
+                              ),
+                            ],
                           ],
                         ],
                       );
@@ -1790,12 +1829,6 @@ class _SessionHeroCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatTime(DateTime? time) {
-    if (time == null) return '--:--';
-    final localTime = time.toLocal();
-    return '${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
   }
 
   Widget _buildFeatureCheck(IconData icon, String text) {
@@ -1933,13 +1966,17 @@ class _OutlinePill extends StatelessWidget {
           : Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  text,
-                  style: TextStyle(
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white.withOpacity(0.9),
-                    height: 1,
+                Flexible(
+                  child: Text(
+                    text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withOpacity(0.9),
+                      height: 1,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),

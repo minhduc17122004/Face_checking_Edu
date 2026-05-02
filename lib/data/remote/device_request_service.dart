@@ -3,7 +3,6 @@ import 'package:face_time_keeping/common/utils/log_util.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../common/api_client/api_client.dart';
-import '../../common/api_client/api_response.dart';
 import '../../common/api_client/data_state.dart';
 import '../../entities/device_request.dart';
 import 'api_endpoint.dart';

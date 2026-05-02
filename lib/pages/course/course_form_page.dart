@@ -1003,6 +1003,28 @@ class _CourseFormViewState extends State<_CourseFormView> {
   }
 
   Widget _buildCustomTimeInputs() {
+    int maxDuration = 999;
+    if (_selectedStartTimeSlotId != null && _timeSlots.isNotEmpty) {
+      final startSlot = _timeSlots.firstWhere(
+        (s) => s.id == _selectedStartTimeSlotId,
+        orElse: () => _timeSlots.first,
+      );
+      final endSlot = _selectedEndTimeSlotId != null
+          ? _timeSlots.firstWhere((s) => s.id == _selectedEndTimeSlotId,
+              orElse: () => startSlot)
+          : startSlot;
+
+      int parseMinutes(String t) {
+        final parts = t.split(':');
+        if (parts.length < 2) return 0;
+        return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+      }
+
+      final slotStartMin = parseMinutes(startSlot.startTime);
+      final slotEndMin = parseMinutes(endSlot.endTime);
+      maxDuration = slotEndMin - slotStartMin;
+    }
+
     // Compute live preview from selected time slot + current field values
     String _previewText() {
       if (_selectedStartTimeSlotId == null || _timeSlots.isEmpty) {
@@ -1077,6 +1099,7 @@ class _CourseFormViewState extends State<_CourseFormView> {
                   label: 'Bắt đầu (phút)',
                   color: AppColors.teal600,
                   onChanged: (_) => setState(() {}),
+                  maxMinutes: maxDuration,
                 ),
               ),
               const SizedBox(width: 16),
@@ -1086,6 +1109,7 @@ class _CourseFormViewState extends State<_CourseFormView> {
                   label: 'Kết thúc (phút)',
                   color: AppColors.teal600,
                   onChanged: (_) => setState(() {}),
+                  maxMinutes: maxDuration,
                 ),
               ),
             ],
@@ -1108,16 +1132,22 @@ class _CourseFormViewState extends State<_CourseFormView> {
                             (_selectedStartTimeSlotId != null &&
                                     _timeSlots.isNotEmpty
                                 ? () {
-                                    final s = _timeSlots.firstWhere(
+                                    final startSlot = _timeSlots.firstWhere(
                                         (s) => s.id == _selectedStartTimeSlotId,
                                         orElse: () => _timeSlots.first);
+                                    final endSlot = _selectedEndTimeSlotId != null
+                                        ? _timeSlots.firstWhere(
+                                            (s) => s.id == _selectedEndTimeSlotId,
+                                            orElse: () => startSlot)
+                                        : startSlot;
                                     int p(String t) {
                                       final parts = t.split(':');
+                                      if (parts.length < 2) return 0;
                                       return int.parse(parts[0]) * 60 +
                                           int.parse(parts[1]);
                                     }
 
-                                    return p(s.endTime) - p(s.startTime);
+                                    return p(endSlot.endTime) - p(startSlot.startTime);
                                   }()
                                 : 9999)
                     ? AppColors.red600
@@ -1212,6 +1242,7 @@ class _CourseFormViewState extends State<_CourseFormView> {
     required String label,
     required Color color,
     void Function(String)? onChanged,
+    int maxMinutes = 999,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1260,8 +1291,8 @@ class _CourseFormViewState extends State<_CourseFormView> {
               return 'Nhập số phút';
             }
             final minutes = int.tryParse(value);
-            if (minutes == null || minutes < 0 || minutes > 120) {
-              return '0 - 120';
+            if (minutes == null || minutes < 0 || minutes > maxMinutes) {
+              return '0 - $maxMinutes';
             }
             return null;
           },

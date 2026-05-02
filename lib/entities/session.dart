@@ -135,8 +135,7 @@ class Session {
       'course_id': courseId,
       'course_code': courseCode,
       'schedule_id': scheduleId,
-      'session_date':
-          sessionDate != null ? _dateToIso(sessionDate!) : null,
+      'session_date': sessionDate != null ? _dateToIso(sessionDate!) : null,
       'start_time': startTime.toIso8601String(),
       'end_time': endTime?.toIso8601String(),
       'checkin_window_start': checkinWindowStart?.toIso8601String(),
@@ -224,8 +223,9 @@ class Session {
       final l = dt.toLocal();
       return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
     }
+
     final start = checkinWindowStart ?? startTime;
-    final end   = checkinWindowEnd   ?? endTime;
+    final end = checkinWindowEnd ?? endTime;
     if (end == null) return fmt(start);
     return '${fmt(start)} - ${fmt(end)}';
   }

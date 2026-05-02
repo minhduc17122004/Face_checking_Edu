@@ -42,6 +42,23 @@ const _iosFaceDataPeriodicUniqueName =
 const _iosCheckInOutUniqueName = 'com.example.face_time_keeping.syncCheckFace1';
 const _iosStudentDataUniqueName = 'com.example.face_time_keeping.syncStudent1';
 const sendPortSyncStudentType = 'sync_student';
+const minPeriodicSyncInterval = Duration(minutes: 15);
+
+Duration periodicSyncInterval({
+  required int hours,
+  required int minutes,
+}) {
+  return Duration(hours: hours, minutes: minutes);
+}
+
+void validatePeriodicSyncInterval(Duration interval) {
+  if (interval < minPeriodicSyncInterval) {
+    throw ArgumentError(
+      'Khoảng thời gian đồng bộ định kỳ tối thiểu là '
+      '${minPeriodicSyncInterval.inMinutes} phút',
+    );
+  }
+}
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -369,10 +386,11 @@ class SyncJobsUtil {
   static Future<void> scheduleSyncFaceData(
       SyncFaceSchedule syncFaceSchedule) async {
     try {
-      final interval = Duration(
+      final interval = periodicSyncInterval(
         hours: syncFaceSchedule.repeatIntervalHours,
         minutes: syncFaceSchedule.repeatIntervalMinutes,
       );
+      validatePeriodicSyncInterval(interval);
       if (Platform.isAndroid) {
         await Workmanager().registerPeriodicTask(
           '$_faceDataPeriodicUniqueName-$syncFaceSchedule',
@@ -441,10 +459,14 @@ class SyncJobsUtil {
 
   static Duration _calculateInitialDelay(
       DateTime initialTime, int intervalHours, int intervalMinutes) {
+    final interval = periodicSyncInterval(
+      hours: intervalHours,
+      minutes: intervalMinutes,
+    );
+    validatePeriodicSyncInterval(interval);
     final now = DateTime.now();
     while (initialTime.isBefore(now)) {
-      initialTime = initialTime
-          .add(Duration(hours: intervalHours, minutes: intervalMinutes));
+      initialTime = initialTime.add(interval);
     }
     final delay = initialTime.difference(now);
     return delay;
@@ -466,13 +488,16 @@ class SyncJobsUtil {
           syncSchedule.repeatIntervalHours, syncSchedule.repeatIntervalMinutes);
       debugPrint('Scheduling sync data with delay: ${delay.inSeconds} seconds');
       debugPrint('Next execution will be at: ${DateTime.now().add(delay)}');
+      final interval = periodicSyncInterval(
+        hours: syncSchedule.repeatIntervalHours,
+        minutes: syncSchedule.repeatIntervalMinutes,
+      );
+      validatePeriodicSyncInterval(interval);
       if (Platform.isAndroid) {
         await Workmanager().registerPeriodicTask(
           '$_periodicUniqueName-$syncSchedule',
           '$_periodicUniqueName-$syncSchedule',
-          frequency: Duration(
-              hours: syncSchedule.repeatIntervalHours,
-              minutes: syncSchedule.repeatIntervalMinutes),
+          frequency: interval,
           initialDelay: const Duration(seconds: 5),
           constraints: Constraints(
             networkType: NetworkType.connected,

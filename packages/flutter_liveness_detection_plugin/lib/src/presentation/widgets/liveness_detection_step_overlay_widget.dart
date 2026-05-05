@@ -13,7 +13,7 @@ class LivenessDetectionStepOverlayWidget extends StatefulWidget {
   final bool isDarkMode;
   final bool showDurationUiText;
   final int? duration;
-  final VoidCallback? handleBack; // New callback for back action 
+  final VoidCallback? handleBack; // New callback for back action
 
   const LivenessDetectionStepOverlayWidget({
     super.key,
@@ -206,7 +206,7 @@ class LivenessDetectionStepOverlayWidgetState
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Back',
+                          'Quay về',
                           style: TextStyle(
                               color: widget.isDarkMode
                                   ? Colors.white
@@ -234,7 +234,7 @@ class LivenessDetectionStepOverlayWidgetState
                         )
                       ],
                     )
-                  : Text('Back',
+                  : Text('Quay về',
                       style: TextStyle(
                           color:
                               widget.isDarkMode ? Colors.white : Colors.black)),
@@ -247,8 +247,9 @@ class LivenessDetectionStepOverlayWidgetState
   }
 
   Widget _buildBody() {
-    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
-    
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
     if (isLandscape) {
       // Landscape layout: camera on left, steps on right
       return Row(
@@ -279,14 +280,15 @@ class LivenessDetectionStepOverlayWidgetState
                   child: _buildStepPageView(),
                 ),
                 const SizedBox(height: 10),
-                widget.isDarkMode ? _buildLoaderDarkMode() : _buildLoaderLightMode(),
+                widget.isDarkMode
+                    ? _buildLoaderDarkMode()
+                    : _buildLoaderLightMode(),
               ],
             ),
           ),
         ],
       );
     } else {
-     
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -350,7 +352,9 @@ class LivenessDetectionStepOverlayWidgetState
         ),
         const SizedBox(width: 16),
         Text(
-          widget.isFaceDetected ? 'User Face Found' : 'User Face Not Found...',
+          widget.isFaceDetected
+              ? 'Đã phát hiện khuôn mặt'
+              : 'Chưa phát hiện khuôn mặt...',
           style:
               TextStyle(color: widget.isDarkMode ? Colors.white : Colors.black),
         ),

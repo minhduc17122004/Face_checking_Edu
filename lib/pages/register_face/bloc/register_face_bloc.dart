@@ -46,7 +46,7 @@ class RegisterFaceBloc extends Cubit<RegisterFaceState> {
         try {
           final match =
               allRecords.firstWhere((r) => r.personName == student.name);
-          effectiveStudentId = match.empId;
+          effectiveStudentId = match.studentId;
         } catch (_) {
           // ignore error — just means no FaceNative record found by name
         }
@@ -55,7 +55,8 @@ class RegisterFaceBloc extends Cubit<RegisterFaceState> {
       final isRegistered = await _localService.isRegistered(effectiveStudentId);
       List<int> oldImageIds = [];
       if (isRegistered) {
-        oldImageIds = await _faceNative.getImageIdsByEmpId(effectiveStudentId);
+        oldImageIds =
+            await _faceNative.getImageIdsByStudentId(effectiveStudentId);
       }
       // Chỉ thực sự đã đăng ký khi có ảnh trong native engine.
       // isRegistered (Hive) có thể true cho cả học sinh chưa chụp ảnh (sync từ server),
@@ -65,10 +66,11 @@ class RegisterFaceBloc extends Cubit<RegisterFaceState> {
       // Also check FaceNative directly for faces pulled from server
       // (these may exist in FaceNative but not be reflected in Hive's isRegistered).
       final hasFaceInNative = oldImageIds.isNotEmpty ||
-          (await _faceNative.getImageIdsByEmpId(effectiveStudentId)).isNotEmpty;
+          (await _faceNative.getImageIdsByStudentId(effectiveStudentId))
+              .isNotEmpty;
       final finalImageIds = oldImageIds.isNotEmpty
           ? oldImageIds
-          : await _faceNative.getImageIdsByEmpId(effectiveStudentId);
+          : await _faceNative.getImageIdsByStudentId(effectiveStudentId);
 
       // Update student with the correct local id so registerFace/updateFace use it
       final correctedStudent = effectiveStudentId != student.id
@@ -101,7 +103,7 @@ class RegisterFaceBloc extends Cubit<RegisterFaceState> {
     try {
       if (imagePath != null) {
         final imageId = await _faceNative.addImage(
-          empId: state.student!.id,
+          studentId: state.student!.id,
           personName: state.student!.name,
           imageUri: imagePath,
           pin: state.student!.pin,

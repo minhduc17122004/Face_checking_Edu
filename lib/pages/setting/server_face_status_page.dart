@@ -33,21 +33,22 @@ class _ServerFaceStatusPageState extends State<ServerFaceStatusPage> {
 
     try {
       final response = await _apiClient.dio.get(ApiEndpoint.pullFaceData);
-      
+
       if (response.statusCode == 200) {
         final rawData = response.data;
         List<dynamic> data;
         if (rawData is List) {
           data = rawData;
         } else {
-          data = (rawData is Map ? rawData['data'] : null) as List<dynamic>? ?? [];
+          data =
+              (rawData is Map ? rawData['data'] : null) as List<dynamic>? ?? [];
         }
 
         final parsedList = data.map((e) {
           final map = e as Map<String, dynamic>;
           // Don't keep the huge embedding array in memory for UI, just metadata
           return {
-            'emp_id': map['studentId']?.toString() ?? 'N/A',
+            'student_id': map['studentId']?.toString() ?? 'N/A',
             'student_code': map['studentCode'] ?? 'N/A',
             'person_name': map['personName'] ?? 'Unknown',
             'server_updated_at': map['updatedTime'] ?? 'N/A',
@@ -56,11 +57,14 @@ class _ServerFaceStatusPageState extends State<ServerFaceStatusPage> {
         }).toList();
 
         // Sort by name
-        parsedList.sort((a, b) => (a['person_name'] as String).compareTo(b['person_name'] as String));
+        parsedList.sort((a, b) =>
+            (a['person_name'] as String).compareTo(b['person_name'] as String));
 
         // Add proper debug log
         if (parsedList.isNotEmpty) {
-          final faceNames = parsedList.map((e) => "${e['person_name']} (ID: ${e['emp_id']})").toList();
+          final faceNames = parsedList
+              .map((e) => "${e['person_name']} (ID: ${e['student_id']})")
+              .toList();
           await pushLog('[DEBUG] Các khuôn mặt có trên Server: $faceNames');
         }
 
@@ -93,7 +97,11 @@ class _ServerFaceStatusPageState extends State<ServerFaceStatusPage> {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
-        title: const Text('Server Face Status', style: TextStyle(color: AppColors.slate900, fontWeight: FontWeight.bold, fontSize: 18)),
+        title: const Text('Server Face Status',
+            style: TextStyle(
+                color: AppColors.slate900,
+                fontWeight: FontWeight.bold,
+                fontSize: 18)),
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.slate900),
@@ -129,15 +137,21 @@ class _ServerFaceStatusPageState extends State<ServerFaceStatusPage> {
             children: [
               const Icon(Icons.error_outline, color: AppColors.red, size: 48),
               const SizedBox(height: 16),
-              Text('Không thể tải dữ liệu server', style: TextStyles.blackNormalBold.copyWith(fontSize: 16)),
+              Text('Không thể tải dữ liệu server',
+                  style: TextStyles.blackNormalBold.copyWith(fontSize: 16)),
               const SizedBox(height: 8),
-              Text(_error!, style: TextStyles.blackNormalRegular.copyWith(color: AppColors.slate500), textAlign: TextAlign.center),
+              Text(_error!,
+                  style: TextStyles.blackNormalRegular
+                      .copyWith(color: AppColors.slate500),
+                  textAlign: TextAlign.center),
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: _fetchServerFaces,
                 icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('Thử lại'),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.blue, foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.blue,
+                    foregroundColor: Colors.white),
               )
             ],
           ),
@@ -147,7 +161,8 @@ class _ServerFaceStatusPageState extends State<ServerFaceStatusPage> {
 
     if (_serverFaces.isEmpty) {
       return const Center(
-        child: Text('Không có khuôn mặt nào trên server.', style: TextStyle(color: AppColors.slate500)),
+        child: Text('Không có khuôn mặt nào trên server.',
+            style: TextStyle(color: AppColors.slate500)),
       );
     }
 
@@ -176,7 +191,10 @@ class _ServerFaceStatusPageState extends State<ServerFaceStatusPage> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.slate200),
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2)),
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.02),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2)),
                   ],
                 ),
                 child: Column(
@@ -188,30 +206,36 @@ class _ServerFaceStatusPageState extends State<ServerFaceStatusPage> {
                         Expanded(
                           child: Text(
                             face['person_name'],
-                            style: TextStyles.blackNormalBold.copyWith(fontSize: 16),
+                            style: TextStyles.blackNormalBold
+                                .copyWith(fontSize: 16),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: AppColors.green100,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            'ID: ${face['emp_id']}',
-                            style: TextStyles.blackNormalBold.copyWith(fontSize: 12, color: AppColors.green600),
+                            'ID: ${face['student_id']}',
+                            style: TextStyles.blackNormalBold.copyWith(
+                                fontSize: 12, color: AppColors.green600),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    _buildInfoRow('Mã SV/PIN:', face['student_code'].toString()),
+                    _buildInfoRow(
+                        'Mã SV/PIN:', face['student_code'].toString()),
                     const SizedBox(height: 4),
-                    _buildInfoRow('Cập nhật lúc:', face['server_updated_at'].toString()),
+                    _buildInfoRow(
+                        'Cập nhật lúc:', face['server_updated_at'].toString()),
                     const SizedBox(height: 4),
-                    _buildInfoRow('Hash:', face['embedding_hash'].toString(), maxLines: 1),
+                    _buildInfoRow('Hash:', face['embedding_hash'].toString(),
+                        maxLines: 1),
                   ],
                 ),
               );
@@ -228,12 +252,16 @@ class _ServerFaceStatusPageState extends State<ServerFaceStatusPage> {
       children: [
         SizedBox(
           width: 90,
-          child: Text(label, style: const TextStyle(fontSize: 13, color: AppColors.slate500)),
+          child: Text(label,
+              style: const TextStyle(fontSize: 13, color: AppColors.slate500)),
         ),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(fontSize: 13, color: AppColors.slate900, fontWeight: FontWeight.w500),
+            style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.slate900,
+                fontWeight: FontWeight.w500),
             maxLines: maxLines,
             overflow: maxLines != null ? TextOverflow.ellipsis : null,
           ),

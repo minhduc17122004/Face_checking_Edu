@@ -569,6 +569,7 @@ class _RoomSessionDialog extends StatelessWidget {
                       isCheckIn: true,
                       sessionId: sessionForAction.id,
                       sessionStartTime: sessionForAction.startTime,
+                      courseName: sessionForAction.courseName,
                       lateReferenceTime: null,
                       detectEarlyStatus: isEarlyCheckIn,
                       detectLateStatus: _shouldDetectLateStatus(
@@ -605,6 +606,7 @@ class _RoomSessionDialog extends StatelessWidget {
                       isCheckIn: true,
                       sessionId: sessionForAction.id,
                       sessionStartTime: sessionForAction.startTime,
+                      courseName: sessionForAction.courseName,
                       lateReferenceTime: sessionForAction.checkinWindowEnd ??
                           sessionForAction.endTime,
                     ),
@@ -755,12 +757,6 @@ class _RoomSessionDialog extends StatelessWidget {
               fontSize: 15,
               color: AppColors.slate900,
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            message ?? 'Hiện không có phiên học nào đang mở tại phòng này.',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.slate500, fontSize: 13),
           ),
         ],
       ),

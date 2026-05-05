@@ -19,6 +19,7 @@ class CheckingArgs {
   final bool isCheckIn;
   final String? sessionId;
   final DateTime? sessionStartTime;
+  final String? courseName;
 
   /// When not null, late detection uses this time as the reference point
   /// (e.g. checkinWindowEnd when the session was manually closed).
@@ -35,6 +36,7 @@ class CheckingArgs {
     required this.isCheckIn,
     this.sessionId,
     this.sessionStartTime,
+    this.courseName,
     this.lateReferenceTime,
     this.detectEarlyStatus = false,
     this.detectLateStatus = false,
@@ -85,6 +87,7 @@ class _CheckingPageState extends State<CheckingPage> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(
+            backgroundColor: AppColors.backgroundLight,
             body: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -102,6 +105,7 @@ class _CheckingPageState extends State<CheckingPage> {
         }
         if (snapshot.hasError) {
           return Scaffold(
+            backgroundColor: AppColors.backgroundLight,
             body: Center(
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
@@ -146,6 +150,7 @@ class _CheckingPageState extends State<CheckingPage> {
               }
             },
             builder: (_, state) => Scaffold(
+              backgroundColor: AppColors.backgroundLight,
               body: SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -196,13 +201,20 @@ class _CheckingPageState extends State<CheckingPage> {
         // Camera section takes more space in landscape
         Expanded(
           flex: 3,
-          child: FaceDetectorView(
-            key: _faceDetectorKey,
-            allowCapture: state.isAllowCapture,
-            onCapture: (file) {
-              _bloc.verify(file, args?.isCheckIn ?? false);
-              _resetFaceNotFoundTimer();
-            },
+          child: Column(
+            children: [
+              Expanded(
+                child: FaceDetectorView(
+                  key: _faceDetectorKey,
+                  allowCapture: state.isAllowCapture,
+                  onCapture: (file) {
+                    _bloc.verify(file, args?.isCheckIn ?? false);
+                    _resetFaceNotFoundTimer();
+                  },
+                ),
+              ),
+              _buildCourseNameLabel(args),
+            ],
           ),
         ),
         const Spacing(),
@@ -228,14 +240,21 @@ class _CheckingPageState extends State<CheckingPage> {
         const Spacing(),
         Expanded(
           flex: 3,
-          child: FaceDetectorView(
-            key: _faceDetectorKey,
-            isPortrait: true,
-            allowCapture: state.isAllowCapture,
-            onCapture: (file) {
-              _bloc.verify(file, args?.isCheckIn ?? false);
-              _resetFaceNotFoundTimer();
-            },
+          child: Column(
+            children: [
+              Expanded(
+                child: FaceDetectorView(
+                  key: _faceDetectorKey,
+                  isPortrait: true,
+                  allowCapture: state.isAllowCapture,
+                  onCapture: (file) {
+                    _bloc.verify(file, args?.isCheckIn ?? false);
+                    _resetFaceNotFoundTimer();
+                  },
+                ),
+              ),
+              _buildCourseNameLabel(args),
+            ],
           ),
         ),
         const Spacing(),
@@ -313,6 +332,37 @@ class _CheckingPageState extends State<CheckingPage> {
       height: size,
       width: size,
       child: const CircularProgressIndicator(),
+    );
+  }
+
+  Widget _buildCourseNameLabel(CheckingArgs? args) {
+    final courseName = args?.courseName?.trim();
+    if (courseName == null || courseName.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.slate200),
+        ),
+        child: Text(
+          courseName,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: TextStyles.blackNormalRegular.copyWith(
+            color: AppColors.slate900,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 

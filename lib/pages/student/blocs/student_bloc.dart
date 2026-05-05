@@ -70,15 +70,15 @@ class StudentBloc extends Cubit<StudentState> with EventBusMixin {
           await _userRepository.getUsersByRole('student');
       if (result.isSuccess) {
         final records = await _faceNative.getAllImages();
-        final faceIds = records.map((e) => e.empId).toSet();
+        final faceIds = records.map((e) => e.studentId).toSet();
 
-        // Map 3 (most direct): FaceNative.personName → empId
+        // Map 3 (most direct): FaceNative.personName → studentId
         // pullFaceData stores personName directly in FaceNative from the server
         // response, so this works even when Hive Person has null pin or
         // name == 'Unknown' (created before syncStudentsFromServer ran).
-        final Map<String, int> faceNameToEmpId = {
+        final Map<String, int> faceNameToStudentId = {
           for (final r in records)
-            if (r.personName.isNotEmpty) r.personName: r.empId,
+            if (r.personName.isNotEmpty) r.personName: r.studentId,
         };
 
         final localPersons = await _hiveService.getAllPersons();
@@ -94,13 +94,13 @@ class StudentBloc extends Cubit<StudentState> with EventBusMixin {
         };
 
         final students = (result.data ?? []).map((u) {
-          // Priority 1: studentCode/PIN → Hive.studentId → FaceNative.empId
+          // Priority 1: studentCode/PIN → Hive.studentId → FaceNative.studentId
           final pin = u.studentCode;
           final int? byPin =
               (pin != null && pin.isNotEmpty) ? pinToStudentId[pin] : null;
           bool hasFace = byPin != null && faceIds.contains(byPin);
 
-          // Priority 2: Hive name → studentId → FaceNative.empId
+          // Priority 2: Hive name → studentId → FaceNative.studentId
           if (!hasFace) {
             final byName = nameToStudentId[u.fullName];
             hasFace = byName != null && faceIds.contains(byName);
@@ -110,7 +110,7 @@ class StudentBloc extends Cubit<StudentState> with EventBusMixin {
           // personName — most reliable for server-pulled faces because
           // FaceNative stores personName from the pull response unchanged.
           if (!hasFace) {
-            hasFace = faceNameToEmpId.containsKey(u.fullName);
+            hasFace = faceNameToStudentId.containsKey(u.fullName);
           }
 
           return student_entity.Student.fromUserJson({
@@ -143,21 +143,24 @@ class StudentBloc extends Cubit<StudentState> with EventBusMixin {
 
     // 1. Thêm server students trước (ưu tiên)
     for (final s in _savedServerStudents) {
-      final validPin = (s.pin != null && s.pin!.trim().isNotEmpty) ? s.pin!.trim() : null;
+      final validPin =
+          (s.pin != null && s.pin!.trim().isNotEmpty) ? s.pin!.trim() : null;
       final key = validPin ?? 'server_${s.id}';
       merged[key] = s;
     }
 
     // 2. Thêm local students — nếu pin trùng với server thì bỏ qua
     for (final s in _savedStudents) {
-      final validPin = (s.pin != null && s.pin!.trim().isNotEmpty) ? s.pin!.trim() : null;
+      final validPin =
+          (s.pin != null && s.pin!.trim().isNotEmpty) ? s.pin!.trim() : null;
       final key = validPin ?? 'local_${s.id}';
       if (!merged.containsKey(key)) {
         merged[key] = s;
       } else {
         final existing = merged[key]!;
         if (!existing.hasFace && s.hasFace) {
-          merged[key] = existing.copyWith(hasFace: true, id: s.id); // Prefer local ID if merging for face
+          merged[key] = existing.copyWith(
+              hasFace: true, id: s.id); // Prefer local ID if merging for face
         }
       }
     }
@@ -203,17 +206,18 @@ class StudentBloc extends Cubit<StudentState> with EventBusMixin {
     try {
       final List<Person> result = await _hiveService.getAllPersons();
       final records = await _faceNative.getAllImages();
-      final faceIds = records.map((e) => e.empId).toSet();
-      
+      final faceIds = records.map((e) => e.studentId).toSet();
+
       if (records.isNotEmpty) {
         final Map<int, String> uniqueFaces = {};
         for (var doc in records) {
-          uniqueFaces[doc.empId] = doc.personName;
+          uniqueFaces[doc.studentId] = doc.personName;
         }
         final faceNames = uniqueFaces.entries
             .map((e) => "${e.value} (ID: ${e.key})")
             .toList();
-        await pushLog('[DEBUG] Học sinh có khuôn mặt local (Unique): $faceNames');
+        await pushLog(
+            '[DEBUG] Học sinh có khuôn mặt local (Unique): $faceNames');
       }
 
       final students = List<student_entity.Student>.from(result.map((e) {
@@ -409,30 +413,29 @@ class StudentBloc extends Cubit<StudentState> with EventBusMixin {
         }
 
         final records = await _faceNative.getAllImages();
-        final targetEmpIds = Set<int>.from(localIds);
+        final targetStudentIds = Set<int>.from(localIds);
         final sName = student.name.trim().toLowerCase();
 
         for (final r in records) {
-          if (targetEmpIds.contains(r.empId)) continue;
-          
+          if (targetStudentIds.contains(r.studentId)) continue;
+
           final pName = r.personName.trim().toLowerCase();
           if (pName.isNotEmpty && pName == sName) {
-            final personForRecord = (await _hiveService.getAllPersons())
-                .cast<Person?>()
-                .firstWhere(
-                  (p) => p!.studentId == r.empId,
-                  orElse: () => null,
-                );
+            final personForRecord =
+                (await _hiveService.getAllPersons()).cast<Person?>().firstWhere(
+                      (p) => p!.studentId == r.studentId,
+                      orElse: () => null,
+                    );
             if (personForRecord == null) {
-              targetEmpIds.add(r.empId);
+              targetStudentIds.add(r.studentId);
             }
           }
         }
 
         await pushLog(
-            '[onRemoveStudent] Deleting native empIds: ${targetEmpIds.join(', ')}');
-        for (final empId in targetEmpIds) {
-          await _faceNative.removeImages(empId);
+            '[onRemoveStudent] Deleting native studentIds: ${targetStudentIds.join(', ')}');
+        for (final studentId in targetStudentIds) {
+          await _faceNative.removeImages(studentId);
         }
       } catch (localErr) {
         await pushLog(
@@ -500,41 +503,41 @@ class StudentBloc extends Cubit<StudentState> with EventBusMixin {
         await pushLog('[onResetFace] Server delete OK');
       }
 
-      // 2. Delete locally — match by empId, name, AND pin in FaceNative
-      Set<int> targetEmpIds = {};
+      // 2. Delete locally — match by studentId, name, AND pin in FaceNative
+      Set<int> targetStudentIds = {};
       try {
         final localIds = await _findLocalStudentIds(student);
-        targetEmpIds = Set<int>.from(localIds);
+        targetStudentIds = Set<int>.from(localIds);
 
         final records = await _faceNative.getAllImages();
         final sName = student.name.trim().toLowerCase();
         final sPin = (student.pin ?? '').trim().toLowerCase();
 
         for (final r in records) {
-          if (targetEmpIds.contains(r.empId)) continue;
+          if (targetStudentIds.contains(r.studentId)) continue;
 
           // Match by personName
           final pName = r.personName.trim().toLowerCase();
           if (pName.isNotEmpty && pName == sName) {
-            targetEmpIds.add(r.empId);
+            targetStudentIds.add(r.studentId);
             continue;
           }
 
           // Match by pin stored in the FaceNative record
           final rPin = r.pin.trim().toLowerCase();
           if (sPin.isNotEmpty && rPin.isNotEmpty && rPin == sPin) {
-            targetEmpIds.add(r.empId);
+            targetStudentIds.add(r.studentId);
           }
         }
 
         await pushLog(
-            '[onResetFace] Deleting native empIds: ${targetEmpIds.join(', ')}');
+            '[onResetFace] Deleting native studentIds: ${targetStudentIds.join(', ')}');
 
-        for (final empIdToDelete in targetEmpIds) {
-          await _faceNative.removeImages(empIdToDelete);
+        for (final studentIdToDelete in targetStudentIds) {
+          await _faceNative.removeImages(studentIdToDelete);
           try {
-            await _hiveService.deletePerson(empIdToDelete);
-            localService.clearProcessedKeyForStudent(empIdToDelete);
+            await _hiveService.deletePerson(studentIdToDelete);
+            localService.clearProcessedKeyForStudent(studentIdToDelete);
           } catch (_) {
             // Ignore if person id doesn't exactly match hive key, or isn't in hive
           }
@@ -561,7 +564,8 @@ class StudentBloc extends Cubit<StudentState> with EventBusMixin {
       // to the pending recovery list so next pullFaceData cycle receives it explicitly.
       // This avoids rolling back the global watermark by 36h which would redownload all recent changes.
       if (!hasServerConfig) {
-        final idsToRecover = targetEmpIds.map((id) => id.toString()).toList();
+        final idsToRecover =
+            targetStudentIds.map((id) => id.toString()).toList();
         await localService.addPendingRecoveryStudentIds(idsToRecover);
         await pushLog(
             '[onResetFace] Added students $idsToRecover to explicitly pending recovery list '
@@ -623,7 +627,8 @@ class StudentBloc extends Cubit<StudentState> with EventBusMixin {
 
   Future<void> debugToggleFaceFlag(student_entity.Student student) async {
     final newStudent = student.copyWith(hasFace: !student.hasFace);
-    await pushLog('[DEBUG] Toggling face flag for ${student.name} to ${newStudent.hasFace}');
+    await pushLog(
+        '[DEBUG] Toggling face flag for ${student.name} to ${newStudent.hasFace}');
     await onUpdateStudentInList(newStudent);
   }
 }

@@ -15,7 +15,8 @@ class DeviceRequestSubmitPage extends StatefulWidget {
   const DeviceRequestSubmitPage({super.key});
 
   @override
-  State<DeviceRequestSubmitPage> createState() => _DeviceRequestSubmitPageState();
+  State<DeviceRequestSubmitPage> createState() =>
+      _DeviceRequestSubmitPageState();
 }
 
 class _DeviceRequestSubmitPageState extends State<DeviceRequestSubmitPage> {
@@ -60,7 +61,6 @@ class _DeviceRequestSubmitPageState extends State<DeviceRequestSubmitPage> {
     );
   }
 
-
   @override
   void dispose() {
     _deviceNameController.dispose();
@@ -74,13 +74,16 @@ class _DeviceRequestSubmitPageState extends State<DeviceRequestSubmitPage> {
       value: _cubit,
       child: BlocListener<DevicePermissionCubit, DevicePermissionState>(
         listener: (context, state) {
-          if (state.requestStatus == RequestStatus.failed && state.message != null) {
+          if (state.requestStatus == RequestStatus.failed &&
+              state.message != null) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: SelectableText.rich(
                   TextSpan(
                     children: [
-                      const WidgetSpan(child: Icon(Icons.error_outline, color: Colors.white, size: 20)),
+                      const WidgetSpan(
+                          child: Icon(Icons.error_outline,
+                              color: Colors.white, size: 20)),
                       const WidgetSpan(child: SizedBox(width: 8)),
                       TextSpan(text: state.message!),
                     ],
@@ -88,23 +91,27 @@ class _DeviceRequestSubmitPageState extends State<DeviceRequestSubmitPage> {
                 ),
                 backgroundColor: AppColors.red,
                 behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
             );
           }
-          if (state.requestStatus == RequestStatus.success && state.selectedRequest != null) {
+          if (state.requestStatus == RequestStatus.success &&
+              state.selectedRequest != null) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: const Row(
                   children: [
-                    Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+                    Icon(Icons.check_circle_outline,
+                        color: Colors.white, size: 20),
                     SizedBox(width: 8),
                     Text('Yêu cầu đã được gửi thành công!'),
                   ],
                 ),
                 backgroundColor: AppColors.green,
                 behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
             );
             _deviceNameController.clear();
@@ -180,7 +187,8 @@ class _DeviceRequestSubmitPageState extends State<DeviceRequestSubmitPage> {
                                 color: AppColors.blue.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Icon(Icons.tablet, color: AppColors.blue, size: 20),
+                              child: const Icon(Icons.tablet,
+                                  color: AppColors.blue, size: 20),
                             ),
                             const SizedBox(width: 12),
                             const Text(
@@ -196,15 +204,18 @@ class _DeviceRequestSubmitPageState extends State<DeviceRequestSubmitPage> {
                         const SizedBox(height: 12),
                         // Device code display (read-only, auto-generated)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
                           decoration: BoxDecoration(
                             color: AppColors.blue.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.blue.withValues(alpha: 0.2)),
+                            border: Border.all(
+                                color: AppColors.blue.withValues(alpha: 0.2)),
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.qr_code, color: AppColors.blue, size: 18),
+                              const Icon(Icons.qr_code,
+                                  color: AppColors.blue, size: 18),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Column(
@@ -245,7 +256,8 @@ class _DeviceRequestSubmitPageState extends State<DeviceRequestSubmitPage> {
                                 decoration: InputDecoration(
                                   labelText: 'Tên thiết bị (tùy chọn)',
                                   hintText: 'VD: Máy tính bảng phòng A1',
-                                  prefixIcon: const Icon(Icons.label_outline, size: 20),
+                                  prefixIcon:
+                                      const Icon(Icons.label_outline, size: 20),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -258,13 +270,16 @@ class _DeviceRequestSubmitPageState extends State<DeviceRequestSubmitPage> {
                               const SizedBox(height: 12),
                               Container(
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey.shade400),
+                                  border:
+                                      Border.all(color: Colors.grey.shade400),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: InputDecorator(
                                   decoration: const InputDecoration(
                                     labelText: 'Phòng học (tùy chọn)',
-                                    prefixIcon: Icon(Icons.meeting_room_outlined, size: 20),
+                                    prefixIcon: Icon(
+                                        Icons.meeting_room_outlined,
+                                        size: 20),
                                     border: InputBorder.none,
                                     contentPadding: EdgeInsets.symmetric(
                                       horizontal: 12,
@@ -275,27 +290,31 @@ class _DeviceRequestSubmitPageState extends State<DeviceRequestSubmitPage> {
                                       ? const SizedBox(
                                           height: 24,
                                           width: 24,
-                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2),
                                         )
                                       : DropdownButtonHideUnderline(
                                           child: DropdownButton<Room>(
                                             isExpanded: true,
-                                            hint: const Text('-- Chọn phòng --'),
+                                            hint:
+                                                const Text('-- Chọn phòng --'),
                                             value: _selectedRoom,
                                             items: [
                                               const DropdownMenuItem<Room>(
                                                 value: null,
-                                                child: Text('-- Không chọn phòng --'),
+                                                child: Text(
+                                                    '-- Không chọn phòng --'),
                                               ),
                                               ..._rooms.map(
-                                                (room) => DropdownMenuItem<Room>(
+                                                (room) =>
+                                                    DropdownMenuItem<Room>(
                                                   value: room,
                                                   child: Text(room.displayName),
                                                 ),
                                               ),
                                             ],
-                                            onChanged: (room) =>
-                                                setState(() => _selectedRoom = room),
+                                            onChanged: (room) => setState(
+                                                () => _selectedRoom = room),
                                           ),
                                         ),
                                 ),
@@ -306,10 +325,11 @@ class _DeviceRequestSubmitPageState extends State<DeviceRequestSubmitPage> {
                         const SizedBox(height: 16),
                         SizedBox(
                           width: double.infinity,
-                          child: BlocBuilder<DevicePermissionCubit, DevicePermissionState>(
+                          child: BlocBuilder<DevicePermissionCubit,
+                              DevicePermissionState>(
                             builder: (context, cubitState) {
-                              final isSubmitting =
-                                  cubitState.requestStatus == RequestStatus.requesting;
+                              final isSubmitting = cubitState.requestStatus ==
+                                  RequestStatus.requesting;
                               return ElevatedButton.icon(
                                 onPressed: isSubmitting ? null : _submitRequest,
                                 icon: isSubmitting
@@ -319,15 +339,19 @@ class _DeviceRequestSubmitPageState extends State<DeviceRequestSubmitPage> {
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
                                           valueColor:
-                                              AlwaysStoppedAnimation<Color>(Colors.white),
+                                              AlwaysStoppedAnimation<Color>(
+                                                  Colors.white),
                                         ),
                                       )
                                     : const Icon(Icons.send, size: 18),
-                                label: Text(isSubmitting ? 'Đang gửi...' : 'Gửi yêu cầu cấp quyền'),
+                                label: Text(isSubmitting
+                                    ? 'Đang gửi...'
+                                    : 'Gửi yêu cầu cấp quyền'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.blue,
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -351,7 +375,8 @@ class _DeviceRequestSubmitPageState extends State<DeviceRequestSubmitPage> {
                             color: AppColors.green.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Icon(Icons.history, color: AppColors.green, size: 18),
+                          child: const Icon(Icons.history,
+                              color: AppColors.green, size: 18),
                         ),
                         const SizedBox(width: 8),
                         const Text(
@@ -455,7 +480,8 @@ class _DeviceRequestSubmitPageState extends State<DeviceRequestSubmitPage> {
   }
 
   Widget _buildRequestsList(DevicePermissionState state) {
-    if (state.requestStatus == RequestStatus.requesting && state.myRequests.isEmpty) {
+    if (state.requestStatus == RequestStatus.requesting &&
+        state.myRequests.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
@@ -527,17 +553,20 @@ class _DeviceRequestSubmitPageState extends State<DeviceRequestSubmitPage> {
                 children: [
                   Text(
                     request.deviceName ?? request.deviceCode,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 14),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     request.deviceCode,
-                    style: const TextStyle(color: AppColors.slate500, fontSize: 12),
+                    style: const TextStyle(
+                        color: AppColors.slate500, fontSize: 12),
                   ),
                   if (request.roomName != null)
                     Text(
                       'Phòng: ${request.roomName}',
-                      style: const TextStyle(color: AppColors.slate500, fontSize: 12),
+                      style: const TextStyle(
+                          color: AppColors.slate500, fontSize: 12),
                     ),
                 ],
               ),
@@ -546,7 +575,8 @@ class _DeviceRequestSubmitPageState extends State<DeviceRequestSubmitPage> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
@@ -560,7 +590,8 @@ class _DeviceRequestSubmitPageState extends State<DeviceRequestSubmitPage> {
                     ),
                   ),
                 ),
-                if (request.adminNote != null && request.adminNote!.isNotEmpty) ...[
+                if (request.adminNote != null &&
+                    request.adminNote!.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   SizedBox(
                     width: 120,

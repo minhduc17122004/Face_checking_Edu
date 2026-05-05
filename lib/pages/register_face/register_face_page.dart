@@ -54,6 +54,7 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
     return BlocProvider<RegisterFaceBloc>(
       create: (_) => _bloc,
       child: Scaffold(
+        backgroundColor: AppColors.backgroundLight,
         appBar: DefaultAppBar(
           titleText: 'HỌC SINH',
         ),

@@ -9,6 +9,7 @@ class DevicePermissionState {
   final String? message;
   final String? deviceCode;
   final bool isCheckingAuthorization;
+  final String? processingRequestId;
 
   DevicePermissionState({
     this.requestStatus = RequestStatus.initial,
@@ -18,6 +19,7 @@ class DevicePermissionState {
     this.message,
     this.deviceCode,
     this.isCheckingAuthorization = false,
+    this.processingRequestId,
   });
 
   DevicePermissionState copyWith({
@@ -28,23 +30,29 @@ class DevicePermissionState {
     String? message,
     String? deviceCode,
     bool? isCheckingAuthorization,
+    String? processingRequestId,
+    bool clearSelectedRequest = false,
+    bool clearProcessingRequest = false,
   }) {
     return DevicePermissionState(
       requestStatus: requestStatus ?? this.requestStatus,
       myRequests: myRequests ?? this.myRequests,
       allRequests: allRequests ?? this.allRequests,
-      selectedRequest: selectedRequest ?? this.selectedRequest,
+      selectedRequest:
+          clearSelectedRequest ? null : selectedRequest ?? this.selectedRequest,
       message: message,
       deviceCode: deviceCode ?? this.deviceCode,
-      isCheckingAuthorization: isCheckingAuthorization ?? this.isCheckingAuthorization,
+      isCheckingAuthorization:
+          isCheckingAuthorization ?? this.isCheckingAuthorization,
+      processingRequestId: clearProcessingRequest
+          ? null
+          : processingRequestId ?? this.processingRequestId,
     );
   }
 
-  bool get hasApprovedRequest =>
-      myRequests.any((r) => r.isApproved);
+  bool get hasApprovedRequest => myRequests.any((r) => r.isApproved);
 
-  bool get hasPendingRequest =>
-      myRequests.any((r) => r.isPending);
+  bool get hasPendingRequest => myRequests.any((r) => r.isPending);
 
   bool get isAuthorized => hasApprovedRequest;
 
@@ -52,4 +60,6 @@ class DevicePermissionState {
       myRequests.isEmpty ? null : myRequests.first;
 
   DeviceRequestStatus? get myLatestStatus => latestRequest?.status;
+
+  bool get isProcessingAction => processingRequestId != null;
 }

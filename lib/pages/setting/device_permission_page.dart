@@ -53,57 +53,128 @@ class _DevicePermissionViewState extends State<_DevicePermissionView> {
           onPressed: () => AppNavigator.pop(),
         ),
       ),
-      body: Column(
-        children: [
-          _buildFilterChips(),
-          Expanded(
-            child: BlocConsumer<DevicePermissionCubit, DevicePermissionState>(
-              listener: (context, state) {
-                if (state.requestStatus == RequestStatus.failed &&
-                    state.message != null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: SelectableText(state.message!),
-                      backgroundColor: AppColors.red600,
-                    ),
-                  );
-                }
-              },
-              builder: (context, state) {
-                if (state.requestStatus == RequestStatus.requesting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+      body: BlocConsumer<DevicePermissionCubit, DevicePermissionState>(
+        listener: (context, state) {
+          if (state.requestStatus == RequestStatus.failed &&
+              state.message != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: SelectableText(state.message!),
+                backgroundColor: AppColors.red600,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
+        builder: (context, state) {
+          if (state.requestStatus == RequestStatus.requesting &&
+              state.allRequests.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-                final requests = state.allRequests;
-
-                if (requests.isEmpty) {
-                  return const Center(child: Text('Không có yêu cầu nào'));
-                }
-
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    widget.cubit.loadAllRequests(status: _filterStatus);
-                  },
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: requests.length,
-                    itemBuilder: (context, index) {
-                      return _buildRequestCard(requests[index]);
-                    },
-                  ),
-                );
-              },
+          return RefreshIndicator(
+            onRefresh: () =>
+                widget.cubit.loadAllRequests(status: _filterStatus),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              children: [
+                _buildSummary(state),
+                const SizedBox(height: 12),
+                _buildFilterChips(),
+                const SizedBox(height: 12),
+                if (state.requestStatus == RequestStatus.requesting)
+                  const LinearProgressIndicator(minHeight: 2),
+                if (state.allRequests.isEmpty)
+                  _buildEmptyState()
+                else
+                  ...state.allRequests
+                      .map((request) => _buildRequestCard(request, state)),
+              ],
             ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSummary(DevicePermissionState state) {
+    final pending = state.allRequests.where((r) => r.isPending).length;
+    final approved = state.allRequests.where((r) => r.isApproved).length;
+    final rejected = state.allRequests.where((r) => r.isRejected).length;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.slate200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Danh sách thiết bị chờ cấp quyền',
+            style: TextStyle(
+              color: AppColors.slate900,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Duyệt hoặc từ chối thiết bị kiosk trước khi cho phép điểm danh theo phòng.',
+            style: TextStyle(color: AppColors.slate500, fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _summaryItem('Chờ duyệt', pending, AppColors.orange),
+              const SizedBox(width: 8),
+              _summaryItem('Đã duyệt', approved, AppColors.green),
+              const SizedBox(width: 8),
+              _summaryItem('Từ chối', rejected, AppColors.red),
+            ],
           ),
         ],
       ),
     );
   }
 
+  Widget _summaryItem(String label, int count, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$count',
+              style: TextStyle(
+                color: color,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: AppColors.slate600, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildFilterChips() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: Colors.white,
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
       child: Row(
         children: [
           _filterChip('Tất cả', null),
@@ -128,8 +199,15 @@ class _DevicePermissionViewState extends State<_DevicePermissionView> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.blue : AppColors.blue.withValues(alpha: 0.1),
+          color: isSelected
+              ? AppColors.blue
+              : AppColors.blue.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? AppColors.blue
+                : AppColors.blue.withValues(alpha: 0.2),
+          ),
         ),
         child: Text(
           label,
@@ -143,7 +221,39 @@ class _DevicePermissionViewState extends State<_DevicePermissionView> {
     );
   }
 
-  Widget _buildRequestCard(DeviceRequest request) {
+  Widget _buildEmptyState() {
+    return Container(
+      margin: const EdgeInsets.only(top: 32),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.slate200),
+      ),
+      child: const Column(
+        children: [
+          Icon(Icons.devices_other_outlined,
+              size: 44, color: AppColors.slate400),
+          SizedBox(height: 12),
+          Text(
+            'Không có yêu cầu nào',
+            style: TextStyle(
+              color: AppColors.slate700,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            'Kéo xuống để tải lại danh sách yêu cầu thiết bị.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.slate500, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRequestCard(DeviceRequest request, DevicePermissionState state) {
     Color statusColor;
     IconData statusIcon;
     switch (request.status) {
@@ -160,11 +270,14 @@ class _DevicePermissionViewState extends State<_DevicePermissionView> {
         statusIcon = Icons.pending;
     }
 
+    final isProcessing = state.processingRequestId == request.id;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 1,
+      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: AppColors.slate200),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -204,7 +317,8 @@ class _DevicePermissionViewState extends State<_DevicePermissionView> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -231,11 +345,13 @@ class _DevicePermissionViewState extends State<_DevicePermissionView> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Icon(Icons.meeting_room, size: 14, color: AppColors.slate500),
+                  const Icon(Icons.meeting_room,
+                      size: 14, color: AppColors.slate500),
                   const SizedBox(width: 4),
                   Text(
                     'Phòng: ${request.roomName}',
-                    style: const TextStyle(color: AppColors.slate500, fontSize: 13),
+                    style: const TextStyle(
+                        color: AppColors.slate500, fontSize: 13),
                   ),
                 ],
               ),
@@ -253,7 +369,9 @@ class _DevicePermissionViewState extends State<_DevicePermissionView> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => _showRejectDialog(request),
+                      onPressed: isProcessing
+                          ? null
+                          : () => _showRejectDialog(request),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.red,
                         side: const BorderSide(color: AppColors.red),
@@ -264,12 +382,23 @@ class _DevicePermissionViewState extends State<_DevicePermissionView> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => widget.cubit.approveRequest(request.id),
+                      onPressed: isProcessing
+                          ? null
+                          : () => _showApproveDialog(request),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.green,
                         foregroundColor: Colors.white,
                       ),
-                      child: const Text('Duyệt'),
+                      child: isProcessing
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Duyệt'),
                     ),
                   ),
                 ],
@@ -277,6 +406,36 @@ class _DevicePermissionViewState extends State<_DevicePermissionView> {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  void _showApproveDialog(DeviceRequest request) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Duyệt thiết bị'),
+        content: Text(
+          'Cho phép thiết bị "${request.deviceName ?? request.deviceCode}" sử dụng điểm danh'
+          '${request.roomName == null ? ' cho tất cả phòng?' : ' tại phòng ${request.roomName}?'}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              widget.cubit.approveRequest(request.id);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Duyệt'),
+          ),
+        ],
       ),
     );
   }
@@ -302,7 +461,8 @@ class _DevicePermissionViewState extends State<_DevicePermissionView> {
               Navigator.pop(dialogContext);
               widget.cubit.rejectRequest(
                 request.id,
-                adminNote: noteController.text.isNotEmpty ? noteController.text : null,
+                adminNote:
+                    noteController.text.isNotEmpty ? noteController.text : null,
               );
             },
             style: ElevatedButton.styleFrom(

@@ -1,8 +1,9 @@
 class FaceData {
-  final int empId;
+  final int studentId;
   final DateTime updatedTime;
   final List<List<double>> listFaceEmbedding;
   String? personName;
+
   /// Mã SV (MSSV) — stable identifier across DB resets.
   /// Mapped từ `pin` của Person / `student_code` của backend.
   String? studentCode;
@@ -16,7 +17,7 @@ class FaceData {
   final DateTime serverUpdatedAt;
 
   FaceData({
-    required this.empId,
+    required this.studentId,
     required this.updatedTime,
     required this.listFaceEmbedding,
     this.personName,
@@ -26,7 +27,7 @@ class FaceData {
   }) : serverUpdatedAt = serverUpdatedAt ?? updatedTime;
 
   factory FaceData.fromJson(Map<String, dynamic> json) {
-    // Backend trả về 'studentId'; legacy local data dùng 'empId'
+    // Backend trả về 'studentId'; legacy local data dùng 'empId'.
     final id = (json['studentId'] ?? json['empId']) as int;
 
     // Parse server timestamp — prefer 'updated_at' (ISO-8601 UTC from server),
@@ -37,7 +38,7 @@ class FaceData {
         : DateTime.now().toUtc();
 
     return FaceData(
-        empId: id,
+        studentId: id,
         updatedTime: updatedTime,
         serverUpdatedAt: updatedTime,
         listFaceEmbedding: (json['listFaceEmbedding'] as List)
@@ -52,8 +53,9 @@ class FaceData {
   Map<String, dynamic> toJson() {
     // Backend import_from_file() ưu tiên 'studentCode' (MSSV) → fallback 'studentId'
     return {
-      'studentId': empId,
-      'studentCode': studentCode, // stable identifier — backend sẽ lookup theo đây trước
+      'studentId': studentId,
+      'studentCode':
+          studentCode, // stable identifier — backend sẽ lookup theo đây trước
       'updatedTime': updatedTime.toIso8601String().split('.').first,
       'listFaceEmbedding': listFaceEmbedding,
       'personName': personName,
